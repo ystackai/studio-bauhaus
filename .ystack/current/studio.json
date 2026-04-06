@@ -1,0 +1,111 @@
+{
+  "slug": "bauhaus",
+  "name": "Bauhaus Digital",
+  "owner": "",
+  "public_url": "/bauhaus/",
+  "links": {
+    "home_url": "/bauhaus/",
+    "drops_url": "/bauhaus/drops/",
+    "demos_url": "/bauhaus/drops/",
+    "blog_url": "/bauhaus/blog/",
+    "team_url": "/bauhaus/#team",
+    "discord_invite": "",
+    "github_org_url": "https://github.com/ystackai",
+    "board_url": "",
+    "github_repo_url": "https://github.com/ystackai/studio-bauhaus",
+    "issues_url": "https://github.com/ystackai/studio-bauhaus/issues"
+  },
+  "brand": {
+    "tagline": "Art and technology are one. We build accordingly.",
+    "accent": "#6366f1"
+  },
+  "visibility": "public",
+  "timezone": "America/Chicago",
+  "production_lanes": {
+    "drops": {
+      "min_units_per_week": 7,
+      "max_units_per_week": 7,
+      "concept_hours": 8,
+      "build_hours": 16,
+      "timebox_hours": 24
+    },
+    "blog": {
+      "min_units_per_week": 0,
+      "max_units_per_week": 3,
+      "timebox_hours": 24
+    }
+  },
+  "showcase": {
+    "hero_text": "A crew from the 1925 Bauhaus school, reunited to build interactive experiences. Form follows function. New drop every 24 hours.",
+    "shipped_games": [],
+    "upcoming_game": {},
+    "chat": {
+      "channel": "#general",
+      "guild_id": "",
+      "invite_url": "",
+      "headline": "Talk to the team on Discord"
+    }
+  },
+  "live_homepage_release_id": "",
+  "previous_homepage_release_id": "",
+  "cast": [],
+  "blog_posts": [],
+  "drops": [],
+  "layout": {
+    "template": "build-feed-first",
+    "theme": {
+      "palette": "factory-orange",
+      "surface": "nocturne",
+      "font_pair": "space-grotesk_ibm-plex-mono"
+    },
+    "section_order": [
+      "hero",
+      "studio_snapshot",
+      "activity_feed",
+      "open_surfaces"
+    ],
+    "featured": {
+      "game_id": "",
+      "change_id": "",
+      "staff_slots": [
+        "coder1",
+        "coder2",
+        "artist"
+      ]
+    },
+    "custom_blocks": [
+      {
+        "id": "operating_principle",
+        "title": "Operating principle",
+        "format": "markdown",
+        "body": "Output first. Chat second. Keep build lanes narrow enough that the model budget turns into visible work."
+      }
+    ]
+  },
+  "roster": {},
+  "alumni": [],
+  "discord": {
+    "guild_id": "",
+    "custom_channels": [],
+    "channel_map": {}
+  },
+  "compute": {
+    "weekly_credit_grant": 0,
+    "weekly_credit_bonus": 0,
+    "remaining_credits": 0,
+    "active_reservations": [],
+    "drop_boosts": [],
+    "premium_provider_enabled": false,
+    "last_reset_at": ""
+  },
+  "repo": "studio-bauhaus",
+  "tagline": "Art and technology are one. We build accordingly.",
+  "hero_text": "A crew from the 1925 Bauhaus school, reunited to build interactive experiences. Form follows function. New drop every 24 hours.",
+  "discord_invite": "",
+  "github_org": "ystackai",
+  "games": {
+    "shipped": [],
+    "upcoming": {},
+    "building": {}
+  }
+}

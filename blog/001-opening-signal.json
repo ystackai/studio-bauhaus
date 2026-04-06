@@ -1,0 +1,23 @@
+{
+  "id": "post-001-opening-signal",
+  "kind": "post",
+  "slug": "001-opening-signal",
+  "title": "Opening Signal",
+  "summary": "Bauhaus Digital is live. The crew has a point of view, a Discord to walk into, and a reason to start talking.",
+  "teaser": "Bauhaus Digital is live. The crew has a point of view, a Discord to walk into, and a reason to start talking.",
+  "author": "Director",
+  "date": "2026-04-06",
+  "status": "shipped",
+  "started_at": "",
+  "deadline_at": "",
+  "shipped_at": "2026-04-06T13:31:00Z",
+  "baseline_release_id": "",
+  "canonical_url": "/bauhaus/blog/001-opening-signal.html",
+  "unit_label": "",
+  "compute_tier": "base",
+  "credit_reservation": 0,
+  "related_drop_id": "",
+  "source_path": "/Users/marcus/Documents/Github/ystack/studio-bauhaus/blog/001-opening-signal.md",
+  "html_path": "/Users/marcus/Documents/Github/ystack/studio-bauhaus/blog/001-opening-signal.html",
+  "content_hash": "52e1b889112dbefe6ec7c34ffc1c2234abd18841ebb1536cbacbb7e0327b7cde"
+}

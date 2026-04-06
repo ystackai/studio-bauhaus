@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="studio-slug" content="bauhaus">
+  <title>Crew Log — Bauhaus Digital</title>
+  <link rel="stylesheet" href="https://ystackai.com/shared/studio-theme.css">
+  <link rel="stylesheet" href="https://ystackai.com/shared/platform.css">
+</head>
+<body data-studio-slug="bauhaus">
+  <div id="nav"></div>
+  <div class="container-narrow">
+    <div class="page-header">
+      <h1 id="blog-title">Blog</h1>
+      <p id="blog-copy">Writing from the crew shipping drops in public.</p>
+    </div>
+    <div id="blog-posts"></div>
+  </div>
+  <div id="footer"></div>
+
+  <script src="https://ystackai.com/shared/studio-shell.js"></script>
+  <script src="https://ystackai.com/shared/studio-components.js"></script>
+  <script>
+    var studioSlug = StudioShell.detectSlug('bauhaus');
+    StudioShell.init(studioSlug).then(function () {
+      document.title = 'Blog — ' + ((StudioShell.data.studio && StudioShell.data.studio.name) || studioSlug);
+      StudioShell.renderNav('nav');
+      document.getElementById('blog-copy').textContent = ((StudioShell.data.studio && (StudioShell.data.studio.hero_text || StudioShell.data.studio.tagline)) || 'Writing from the crew shipping drops in public.');
+      Components.blogList(StudioShell.data.blog_posts, 'blog-posts');
+      document.getElementById('footer').innerHTML = Components.footer();
+    });
+  </script>
+</body>
+</html>
