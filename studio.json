@@ -5,7 +5,7 @@
   "visibility": "public",
   "tagline": "Art and technology are one. We build accordingly.",
   "hero_text": "A crew from the 1925 Bauhaus school, reunited to build interactive experiences. Form follows function. New drop every 24 hours.",
-  "discord_invite": "",
+  "discord_invite": "https://discord.gg/pbTfP8qn3m",
   "github_org": "ystackai",
   "links": {
     "home_url": "/bauhaus/",
@@ -31,9 +31,24 @@
     }
   },
   "discord": {
-    "guild_id": "",
-    "custom_channels": [],
-    "channel_map": {}
+    "guild_id": "1483989123516596225",
+    "custom_channels": [
+      "bauhaus",
+      "bauhaus-build",
+      "bauhaus-radio"
+    ],
+    "channel_map": {
+      "#announcements": "#bauhaus-radio",
+      "#engineering": "#bauhaus-build",
+      "#feedback": "#bauhaus-radio",
+      "#general": "#bauhaus",
+      "#happy-hour": "#bauhaus",
+      "#investors": "#bauhaus-radio",
+      "#random": "#bauhaus",
+      "#sales": "#bauhaus-radio",
+      "#standup": "#bauhaus-build",
+      "#talk-to-the-team": "#bauhaus-radio"
+    }
   },
   "compute": {
     "weekly_credit_grant": 0,
