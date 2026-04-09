@@ -2,6 +2,7 @@
   "slug": "bauhaus",
   "repo": "studio-bauhaus",
   "name": "Bauhaus Digital",
+  "brief_synthesizer_slot": "writer",
   "visibility": "public",
   "tagline": "Art and technology are one. We build accordingly.",
   "hero_text": "A crew from the 1925 Bauhaus school, reunited to build interactive experiences. Form follows function. New drop every 24 hours.",
