@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resonant Weave</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #1a1814;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="weaveCanvas"></canvas>
+  <script>
+    (function () {
+      "use strict";
+
+      /* ─── constants ─── */
+      const C2  = 65.41;   // C2 Hz
+      const E2  = 82.41;   // E2 Hz
+      const G2  = 98.00;   // G2 Hz
+      const GRAIN_FREQ_X = 3;  // linen grain cycles across width
+      const GRAIN_FREQ_Y = 5;  // linen grain cycles across height
+      const JITTER_AMP = 1.2;  // max pixel jitter from sound amplitude
+
+      /* ─── canvas setup ─── */
+      const canvas = document.getElementById("weaveCanvas");
+      const ctx    = canvas.getContext("2d", { willReadFrequently: true });
+
+      function resize() {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+        if (ctx.getImageData) { _dirty = true; }
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      /* ─── procedural linen texture cache ─── */
+      let texW, texH, texCanvas, texCtx, texPixels;
+
+      function buildLinenTexture() {
+        const w = Math.max(256, Math.floor(canvas.width / 4));
+        const h = Math.max(256, Math.floor(canvas.height / 4));
+        texCanvas = document.createElement("canvas");
+        texCanvas.width  = w;
+        texCanvas.height = h;
+        texCtx = texCanvas.getContext("2d", { willReadFrequently: true });
+
+        /* simple value noise */
+        function hash(x, y) {
+          let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+          return n - Math.floor(n);
+        }
+        function smoothNoise(x, y) {
+          const ix = Math.floor(x), iy = Math.floor(y);
+          const fx = x - ix, fy = y - iy;
+          const sx = fx * fx * (3 - 2 * fx);
+          const sy = fy * fy * (3 - 2 * fy);
+          return (hash(ix, iy) * (1 - sx) + hash(ix + 1, iy) * sx) * (1 - sy)
+               + (hash(ix, iy + 1) * (1 - sx) + hash(ix + 1, iy + 1) * sx) * sy;
+        }
+
+        const img = texCtx.createImageData(w, h);
+        const d   = img.data;
+
+        /* multi-octave linen grain */
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const wx = (x / w) * GRAIN_FREQ_X;
+            const wy = (y / h) * GRAIN_FREQ_Y;
+
+            /* cross-hatch weave */
+            const horiz = smoothNoise(wx * 1.0, wy * 8.0) * 255;
+            const vert  = smoothNoise(wx * 8.0, wy * 1.0) * 255;
+            const weave = (horiz + vert) / 2;
+
+            /* fine grain overlay */
+            const grain = smoothNoise(wx * 64.0 + 0.5, wy * 64.0 + 0.5) * 30;
+
+            const i = (y * w + x) * 4;
+            d[i]     = weave + grain;       // R
+            d[i + 1] = weave + grain - 3;   // G
+            d[i + 2] = weave + grain - 6;   // B
+            d[i + 3] = 200;                  // A (semi-transparent)
+          }
+        }
+
+        texCtx.putImageData(img, 0, 0);
+        texPixels = img.data;
+      }
+
+      let _dirty = true;
+      function ensureTexture() {
+        if (_dirty) { buildLinenTexture(); _dirty = false; }
+      }
+
+      /* ─── Web Audio: C-major hum with breathy envelope ─── */
+      let audioCtx, masterGain, oscillators, envGains;
+
+      function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0;
+        masterGain.connect(audioCtx.destination);
+
+        /* three oscillators for C2, E2, G2 */
+        const freqs = [C2, E2, G2];
+        const oscTypes = ["sine", "sine", "sine"];
+        const baseAmps = [0.35, 0.22, 0.18];
+
+        oscillators = [];
+        envGains    = [];
+
+        freqs.forEach((freq, idx) => {
+          const osc   = audioCtx.createOscillator();
+          const gain  = audioCtx.createGain();
+
+          /* slight detune for organic warmth */
+          osc.detune.value = (Math.random() - 0.5) * 6;
+          osc.type = oscTypes[idx];
+          osc.frequency.value = freq;
+
+          osc.connect(gain);
+          gain.connect(masterGain);
+          osc.start();
+
+          oscillators.push(osc);
+          envGains.push(gain);
+        });
+      }
+
+      /* breathy ADSR-like envelope, continuously looping */
+      const ENVELOPE_DURATION = 8; // seconds per breath cycle
+      let envPhase = 0;
+      let lastEnvTick = 0;
+
+      function updateEnvelope(time) {
+        if (!audioCtx) return;
+        const elapsed = (time - lastEnvTick) / 1000;
+        envPhase = (envPhase + elapsed) % ENVELOPE_DURATION;
+
+        /* breathy rise and slow decay */
+        const t = envPhase / ENVELOPE_DURATION; // 0..1
+        const breath = Math.sin(t * Math.PI);    // smooth bell curve
+        const amplitude = 0.06 + breath * 0.04; // subtle range
+
+        envGains.forEach((g) => {
+          g.gain.setTargetAtTime(amplitude, audioCtx.currentTime, 0.3);
+        });
+      }
+
+      /* instantaneous amplitude sum for jitter feedback */
+      function totalAmplitude() {
+        return envGains.reduce((s, g) => s + (g.gain.value || 0), 0);
+      }
+
+      /* ─── animation loop ─── */
+      let lastTime = 0;
+
+      function draw(time) {
+        const dt = time - lastTime;
+        lastTime = time;
+        if (!lastEnvTick) lastEnvTick = time;
+
+        ensureTexture();
+
+        const w = canvas.width, h = canvas.height;
+
+        /* ── background: warm linen colour ── */
+        ctx.fillStyle = "#1a1814";
+        ctx.fillRect(0, 0, w, h);
+
+        /* compute per-frequency jitter offsets */
+        const amp     = totalAmplitude();
+        const t       = time * 0.001;           // seconds as float
+        const cPhase  = t * C2;                  // C2 phase
+        const ePhase  = t * E2;
+        const gPhase  = t * G2;
+
+        /* weave horizontal threads with micro-jitter */
+        ctx.save();
+        ctx.globalCompositeOperation = "softlight";
+
+        const threadSpacingX = Math.max(12, Math.floor(w / 60));
+        const threadSpacingY = Math.max(8,  Math.floor(h / 45));
+
+        for (let y = -threadSpacingY; y < h + threadSpacingY; y += threadSpacingY) {
+          /* Jitter per-thread based on G2 waveform */
+          const gy = y + Math.sin(gPhase + y * 0.15) * amp * JITTER_AMP * 1.5;
+
+          ctx.strokeStyle = `rgba(210, 195, 170, ${0.08 + amp * 0.04})`;
+          ctx.lineWidth   = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(0, gy);
+          for (let x = 0; x <= w; x += 3) {
+            /* sub-pixel wavering from C2 */
+            const jitter = Math.sin(cPhase + x * 0.008 + y * 0.004) * amp * JITTER_AMP;
+            ctx.lineTo(x, gy + jitter);
+          }
+          ctx.stroke();
+        }
+
+        /* vertical threads with E2-correlated jitter */
+        for (let x = -threadSpacingX; x < w + threadSpacingX; x += threadSpacingX) {
+          const gx = x + Math.sin(ePhase + x * 0.12) * amp * JITTER_AMP * 1.2;
+
+          ctx.strokeStyle = `rgba(200, 185, 160, ${0.07 + amp * 0.03})`;
+          ctx.lineWidth   = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(gx, 0);
+          for (let y = 0; y <= h; y += 3) {
+            const jitter = Math.sin(ePhase + y * 0.012 + x * 0.006) * amp * JITTER_AMP * 0.8;
+            ctx.lineTo(gx + jitter, y);
+          }
+          ctx.stroke();
+        }
+
+        /* linen texture overlay */
+        ctx.globalAlpha = 0.12 + amp * 0.05;
+        for (let ty = 0; ty < h; ty += texH) {
+          for (let tx = 0; tx < w; tx += texW) {
+            ctx.drawImage(texCanvas, tx, ty);
+          }
+        }
+
+        /* fine noise grain overlay */
+        const grainData = ctx.getImageData(0, 0, w, h);
+        const gd = grainData.data;
+        for (let i = 0; i < gd.length; i += 4) {
+          const n = (Math.random() - 0.5) * (6 + amp * 10);
+          gd[i]     += n;
+          gd[i + 1] += n - 1;
+          gd[i + 2] += n - 2;
+        }
+        ctx.putImageData(grainData, 0, 0);
+
+        /* radial vignette */
+        const cx = w / 2, cy = h / 2;
+        const radius = Math.sqrt(cx * cx + cy * cy);
+        const vig = ctx.createRadialGradient(cx, cy, radius * 0.3, cx, cy, radius);
+        vig.addColorStop(0, "rgba(26, 24, 20, 0)");
+        vig.addColorStop(1, "rgba(10, 9, 7, 0.6)");
+        ctx.globalAlpha = 1;
+        ctx.fillStyle   = vig;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.restore();
+
+        /* envelope update */
+        updateEnvelope(time);
+
+        requestAnimationFrame(draw);
+      }
+
+      /* ─── user-gesture bootstrap for AudioContext ─── */
+      let started = false;
+
+      function startAudio() {
+        if (started) return;
+        initAudio();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        lastEnvTick = performance.now();
+        started = true;
+      }
+
+      document.addEventListener("click",  startAudio, { once: true });
+      document.addEventListener("keydown", startAudio, { once: true });
+      document.addEventListener("touchstart", startAudio, { once: true });
+
+      /* always start if audio context auto-plays (some browsers allow this) */
+      try { initAudio(); } catch (_) { /* not ready yet */ }
+
+      /* kick off the render loop */
+      requestAnimationFrame(draw);
+
+    })();
+  </script>
+</body>
+</html>
