@@ -1,290 +1,390 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Resonant Weave</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #1a1814;
-      touch-action: none;
-    }
-    canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-    }
-  </style>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Resonant Weave</title>
+   <style>
+      body {
+         margin: 0;
+         padding: 0;
+         overflow: hidden;
+         background: #1a1814;
+         touch-action: none;
+         position: fixed;
+         inset: 0;
+      }
+
+      /* ── SVG filter definition (hidden) ── */
+      .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+      /* ── CSS-filtered linen layer ── */
+      #weaveFilterLayer {
+         position: fixed;
+         inset: 0;
+         width: 100vw;
+         height: 100vh;
+         pointer-events: none;
+         z-index: 2;
+         /* SVG filter creates wet linen turbulence with micro-scale fractal noise */
+         filter: url(#wetLinen);
+         /* subtle breathing scale — no hard transitions */
+         animation: weaveBreath 8s ease-in-out infinite alternate;
+      }
+
+      @keyframes weaveBreath {
+         0%   { transform: scale(1.000) translate(0, 0); opacity: 0.92; }
+         50%  { transform: scale(1.003) translate(0.6px, -0.4px); opacity: 0.97; }
+         100% { transform: scale(1.001) translate(-0.3px, 0.5px); opacity: 0.94; }
+      }
+
+      /* ── Canvas sits beneath filter layer, renders warm base canvas ── */
+      #weaveCanvas {
+         display: block;
+         width: 100vw;
+         height: 100vh;
+         position: fixed;
+         inset: 0;
+         z-index: 1;
+      }
+
+      /* hidden canvas used as SVG filter source texture */
+      #textureCanvas {
+         position: absolute;
+         width: 512px;
+         height: 512px;
+         pointer-events: none;
+      }
+   </style>
 </head>
 <body>
-  <canvas id="weaveCanvas"></canvas>
-  <script>
-    (function () {
-      "use strict";
 
-      /* ─── constants ─── */
-      const C2  = 65.41;   // C2 Hz
-      const E2  = 82.41;   // E2 Hz
-      const G2  = 98.00;   // G2 Hz
-      const GRAIN_FREQ_X = 3;  // linen grain cycles across width
-      const GRAIN_FREQ_Y = 5;  // linen grain cycles across height
-      const JITTER_AMP = 1.2;  // max pixel jitter from sound amplitude
+<!-- SVG filters: wet linen turbulence + displacement + subtle blur -->
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Wet linen procedural noise via fractal Brownian motion -->
+    <filter id="wetLinen" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence
+         type="fractalNoise"
+         baseFrequency="0.012 0.018"
+         numOctaves="4"
+         seed="7"
+         stitchTiles="stitch"
+         result="noise"
+      />
+      <!-- slight blur to keep edges soft, never hard -->
+      <feGaussianBlur in="noise" stdDeviation="0.6" result="softNoise"/>
+      <!-- Displacement map warps texture like wet cloth fibers -->
+      <feDisplacementMap
+         in="SourceGraphic"
+         in2="softNoise"
+         scale="3"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         result="displaced"
+      />
+      <!-- Subtle brightness modulation for wet sheen -->
+      <feComponentTransfer in="displaced" result="sheen">
+        <feFuncA type="linear" slope="1.08"/>
+      </feComponentTransfer>
+      <!-- Tone-map to warm linen palette -->
+      <feColorMatrix
+         type="matrix"
+         values="
+            0.72  0.05  0.00  0.00  0.14
+            0.03  0.68  0.00  0.00  0.12
+            0.00  0.04  0.58  0.00  0.10
+            0.00  0.00  0.00  0.60  0.00"
+         in="sheen"
+         result="linenTint"
+      />
+    </filter>
 
-      /* ─── canvas setup ─── */
-      const canvas = document.getElementById("weaveCanvas");
-      const ctx    = canvas.getContext("2d", { willReadFrequently: true });
+    <!-- Second-layer turbulence that gets animated via JS seed update -->
+    <filter id="microJitter" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence
+         type="fractalNoise"
+         baseFrequency="0.06 0.08"
+         numOctaves="2"
+         seed="42"
+         stitchTiles="stitch"
+         result="jitterNoise"
+      />
+      <feDisplacementMap
+         in="SourceGraphic"
+         in2="jitterNoise"
+         scale="1.5"
+         xChannelSelector="R"
+         yChannelSelector="B"
+      />
+    </filter>
+  </defs>
+</svg>
 
-      function resize() {
-        canvas.width  = window.innerWidth;
-        canvas.height = window.innerHeight;
-        if (ctx.getImageData) { _dirty = true; }
+<!-- Main filter layer: textured overlay driven by SVG feTurbulence -->
+<canvas id="weaveFilterLayer"></canvas>
+
+<!-- Primary rendering canvas: threads + grain -->
+<canvas id="weaveCanvas"></canvas>
+
+<!-- Hidden tile texture for CSS filter source reuse -->
+<canvas id="textureCanvas" width="512" height="512"></canvas>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ─── audio frequencies: C-major low hum ─── */
+  const C2 = 65.41;    // C2 Hz
+  const E2 = 82.41;    // E2 Hz
+  const G2 = 98.00;    // G2 Hz
+  const JITTER_AMP = 1.2;
+
+  /* ─── canvases ─── */
+  const mainCanvas   = document.getElementById("weaveCanvas");
+  const mainCtx      = mainCanvas.getContext("2d", { willReadFrequently: true });
+  const filterLayer  = document.getElementById("weaveFilterLayer");
+  const filterCtx    = filterLayer.getContext("2d", { willReadFrequently: false });
+  const texCanvas    = document.getElementById("textureCanvas");
+  const texCtx       = texCanvas.getContext("2d", { willReadFrequently: false });
+
+  function resize() {
+    mainCanvas.width   = window.innerWidth;
+    mainCanvas.height  = window.innerHeight;
+    filterLayer.width  = window.innerWidth;
+    filterLayer.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  /* ─── procedural linen tile (drawn once, reused) ─── */
+  let texDirty = true;
+
+  function buildTile() {
+    const w = texCanvas.width, h = texCanvas.height;
+    const img = texCtx.createImageData(w, h);
+    const d   = img.data;
+
+    /* hash for smooth noise */
+    function hash(x, y) {
+      let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+      return n - Math.floor(n);
+    }
+    function smooth(x, y) {
+      const ix = Math.floor(x), iy = Math.floor(y);
+      let fx = x - ix, fy = y - iy;
+      fx = fx * fx * (3 - 2 * fx);
+      fy = fy * fy * (3 - 2 * fy);
+      return hash(ix,iy)*(1-fx)*(1-fy) + hash(ix+1,iy)*fx*(1-fy)
+           + hash(ix,iy+1)*(1-fx)*fy  + hash(ix+1,iy+1)*fx*fy;
+    }
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const wx = (x / w) * 3, wy = (y / h) * 5;
+        let horiz = smooth(wx * 1.0, wy * 8.0) * 255;
+        let vert  = smooth(wx * 8.0, wy * 1.0) * 255;
+        let weave = (horiz + vert) / 2;
+        let grain = smooth(wx * 64 + 0.5, wy * 64 + 0.5) * 30;
+
+        const i = (y * w + x) * 4;
+        d[i]     = weave + grain;
+        d[i + 1] = weave + grain - 3;
+        d[i + 2] = weave + grain - 6;
+        d[i + 3] = 180;
       }
-      window.addEventListener("resize", resize);
-      resize();
+    }
+    texCtx.putImageData(img, 0, 0);
+    texDirty = false;
+  }
 
-      /* ─── procedural linen texture cache ─── */
-      let texW, texH, texCanvas, texCtx, texPixels;
+  /* ─── Web Audio: C-major hum (C2 / E2 / G2) ─── */
+  let audioCtx, masterGain, oscs, envGains;
 
-      function buildLinenTexture() {
-        const w = Math.max(256, Math.floor(canvas.width / 4));
-        const h = Math.max(256, Math.floor(canvas.height / 4));
-        texCanvas = document.createElement("canvas");
-        texCanvas.width  = w;
-        texCanvas.height = h;
-        texCtx = texCanvas.getContext("2d", { willReadFrequently: true });
+  function initAudio() {
+    if (audioCtx) return;
+    audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0;
+    masterGain.connect(audioCtx.destination);
 
-        /* simple value noise */
-        function hash(x, y) {
-          let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-          return n - Math.floor(n);
-        }
-        function smoothNoise(x, y) {
-          const ix = Math.floor(x), iy = Math.floor(y);
-          const fx = x - ix, fy = y - iy;
-          const sx = fx * fx * (3 - 2 * fx);
-          const sy = fy * fy * (3 - 2 * fy);
-          return (hash(ix, iy) * (1 - sx) + hash(ix + 1, iy) * sx) * (1 - sy)
-               + (hash(ix, iy + 1) * (1 - sx) + hash(ix + 1, iy + 1) * sx) * sy;
-        }
+    const freqs  = [C2, E2, G2];
+    const amps   = [0.35, 0.22, 0.18];
 
-        const img = texCtx.createImageData(w, h);
-        const d   = img.data;
+    oscs      = [];
+    envGains  = [];
 
-        /* multi-octave linen grain */
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const wx = (x / w) * GRAIN_FREQ_X;
-            const wy = (y / h) * GRAIN_FREQ_Y;
+    freqs.forEach((freq, i) => {
+      const osc  = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.detune.value = (Math.random() - 0.5) * 6;
+      osc.type   = "sine";
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start();
+      oscs.push(osc);
+      envGains.push(gain);
+    });
+  }
 
-            /* cross-hatch weave */
-            const horiz = smoothNoise(wx * 1.0, wy * 8.0) * 255;
-            const vert  = smoothNoise(wx * 8.0, wy * 1.0) * 255;
-            const weave = (horiz + vert) / 2;
+  const ENV_DUR = 8; // seconds per breath cycle
+  let envPhase = 0, lastEnvTick = 0;
 
-            /* fine grain overlay */
-            const grain = smoothNoise(wx * 64.0 + 0.5, wy * 64.0 + 0.5) * 30;
+  function updateEnvelope(t) {
+    if (!audioCtx) return;
+    const el = (t - lastEnvTick) / 1000;
+    envPhase = (envPhase + el) % ENV_DUR;
+    const frac = envPhase / ENV_DUR;
+    const breath = Math.sin(frac * Math.PI); // bell curve
+    const amp    = 0.06 + breath * 0.04;
 
-            const i = (y * w + x) * 4;
-            d[i]     = weave + grain;       // R
-            d[i + 1] = weave + grain - 3;   // G
-            d[i + 2] = weave + grain - 6;   // B
-            d[i + 3] = 200;                  // A (semi-transparent)
-          }
-        }
+    envGains.forEach(g => {
+      g.gain.setTargetAtTime(amp, audioCtx.currentTime, 0.3);
+    });
+  }
 
-        texCtx.putImageData(img, 0, 0);
-        texPixels = img.data;
+  function totalAmp() {
+    return envGains.reduce((s, g) => s + (g.gain.value || 0), 0);
+  }
+
+  /* ─── update CSS filter turbulence seed for jitter sync ─── */
+  const wetLinenFilter = document.getElementById("wetLinen");
+  const microJitterFilter = document.getElementById("microJitter");
+
+  function updateFilters(t) {
+    if (!audioCtx) return;
+    const a  = totalAmp();
+    const s1 = Math.floor(a * 60 + Date.now() % 7);  // slow turbulence drift
+    const s2 = Math.floor(t * C2 * 0.05) % 300;       // fast jitter seed tied to C2
+
+    wetLinenFilter.setAttribute("seed", String(s1));
+    microJitterFilter.setAttribute("seed", String(s2));
+    wetLinenFilter.querySelector("[id$='noise']")
+      .setAttribute("scale", String(3 + a * 4));
+  }
+
+  /* ─── animation loop ─── */
+  let lastTime = 0;
+
+  function draw(t) {
+    const dt = t - lastTime;
+    lastTime = t;
+    if (!lastEnvTick) lastEnvTick = t;
+
+    const w = mainCanvas.width, h = mainCanvas.height;
+    const amp  = totalAmp();
+    const sec  = t * 0.001;
+
+    /* ── phase offsets per oscillator ── */
+    const cP = sec * C2;
+    const eP = sec * E2;
+    const gP = sec * G2;
+
+    /* ── warm base fill ── */
+    mainCtx.fillStyle = "#1a1814";
+    mainCtx.fillRect(0, 0, w, h);
+
+    /* ── draw linen tile once for filter source ── */
+    if (texDirty) buildTile();
+    filterCtx.clearRect(0, 0, w, h);
+    const tw = texCanvas.width, th = texCanvas.height;
+    for (let fy = 0; fy < h; fy += th) {
+      for (let fx = 0; fx < w; fx += tw) {
+        filterCtx.drawImage(texCanvas, fx, fy);
       }
+    }
 
-      let _dirty = true;
-      function ensureTexture() {
-        if (_dirty) { buildLinenTexture(); _dirty = false; }
+    /* ── horizontal threads (G2-correlated jitter) ── */
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = "softlight";
+
+    const spX = Math.max(12, Math.floor(w / 60));
+    const spY = Math.max(8,  Math.floor(h / 45));
+
+    for (let y = -spY; y < h + spY; y += spY) {
+      const gy = y + Math.sin(gP + y * 0.15) * amp * JITTER_AMP * 1.5;
+      mainCtx.strokeStyle = `rgba(210,195,170,${0.08 + amp * 0.04})`;
+      mainCtx.lineWidth   = 0.6;
+      mainCtx.beginPath();
+      mainCtx.moveTo(0, gy);
+      for (let x = 0; x <= w; x += 3) {
+        const j = Math.sin(cP + x * 0.008 + y * 0.004) * amp * JITTER_AMP;
+        mainCtx.lineTo(x, gy + j);
       }
+      mainCtx.stroke();
+    }
 
-      /* ─── Web Audio: C-major hum with breathy envelope ─── */
-      let audioCtx, masterGain, oscillators, envGains;
-
-      function initAudio() {
-        if (audioCtx) return;
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        masterGain = audioCtx.createGain();
-        masterGain.gain.value = 0;
-        masterGain.connect(audioCtx.destination);
-
-        /* three oscillators for C2, E2, G2 */
-        const freqs = [C2, E2, G2];
-        const oscTypes = ["sine", "sine", "sine"];
-        const baseAmps = [0.35, 0.22, 0.18];
-
-        oscillators = [];
-        envGains    = [];
-
-        freqs.forEach((freq, idx) => {
-          const osc   = audioCtx.createOscillator();
-          const gain  = audioCtx.createGain();
-
-          /* slight detune for organic warmth */
-          osc.detune.value = (Math.random() - 0.5) * 6;
-          osc.type = oscTypes[idx];
-          osc.frequency.value = freq;
-
-          osc.connect(gain);
-          gain.connect(masterGain);
-          osc.start();
-
-          oscillators.push(osc);
-          envGains.push(gain);
-        });
+    /* ── vertical threads (E2-correlated jitter) ── */
+    for (let x = -spX; x < w + spX; x += spX) {
+      const gx = x + Math.sin(eP + x * 0.12) * amp * JITTER_AMP * 1.2;
+      mainCtx.strokeStyle = `rgba(200,185,160,${0.07 + amp * 0.03})`;
+      mainCtx.lineWidth   = 0.5;
+      mainCtx.beginPath();
+      mainCtx.moveTo(gx, 0);
+      for (let y = 0; y <= h; y += 3) {
+        const j = Math.sin(eP + y * 0.012 + x * 0.006) * amp * JITTER_AMP * 0.8;
+        mainCtx.lineTo(gx + j, y);
       }
+      mainCtx.stroke();
+    }
 
-      /* breathy ADSR-like envelope, continuously looping */
-      const ENVELOPE_DURATION = 8; // seconds per breath cycle
-      let envPhase = 0;
-      let lastEnvTick = 0;
+    /* ── grain overlay (C2-amplitude-scaled) ── */
+    const gd = mainCtx.getImageData(0, 0, w, h);
+    for (let i = 0; i < gd.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * (6 + amp * 10);
+      gd.data[i]     += n;
+      gd.data[i + 1] += n - 1;
+      gd.data[i + 2] += n - 2;
+    }
+    mainCtx.putImageData(gd, 0, 0);
 
-      function updateEnvelope(time) {
-        if (!audioCtx) return;
-        const elapsed = (time - lastEnvTick) / 1000;
-        envPhase = (envPhase + elapsed) % ENVELOPE_DURATION;
+    /* ── radial vignette (soft edges) ── */
+    const cx = w / 2, cy = h / 2;
+    const r  = Math.sqrt(cx * cx + cy * cy);
+    const vig = mainCtx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r);
+    vig.addColorStop(0, "rgba(26,24,20,0)");
+    vig.addColorStop(1, "rgba(10,9,7,0.6)");
+    mainCtx.globalAlpha = 1;
+    mainCtx.fillStyle   = vig;
+    mainCtx.fillRect(0, 0, w, h);
 
-        /* breathy rise and slow decay */
-        const t = envPhase / ENVELOPE_DURATION; // 0..1
-        const breath = Math.sin(t * Math.PI);    // smooth bell curve
-        const amplitude = 0.06 + breath * 0.04; // subtle range
+    mainCtx.restore();
 
-        envGains.forEach((g) => {
-          g.gain.setTargetAtTime(amplitude, audioCtx.currentTime, 0.3);
-        });
-      }
+    /* ── update SVG filter seeds from audio amplitude (sync jitter) ── */
+    updateFilters(t);
 
-      /* instantaneous amplitude sum for jitter feedback */
-      function totalAmplitude() {
-        return envGains.reduce((s, g) => s + (g.gain.value || 0), 0);
-      }
+    /* ── animate CSS breathing / scale on filter layer ── */
+    const scaleBase = 1.0 + amp * 0.002;
+    const tx = Math.sin(cP * 0.5) * amp * 0.4;
+    const ty = Math.cos(eP * 0.7) * amp * 0.3;
+    filterLayer.style.transform =
+      `scale(${scaleBase.toFixed(4)}) translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`;
+    filterLayer.style.opacity = (0.9 + amp * 0.06).toFixed(3);
 
-      /* ─── animation loop ─── */
-      let lastTime = 0;
+    /* ── envelope update ── */
+    updateEnvelope(t);
 
-      function draw(time) {
-        const dt = time - lastTime;
-        lastTime = time;
-        if (!lastEnvTick) lastEnvTick = time;
+    requestAnimationFrame(draw);
+  }
 
-        ensureTexture();
+  /* ─── bootstrap audio on user gesture ─── */
+  let started = false;
+  function startAudio() {
+    if (started) return;
+    initAudio();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    lastEnvTick = performance.now();
+    started = true;
+  }
+  document.addEventListener("click",       startAudio, { once: true });
+  document.addEventListener("keydown",     startAudio, { once: true });
+  document.addEventListener("touchstart",  startAudio, { once: true });
 
-        const w = canvas.width, h = canvas.height;
+  try { initAudio(); } catch (_) {}
 
-        /* ── background: warm linen colour ── */
-        ctx.fillStyle = "#1a1814";
-        ctx.fillRect(0, 0, w, h);
-
-        /* compute per-frequency jitter offsets */
-        const amp     = totalAmplitude();
-        const t       = time * 0.001;           // seconds as float
-        const cPhase  = t * C2;                  // C2 phase
-        const ePhase  = t * E2;
-        const gPhase  = t * G2;
-
-        /* weave horizontal threads with micro-jitter */
-        ctx.save();
-        ctx.globalCompositeOperation = "softlight";
-
-        const threadSpacingX = Math.max(12, Math.floor(w / 60));
-        const threadSpacingY = Math.max(8,  Math.floor(h / 45));
-
-        for (let y = -threadSpacingY; y < h + threadSpacingY; y += threadSpacingY) {
-          /* Jitter per-thread based on G2 waveform */
-          const gy = y + Math.sin(gPhase + y * 0.15) * amp * JITTER_AMP * 1.5;
-
-          ctx.strokeStyle = `rgba(210, 195, 170, ${0.08 + amp * 0.04})`;
-          ctx.lineWidth   = 0.6;
-          ctx.beginPath();
-          ctx.moveTo(0, gy);
-          for (let x = 0; x <= w; x += 3) {
-            /* sub-pixel wavering from C2 */
-            const jitter = Math.sin(cPhase + x * 0.008 + y * 0.004) * amp * JITTER_AMP;
-            ctx.lineTo(x, gy + jitter);
-          }
-          ctx.stroke();
-        }
-
-        /* vertical threads with E2-correlated jitter */
-        for (let x = -threadSpacingX; x < w + threadSpacingX; x += threadSpacingX) {
-          const gx = x + Math.sin(ePhase + x * 0.12) * amp * JITTER_AMP * 1.2;
-
-          ctx.strokeStyle = `rgba(200, 185, 160, ${0.07 + amp * 0.03})`;
-          ctx.lineWidth   = 0.5;
-          ctx.beginPath();
-          ctx.moveTo(gx, 0);
-          for (let y = 0; y <= h; y += 3) {
-            const jitter = Math.sin(ePhase + y * 0.012 + x * 0.006) * amp * JITTER_AMP * 0.8;
-            ctx.lineTo(gx + jitter, y);
-          }
-          ctx.stroke();
-        }
-
-        /* linen texture overlay */
-        ctx.globalAlpha = 0.12 + amp * 0.05;
-        for (let ty = 0; ty < h; ty += texH) {
-          for (let tx = 0; tx < w; tx += texW) {
-            ctx.drawImage(texCanvas, tx, ty);
-          }
-        }
-
-        /* fine noise grain overlay */
-        const grainData = ctx.getImageData(0, 0, w, h);
-        const gd = grainData.data;
-        for (let i = 0; i < gd.length; i += 4) {
-          const n = (Math.random() - 0.5) * (6 + amp * 10);
-          gd[i]     += n;
-          gd[i + 1] += n - 1;
-          gd[i + 2] += n - 2;
-        }
-        ctx.putImageData(grainData, 0, 0);
-
-        /* radial vignette */
-        const cx = w / 2, cy = h / 2;
-        const radius = Math.sqrt(cx * cx + cy * cy);
-        const vig = ctx.createRadialGradient(cx, cy, radius * 0.3, cx, cy, radius);
-        vig.addColorStop(0, "rgba(26, 24, 20, 0)");
-        vig.addColorStop(1, "rgba(10, 9, 7, 0.6)");
-        ctx.globalAlpha = 1;
-        ctx.fillStyle   = vig;
-        ctx.fillRect(0, 0, w, h);
-
-        ctx.restore();
-
-        /* envelope update */
-        updateEnvelope(time);
-
-        requestAnimationFrame(draw);
-      }
-
-      /* ─── user-gesture bootstrap for AudioContext ─── */
-      let started = false;
-
-      function startAudio() {
-        if (started) return;
-        initAudio();
-        if (audioCtx.state === "suspended") audioCtx.resume();
-        lastEnvTick = performance.now();
-        started = true;
-      }
-
-      document.addEventListener("click",  startAudio, { once: true });
-      document.addEventListener("keydown", startAudio, { once: true });
-      document.addEventListener("touchstart", startAudio, { once: true });
-
-      /* always start if audio context auto-plays (some browsers allow this) */
-      try { initAudio(); } catch (_) { /* not ready yet */ }
-
-      /* kick off the render loop */
-      requestAnimationFrame(draw);
-
-    })();
-  </script>
+  requestAnimationFrame(draw);
+})();
+</script>
 </body>
 </html>
