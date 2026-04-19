@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Rhythmic Vessel</title>
+<style>
+  body {
+    margin: 0; padding: 0; overflow: hidden;
+    background: #1a1814; touch-action: none;
+    position: fixed; inset: 0;
+  }
+   .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+   #filterCanvas {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 2;
+    filter: url(#wetLinen); will-change: transform, opacity;
+   }
+   #mainCanvas {
+    display: block; width: 100vw; height: 100vh;
+    position: fixed; inset: 0; z-index: 1; cursor: none;
+   }
+   #startPrompt {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(26, 24, 20, 0.7); color: rgba(210, 195, 170, 0.6);
+    font-family: system-ui, sans-serif; font-size: 14px; letter-spacing: 0.08em;
+    cursor: pointer; user-select: none; transition: opacity 1.2s ease;
+   }
+   #startPrompt.hidden { opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg">
+   <defs>
+     <filter id="wetLinen" x="-5%" y="-5%" width="110%" height="110%">
+       <feTurbulence type="fractalNoise" baseFrequency="0.014 0.020"
+        numOctaves="5" seed="7" stitchTiles="stitch" result="noise"/>
+       <feGaussianBlur in="noise" stdDeviation="0.5" result="softNoise"/>
+       <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="2.5"
+        xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+       <feComponentTransfer in="displaced" result="sheen">
+         <feFuncA type="linear" slope="1.06"/>
+       </feComponentTransfer>
+       <feColorMatrix type="matrix"
+        values=" 0.72 0.05 0.00 0.00 0.14
+                  0.03 0.68 0.00 0.00 0.12
+                  0.00 0.04 0.58 0.00 0.10
+                  0.00 0.00 0.00 0.58 0.00"/>
+     </filter>
+   </defs>
+</svg>
+
+<canvas id="filterCanvas"></canvas>
+<canvas id="mainCanvas"></canvas>
+<div id="startPrompt">Tap to begin</div>
+
+<script>
+(function() { "use strict";
+
+/* ════════════════════════════════════════
+   C-MAJOR HUM — Procedural Audio Engine
+    ═══════════════════════════════════════ */
+var audioCtx = null, masterGain = null, oscillators = [], envGains = [];
+var LFO_RATE = 0.18, LFO_DEP = 0.065;
+
+var CHORD_FREQS = [
+   { f: 65.41, a: 0.12 },    // C2
+   { f: 82.41,  a: 0.07 },   // E2
+   { f: 98.00,  a: 0.05 },   // G2
+   { f: 130.81, a: 0.10 },   // C3
+   { f: 164.81, a: 0.06 },   // E3
+   { f: 196.00, a: 0.05 },   // G3
+   { f: 261.63, a: 0.025 }, // C4
+   { f: 329.63, a: 0.015 }   // E4
+];
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0;
+  masterGain.connect(audioCtx.destination);
+
+  oscillators = []; envGains = [];
+  CHORD_FREQS.forEach(function(p) {
+    var osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.detune.value = (Math.random() - 0.5) * 6;
+    osc.type = "sine"; osc.frequency.value = p.f;
+    osc.connect(gain); gain.gain.value = p.a;
+    gain.connect(masterGain); osc.start();
+    oscillators.push(osc); envGains.push(gain);
+   });
+
+  var lfoOsc = audioCtx.createOscillator(), lfoGain = audioCtx.createGain();
+  lfoOsc.frequency.value = LFO_RATE; lfoOsc.type = "sine";
+  lfoOsc.connect(lfoGain.gain); lfoGain.gain.value = LFO_DEP;
+  lfoOsc.start(); lfoOsc.connect(masterGain.gain);
+}
+
+function playBrassChord() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+   [261.63, 329.63, 392.00].forEach(function(freq) {
+    var osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = "triangle"; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 1.4);
+    osc.connect(gain); gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 1.4);
+   });
+}
+
+function playCrackle() {
+  if (!audioCtx) return;
+  var bufLen = audioCtx.sampleRate * 0.15, buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufLen; i++) {
+    var noise = Math.random() * 2 - 1, decay = 1 - i / bufLen;
+    if (Math.random() < 0.03) data[i] = (noise + data[Math.max(0, i-5)]) * 0.7;
+    else data[i] = noise * decay * 0.25;
+   }
+  var src = audioCtx.createBufferSource();
+  var gain = audioCtx.createGain();
+  src.buffer = buf; src.connect(gain); gain.connect(masterGain); src.start();
+}
+
+function setHumIntensity(val) {
+  if (!masterGain) return;
+  masterGain.gain.setTargetAtTime(val * LFO_DEP * 0.5, audioCtx.currentTime, 0.12);
+}
+
+/* ════════════════════════════════════════
+   RENDERER — Canvas + SVG Filter Pipeline
+    ═══════════════════════════════════════ */
+var mainCanvas = document.getElementById("mainCanvas"), ctx = mainCanvas.getContext("2d");
+var filterCvs = document.getElementById("filterCanvas");
+var wetFilterEl = document.getElementById("wetLinen");
+var wetTurbulenceEl = wetFilterEl.querySelector("feTurbulence");
+
+function resize() {
+  mainCanvas.width = window.innerWidth; mainCanvas.height = window.innerHeight;
+  filterCvs.width = window.innerWidth; filterCvs.height = window.innerHeight;
+}
+window.addEventListener("resize", resize); resize();
+
+/* ════════════════════════════════════════
+   NOISE — Perlin-Style Simplex (2D)
+    ═══════════════════════════════════════ */
+var PERM = new Uint8Array(512);
+(function() {
+  var p = []; for (var i = 0; i < 256; i++) p[i] = i;
+  for (var i = 255; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1));
+    var t = p[i]; p[i] = p[j]; p[j] = t; }
+  for (var i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+
+var GRAD = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+function fetchGrad(hash) { var g = GRAD[hash & 7]; return [g[0], g[1]]; }
+function smooth(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+
+function noise2D(x, y) {
+  var X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+  x -= Math.floor(x); y -= Math.floor(y);
+  var u = smooth(x), v = smooth(y);
+  var a = (X + Y * 256) & 511, b = (X + 1 + Y * 256) & 511;
+  var c = (X + (Y + 1) * 256) & 511, d = (X + 1 + (Y + 1) * 256) & 511;
+  var g00 = fetchGrad(PERM[a]), g10 = fetchGrad(PERM[b]);
+  var g01 = fetchGrad(PERM[c]), g11 = fetchGrad(PERM[d]);
+  function dot(g, dx, dy) { return g[0]*dx + g[1]*dy; }
+  var n00 = dot(g00, x, y), n10 = dot(g10, x-1, y);
+  var n01 = dot(g01, x, y-1), n11 = dot(g11, x-1, y-1);
+  var nx0 = n00 + u * (n10 - n00), nx1 = n01 + u * (n11 - n01);
+  return (nx0 + v * (nx1 - nx0)) * 1.4;
+}
+
+/* ════════════════════════════════════════
+   GEOMETRY TARGETS — Bauhaus Lock Points
+    ═══════════════════════════════════════ */
+var GW = window.innerWidth, GH = window.innerHeight;
+var geoTargets = [
+   { x: GW*0.3, y: GH*0.35, type: "circle" },
+   { x: GW*0.7, y: GH*0.35, type: "square" },
+   { x: GW*0.3, y: GH*0.65, type: "arch"   },
+   { x: GW*0.7, y: GH*0.65, type: "circle" }
+];
+
+/* ════════════════════════════════════════
+   INTERACTION STATE MACHINE
+    ═══════════════════════════════════════ */
+var state = "IDLE", cursorX = GW/2, cursorY = GH/2;
+var mhx = [], mhy = []; // movement history
+var V = 0.5, vDecay = 1.0, strain = 0, bloomAmt = 0;
+var lockFrames = 0, snapStartX = 0, snapStartY = 0;
+
+function enterDrawState() { state = "DRAWT"; for (var i = 0; i < 40; i++) { mhx.push(cursorX); mhy.push(cursorY); } V = 0.5; vDecay = 1; strain = 0; lockFrames = 0; }
+
+/* ════════════════════════════════════════
+   RENDER — DRAWT (Dragging with Decay)
+    ═══════════════════════════════════════ */
+function renderDraw() {
+  ctx.fillStyle = "#1a1814"; ctx.fillRect(0, 0, w, h);
+
+   /* Draw geometry targets as faint shapes */
+  for (var i = 0; i < geoTargets.length; i++) {
+    var t = geoTargets[i];
+    ctx.globalAlpha = 0.15 + Math.sin(performance.now()*0.002 + i*1.5)*0.08;
+    if (t.type === "circle") { ctx.beginPath(); ctx.arc(t.x, t.y, 36, 0, Math.PI*2); ctx.strokeStyle = "#b8392b"; ctx.lineWidth = 1.2; ctx.stroke(); }
+    else if (t.type === "square") { ctx.strokeRect(t.x-32, t.y-32, 64, 64); ctx.strokeStyle = "#e5c73b"; ctx.lineWidth = 1.2; }
+    else { ctx.beginPath(); ctx.arc(t.x, t.y+16, 32, Math.PI, 0); ctx.strokeStyle = "#2a6b3f"; ctx.lineWidth = 1.2; ctx.stroke(); }
+   }
+
+   /* Weave threads visualising decay */
+  ctx.globalAlpha = 1; ctx.lineCap = "round";
+  for (var i = 0; i < 14; i++) {
+    var by = h*(i+1)/15, amp = vDecay*28 + Math.abs(V)*12;
+    if (amp < 0.3) continue;
+    ctx.strokeStyle = "rgba(210,195,170,"+(0.12+vDecay*0.12)+")"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(0, by);
+    for (var x = 0; x <= w; x += 4) {
+      var ny = by + noise2D(x*0.005+i*3.7, strain*0.6)*amp*(1-vDecay*0.6);
+      ctx.lineTo(x, ny);
+     }
+    ctx.stroke();
+   }
+  for (var i = 0; i < 9; i++) {
+    var bx = w*(i+1)/10, amp = vDecay*20 + Math.abs(V)*8;
+    if (amp < 0.3) continue;
+    ctx.strokeStyle = "rgba(200,185,160,"+(0.1+vDecay*0.08)+")"; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(bx, 0);
+    for (var y = 0; y <= h; y += 4) {
+      var nx = bx + noise2D(strain*0.5, y*0.005+i*4.1)*amp*(1-vDecay*0.5);
+      ctx.lineTo(nx, y);
+     }
+    ctx.stroke();
+   }
+
+   /* Grain */
+  ctx.fillStyle = "rgba(230,220,200,0.018)";
+  for (var i = 0; i < 400; i++) { ctx.fillRect(Math.random()*w, Math.random()*h, 1+Math.random(), 1); }
+
+   /* Cursor trail */
+  var trailLen = mhx.length;
+  if (trailLen > 2) {
+    for (var i = 0; i < trailLen - 1; i++) {
+      var f = 1 - i / trailLen, d = vDecay * f + V * 0.3;
+      ctx.beginPath(); ctx.arc(mhx[i], mhy[i], Math.max(0.5, d*4), 0, Math.PI*2);
+      ctx.fillStyle = "rgba(210,195,170,"+(d*0.06)+")"; ctx.fill();
+     }
+   }
+
+   /* Cursor + bloom */
+  ctx.beginPath(); ctx.arc(cursorX, cursorY, 5+vDecay*4, 0, Math.PI*2);
+  ctx.fillStyle = "rgba(210,195,170,0.9)"; ctx.fill();
+  var bloom = Math.max(0, (1-vDecay)*6 + strain*8 + Math.abs(V)*12);
+  if (bloom > 3) {
+    var bg = ctx.createRadialGradient(cursorX,cursorY,0,cursorX,cursorY,bloom);
+    bg.addColorStop(0,"rgba(229,199,59,0.18)"); bg.addColorStop(1,"rgba(229,199,59,0)");
+    ctx.beginPath(); ctx.arc(cursorX,cursorY,bloom,0,Math.PI*2); ctx.fillStyle=bg; ctx.fill();
+   }
+
+   /* Vignette */
+  var vig = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.25,w/2,h/2,Math.max(w,h)*0.72);
+  vig.addColorStop(0,"rgba(26,24,20,0)"); vig.addColorStop(1,"rgba(8,7,5,0.5)");
+  ctx.fillStyle = vig; ctx.fillRect(0,0,w,h);
+}
+
+/* ════════════════════════════════════════
+   RENDER — LOCK (Snap + Pulse + Brass)
+    ═══════════════════════════════════════ */
+function renderLock() {
+   /* Hum fades out, grain continues on final resonance */
+  setHumIntensity(1 - lockFrames/65);
+  if (lockFrames === 0) playBrassChord();
+
+  snapStartX = cursorX; snapStartY = cursorY;
+  var ease = Math.min(lockFrames/28, 1);
+  for (var gi = 0; gi < geoTargets.length; gi++) {
+    var t = geoTargets[gi];
+    cursorX = snapStartX + (t.x - snapStartX)*ease;
+    cursorY = snapStartY + (t.y - snapStartY)*ease;
+
+     /* Pulse rings */
+    var pulseN = Math.floor(lockFrames/7);
+    ctx.beginPath(); ctx.arc(t.x, t.y, 20+lockFrames*6.5*(1-lockFrames/130), 0, Math.PI*2);
+    ctx.strokeStyle = t.type==="circle"?"#b8392b":t.type==="square"?"#e5c73b":"#2a6b3f";
+    ctx.lineWidth = 2.5*(1-lockFrames/140); ctx.globalAlpha = 1-lockFrames/140;
+    ctx.stroke(); ctx.globalAlpha=1;
+
+     /* Target shape pulse */
+    var ps = (lockFrames%28)/28, s = 36*ps;
+    if (t.type==="circle") { ctx.beginPath(); ctx.arc(t.x,t.y,s>5?s:0,0,Math.PI*2); ctx.fillStyle="rgba(184,57,43,"+Math.min(ps,0.35)+")"; ctx.fill(); }
+    else if (t.type==="square") { ctx.fillStyle="rgba(229,199,59,"+Math.min(ps*0.5,0.4)+")"; ctx.fillRect(t.x-s/2,t.y-s/2,s,s); }
+    else { ctx.beginPath(); ctx.arc(t.x,t.y+16,s>16?s:16,Math.PI,0); ctx.strokeStyle="rgba(42,107,63,"+Math.min(ps*0.7,0.5)+")"; ctx.lineWidth=2; ctx.stroke(); }
+   }
+
+  lockFrames++; if (lockFrames >= 65) enterReleaseState();
+}
+
+/* ════════════════════════════════════════
+   RENDER — RELEASE (Reset + Re-introduction)
+    ═══════════════════════════════════════ */
+var releaseTimeout1 = null, releaseTimeout2 = null;
+function enterReleaseState() {
+  state = "RELEASE"; var rfx=GW/2,rfy=GH/2;
+
+   (function frame(){
+    if(state!=="RELEASE") return;
+    renderRelease(rfx,rfy); setTimeout(frame,16);
+   })();
+
+  releaseTimeout1 = setTimeout(function(){ setHumIntensity(0); }, 500);
+  releaseTimeout2 = setTimeout(function(){
+    cursorX=GW/2; cursorY=GH/2; strain=0; bloomAmt=0; state="IDLE";
+   }, 450 + 500);
+}
+
+function renderRelease(rfx,rfy) {
+  ctx.fillStyle="#1a1814";ctx.fillRect(0,0,w,h);
+
+   /* Cursor glides back to center */
+  cursorX += (rfx-cursorX)*0.065; cursorY += (rfy-cursorY)*0.065;
+
+   /* Bloom fades */
+  bloomAmt = Math.max(0, bloomAmt-0.03);
+  if (bloomAmt>2) { var bg=ctx.createRadialGradient(cursorX,cursorY,0,cursorX,cursorY,bloomAmt);
+    bg.addColorStop(0,"rgba(229,199,59,0.08)");bg.addColorStop(1,"rgba(229,199,59,0)");
+    ctx.beginPath();ctx.arc(cursorX,cursorY,bloomAmt,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();}
+
+   /* Ambient drone re-introduction */
+  strain += (0-strain)*0.045;
+  setHumIntensity(strain*0.35);
+
+   /* Faint grain + geometric echoes of geometry targets */
+  ctx.globalAlpha = 0.06;
+  for(var i=0;i<geoTargets.length;i++){ctx.beginPath();ctx.arc(geoTargets[i].x,geoTargets[i].y,22+Math.sin(performance.now()*0.003+i)*4,0,Math.PI*2);ctx.strokeStyle="#b8392b";ctx.lineWidth=0.7;ctx.stroke();}
+  ctx.globalAlpha = 1;
+
+  for(var i=0;i<180;i++){ctx.fillStyle="rgba(230,220,200,"+(0.01+Math.random()*0.01)+")";ctx.fillRect(Math.random()*w,Math.random()*h,1,1);}
+
+  ctx.beginPath();ctx.arc(cursorX,cursorY,4,0,Math.PI*2);ctx.fillStyle="rgba(210,195,170,0.7)";ctx.fill();
+}
+
+/* ════════════════════════════════════════
+   MAIN RENDER LOOP
+    ═══════════════════════════════════════ */
+var lastTime = performance.now(), w, h;
+
+function draw(t) {
+  requestAnimationFrame(draw);
+  var dt = Math.min(Math.max(t - lastTime, 1.5), 50); lastTime = t;
+  w = mainCanvas.width; h = mainCanvas.height;
+
+   /* ── State Dispatch (zero allocation) ── */
+  if (state === "IDLE") { ctx.fillStyle = "#1a1814"; ctx.fillRect(0, 0, w, h); return; }
+  if (state === "DRAWT") renderDraw();
+  else if (state === "LOCK") renderLock();
+  else if (state === "RELEASE") renderRelease(GW/2,GH/2);
+
+   /* ── SVG Filter Drift (compositor-only) ── */
+  var strainAmp = strain * 0.3;
+  var seedVal = Math.sin(_seed++*127.1 + _seed*311.7)*43758.5453;
+  wetTurbulenceEl.setAttribute("baseFrequency", (0.014+strain*0.006).toFixed(4)+" "+(0.020+strain*0.008).toFixed(4));
+}
+
+/* Lightweight noise for filter drift */
+var _seed = 7;
+
+/* ════════════════════════════════════════
+   INTERACTION LOOP — Noise-Driven Decay
+    ═══════════════════════════════════════ */
+function handlePointerMove(nx, ny) {
+   /* Record & roll movement history */
+  mhx.push(nx); mhy.push(ny); if (mhx.length > 60) { mhx.shift(); mhy.shift(); }
+
+   /* Current velocity (px per frame approximated) */
+  var vx = nx - cursorX, vy = ny - cursorY;
+  V = Math.sqrt(vx*vx + vy*vy);
+
+   /* Non-linear decay with grain noise injection */
+  if (V > 0.05) {
+    var baseDrag = 0.87, grainAmt = strain * 0.14;
+    vDecay = Math.min(1, Math.max(0, Math.pow(baseDrag - grainAmt, dt * 0.22)));
+    var gOffX = noise2D(performance.now()*0.003, strain*0.5) * vDecay * 18;
+    var gOffY = noise2D(strain*0.4, performance.now()*0.003) * vDecay * 14;
+    cursorX = nx - vx*(1-vDecay) + gOffX;
+    cursorY = ny - vy*(1-vDecay) + gOffY;
+    strain = Math.min(1, strain + V*0.055);
+    setHumIntensity((1-strain)*0.25 + strain*0.7);
+
+   /* ── Lock Threshold Check (Hardcoded ms threshold: 0.4 px/frame) ── */
+   } else if (V < 0.4) { lockFrames++;
+    if (lockFrames >= 3) renderLock();
+   } else { lockFrames = 0; vDecay = 1; }
+}
+
+/* ════════════════════════════════════════
+   BOOT — Input Handlers
+    ═══════════════════════════════════════ */
+document.addEventListener("click", function(e) { initAudio(); if(audioCtx.state==="suspended") audioCtx.resume(); enterDrawState();
+  handlePointerMove(e.clientX, e.clientY); document.getElementById("startPrompt").classList.add("hidden"); }, { once: true });
+document.addEventListener("mousemove", function(e) { if (state !== "IDLE") handlePointerMove(e.clientX, e.clientY); });
+document.addEventListener("touchmove", function(e) { e.preventDefault();
+  if (state !== "IDLE" && e.touches[0]) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+
+requestAnimationFrame(draw);
+
+})();
+</script>
+</body>
+</html>
