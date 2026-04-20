@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Rhythmic Grid</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a18; cursor: none; }
+
+#linen-layer {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1; pointer-events: none; will-change: filter, transform;
+}
+
+#grid-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 2; pointer-events: none; will-change: transform;
+}
+
+#cursor-layer {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 3; pointer-events: none; will-change: filter;
+}
+
+svg.filters { position: absolute; width: 0; height: 0; }
+
+#start-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(26,26,24,0.95); cursor: pointer;
+  color: #c4b59d; font-family: 'Courier New', monospace;
+}
+#start-overlay h1 { font-size: 1.4rem; letter-spacing: 0.3em; text-transform: uppercase; }
+#start-overlay p { font-size: 0.7rem; margin-top: 1rem; opacity: 0.5; letter-spacing: 0.15em; }
+
+#phase-indicator {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 50; color: #c4b59d; font-family: 'Courier New', monospace;
+  font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+  opacity: 0.3; pointer-events: none; will-change: transform, opacity;
+}
+
+#snap-flash {
+  position: fixed; inset: 0; z-index: 4; pointer-events: none;
+  background: radial-gradient(circle at center, rgba(212,160,23,0.12) 0%, transparent 60%);
+  opacity: 0; transition: none; will-change: opacity;
+}
+</style>
+</head>
+<body>
+
+<svg class="filters">
+     <defs>
+       <filter id="linen-grain" x="0%" y="0%" width="100%" height="100%">
+         <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="4" seed="2" result="noise"/>
+         <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+         <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply" result="textured"/>
+       </filter>
+     </defs>
+</svg>
+
+<canvas id="linen-layer"></canvas>
+<canvas id="grid-canvas"></canvas>
+<canvas id="cursor-layer"></canvas>
+<div id="snap-flash"></div>
+
+<div id="start-overlay">
+     <div style="text-align:center;">
+       <h1>The Rhythmic Grid</h1>
+       <p>Move to engage &middot; Snap on grid intersections</p>
+     </div>
+</div>
+
+<div id="phase-indicator"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   THE RHYTHMIC GRID - Grain-Snap Cursor Cadence Engine
+   C-major hum + tactile linen lock
+   ============================================================ */
+
+// === Constants ===
+const BG           = '#1a1a18';
+const LINEN_COLOR  = '#c4b59d';
+const GRID_LINE    = 'rgba(50,48,45,0.6)';
+const CURSOR_COLOR = '#4F46E5';       // indigo cursor dot
+const SNAP_COLOR   = '#D4A017';       // mustard yellow snap rings / grid marks
+const BASE_SPACING = 120;             // ~120px base on 1080p
+const GRIP_THRESHOLD = 8;            // px/frame threshold for grip->glide
+const SNAP_DECEL_FRAMES = 12;        // frames below threshold to trigger snap
+const SNAP_REST_MS   = 12;           // enforced rest interval (cooldown) between snaps
+const MAX_BLUR       = 3;            // max linen/cursor blur in px at high velocity
+
+// C-major drone: triangle oscillators, +/-8 cents detune for chorus thickness
+const DRONE_NOTES  = [261.63, 329.63, 392.00, 523.25, 659.65];   // C4,E4,G4,C5,E5
+const CHIME_NOTES  = [523.25, 659.65, 783.99];                     // C5,E5,G5
+const DRONE_VOL_STILL = 0.06;                                      // stillness volume
+const DRONE_VOL_FAST  = 0.18;                                     // fast movement volume
+const CHIME_PEAK      = 0.20;                                     // glass chime peak gain
+
+// === DOM References ===
+const linenCanvas = document.getElementById('linen-layer');
+const gridCanvas  = document.getElementById('grid-canvas');
+const cursorCanvas= document.getElementById('cursor-layer');
+const grainEl     = document.getElementById('snap-flash');
+const phaseEl     = document.getElementById('phase-indicator');
+
+// Get context (gridCtx + cursorCtx; linenCtx drawn via pattern each frame)
+const gridCtx  = gridCanvas.getContext('2d');
+const cursorCtx= cursorCanvas.getContext('2d');
+
+// === State Variables ===
+let audioCtx, droneGain, droneOscs = [];
+let W, H, dpr, gridSpacing, gridCols, gridRows;
+let linenPattern = null;  // canvas pattern for tiling linen texture
+
+// ============================================================
+// Perlin noise (1D) - fabric grain micro-offsets under cursor tip
+// ============================================================
+const PERLIN_SIZE = 256;
+const perlinPerm = new Uint8Array(PERLIN_SIZE * 2);
+(function initPerlin() {
+  const p = new Uint8Array(PERLIN_SIZE);
+  for (let i = 0; i < PERLIN_SIZE; i++) p[i] = i;
+  for (let i = PERLIN_SIZE - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < PERLIN_SIZE * 2; i++) perlinPerm[i] = p[i & (PERLIN_SIZE - 1)];
+})();
+
+function fade(t) { return t*t*t*(t*(t*6-15)+10); }
+function lerp(a, b, t) { return a + t*(b-a); }
+function grad(hash, x) { return ((hash & 1) ? -x : x); }
+
+function perlin1(x) {
+  const xi = Math.floor(x) & (PERLIN_SIZE - 1);
+  const xf = x - Math.floor(x);
+  const u = fade(xf);
+  return lerp(grad(perlinPerm[xi],   xf),
+              grad(perlinPerm[xi+1], xf-1), u);
+}
+
+function getGrainOffset(t) {
+  // Fine-grained noise for fabric grain simulation under cursor tip
+  const s = 0.6;
+  return { x: perlin1(t*3.7 + 100)*s, y: perlin1(t*3.7 + 200)*s };
+}
+
+// ============================================================
+// Canvas & Grid Setup
+// ============================================================
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+
+  [linenCanvas, gridCanvas, cursorCanvas].forEach(c => {
+    c.width = W * dpr;
+    c.height = H * dpr;
+    c.style.width  = W + 'px';
+    c.style.height = H + 'px';
+    c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  });
+
+  const sc = Math.max(0.7, Math.min(1.3, W / 1920));
+  gridSpacing = Math.round(BASE_SPACING * sc);
+  gridCols = Math.ceil(W / gridSpacing) + 1;
+  gridRows = Math.ceil(H / gridSpacing) + 1;
+
+  generateLinenTexture(); // rebuild pattern for new size
+  renderGrid();
+}
+
+// ============================================================
+// Linen Texture - woven fabric via procedural thread lines
+// Pre-rendered to 256x256, tiled as repeating canvas pattern
+// ============================================================
+const linenOffscreen = document.createElement('canvas');
+linenOffscreen.width  = 256;
+linenOffscreen.height = 256;
+const linenOffCtx = linenOffscreen.getContext('2d');
+
+function generateLinenTexture() {
+  const ctx = linenOffCtx, s = 256;
+
+  // Base warm dark canvas - deep oatmeal
+  ctx.fillStyle = '#2a2825';
+  ctx.fillRect(0, 0, s, s);
+
+  // Horizontal threads (weft) - woven across width
+  for (let y = 0; y < s; y += 3) {
+    const b = 160 + Math.floor(Math.random() * 40);
+    ctx.fillStyle = 'rgba('+b+','+(Math.floor(b*0.9))+','+(Math.floor(b*0.78))+',0.35)';
+    ctx.fillRect(0, y, s, 1);
+  }
+
+  // Vertical threads (warp) - woven across height
+  for (let x = 0; x < s; x += 3) {
+    const b = 150 + Math.floor(Math.random() * 45);
+    ctx.fillStyle = 'rgba('+b+','+(Math.floor(b*0.92))+','+(Math.floor(b*0.8))+',0.25)';
+    ctx.fillRect(x, 0, 1, s);
+  }
+
+  // Cross-hatch highlights at thread intersections
+  for (let y = 0; y < s; y += 6) {
+    for (let x = 0; x < s; x += 6) {
+      if (Math.random() > 0.6) {
+        ctx.fillStyle = 'rgba(210,200,180,'+(0.1+Math.random()*0.15)+')';
+        ctx.fillRect(x, y, 2, 2);
+      }
+    }
+  }
+
+  // Fine noise grain overlay for fabric realism
+  const imgData = ctx.getImageData(0, 0, s, s);
+  for (let i = 0; i < imgData.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 12;
+    imgData.data[i]     += n;
+    imgData.data[i + 1] += n;
+    imgData.data[i + 2] += n;
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Tile this as a repeating pattern onto the linen-layer canvas
+  const lctx = linenCanvas.getContext('2d');
+  linenPattern = lctx.createPattern(linenOffscreen, 'repeat');
+  lctx.fillStyle = linenPattern;
+  lctx.fillRect(0, 0, W, H);
+
+  // Apply SVG grain filter to the entire canvas layer
+  linenCanvas.style.filter = 'url(#linen-grain)';
+}
+
+// ============================================================
+// Grain Noise Update (~60Hz every 16ms) - animated fabric grain
+// ============================================================
+let grainSeed = 2;
+let lastGrainTime = 0;
+
+function updateGrain(now) {
+  if (now - lastGrainTime < 16) return;
+  lastGrainTime = now;
+  grainSeed = Math.floor(Math.random() * 99999);
+
+  // Update SVG turbulence seed for animated grain texture
+  const svg = document.querySelector('svg.filters');
+  const turb = svg.querySelector('#linen-grain feTurbulence');
+  if (turb) turb.setAttribute('seed', String(grainSeed));
+}
+
+// ============================================================
+// Grid Rendering - thin charcoal lines with diamond intersection marks
+// GPU-accelerated via will-change: transform + CSS compositing
+// ============================================================
+function renderGrid() {
+  const ctx = gridCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  // Vertical and horizontal grid lines in dark charcoal
+  ctx.strokeStyle = GRID_LINE;
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += gridSpacing) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, H);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= H; y += gridSpacing) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(W, y + 0.5);
+    ctx.stroke();
+  }
+
+  // Subtle diamond marks at intersections (mustard yellow, dim by default)
+  ctx.fillStyle = SNAP_COLOR;
+  for (let x = gridSpacing; x < W; x += gridSpacing) {
+    for (let y = gridSpacing; y < H; y += gridSpacing) {
+      drawDiamond(ctx, x, y, 3, 0.12);
+    }
+  }
+}
+
+function drawDiamond(ctx, cx, cy, size, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size);
+  ctx.lineTo(cx + size, cy);
+  ctx.lineTo(cx, cy + size);
+  ctx.lineTo(cx - size, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Snap overlay canvas for pulse rings and brightened diamonds
+const snapOverlay = document.createElement('canvas');
+let snapCtx = null;
+let snapTargets = []; // {x, y, time}
+
+function renderSnapOverlays(ctx) {
+  if (!snapCtx || W === 0) return;
+  snapCtx.clearRect(0, 0, W, H);
+
+  const now = performance.now();
+  snapTargets = snapTargets.filter(s => now - s.time < 800);
+
+  for (const s of snapTargets) {
+    const age = now - s.time;
+    const alpha = Math.max(0, 1 - age / 800);
+    const pulseSize = 4 + (age / 800) * 12;
+
+    // Brightened diamond at the snap point
+    drawDiamond(snapCtx, s.x, s.y, Math.round(pulseSize), alpha * 0.7);
+
+    // Expanding pulse ring (CSS flash-like effect on canvas)
+    snapCtx.save();
+    snapCtx.globalAlpha = alpha * 0.5;
+    snapCtx.strokeStyle = SNAP_COLOR;
+    snapCtx.lineWidth = 2;
+    const ringR = (age / 800) * 60;
+    snapCtx.beginPath();
+    snapCtx.arc(s.x, s.y, ringR, 0, Math.PI * 2);
+    snapCtx.stroke();
+    snapCtx.restore();
+  }
+
+  // Composite on top of grid
+  ctx.drawImage(snapOverlay, 0, 0);
+}
+
+// ============================================================
+// Audio Engine - C-major drone + glass chime on snap
+// ============================================================
+let audioInitialized = false;
+
+function initAudio() {
+  if (audioInitialized) return;
+  audioInitialized = true;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master gain for the drone layer (connects to output)
+  droneGain = audioCtx.createGain();
+  droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
+  droneGain.connect(audioCtx.destination);
+
+  // C-major drone: 5 triangle oscillators with +/-8 cents detune for chorus thickness
+  for (let i = 0; i < DRONE_NOTES.length; i++) {
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.type  = 'triangle';
+
+    // Each oscillator slightly detuned to create rich chorus effect
+    const detune = (Math.random() * 16 - 8); // +/-8 cents spread
+    osc.frequency.setValueAtTime(DRONE_NOTES[i], audioCtx.currentTime);
+    osc.detune.setValueAtTime(detune, audioCtx.currentTime);
+
+    // Per-oscillator gain so they sum to ~0.12 total at max volume
+    g.gain.setValueAtTime(0.035, audioCtx.currentTime);
+
+    osc.connect(g);
+    g.connect(droneGain);
+    osc.start();
+    droneOscs.push({ osc, gain: g });
+  }
+
+  // Smooth ramp from silence to audible hum
+  droneGain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.5);
+}
+
+function updateDroneVelocity(vol) {
+  if (!audioInitialized || !droneGain) return;
+  const targetVol = DRONE_VOL_STILL + (DRONE_VOL_FAST - DRONE_VOL_STILL) * vol;
+  droneGain.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.04);
+}
+
+function triggerChime() {
+  if (!audioInitialized || !audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  // Three sine oscillators: C5, E5, G5 (C-major triad) with sharp attack + exponential decay
+  for (let i = 0; i < CHIME_NOTES.length; i++) {
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+
+    osc.type  = 'sine';
+    osc.frequency.setValueAtTime(CHIME_NOTES[i], now);
+
+    // Sharp attack: linear ramp to peak in 8ms
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(CHIME_PEAK / CHIME_NOTES.length, now + 0.008);
+
+    // Exponential decay to silence over 350ms
+    const ds = now + 0.008;
+    const de = ds + 0.35;
+    g.gain.setValueAtTime(CHIME_PEAK / CHIME_NOTES.length, ds);
+    g.gain.exponentialRampToValueAtTime(0.001, de);
+
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(de + 0.05);
+  }
+}
+
+// ============================================================
+// Cursor State Machine - Grip / Glide / Snap cadence engine
+// ============================================================
+const cursor = {
+  rawX:       W ? W/2 : window.innerWidth/2,
+  rawY:       H ? H/2 : window.innerHeight/2,
+  x:          W ? W/2 : window.innerWidth/2,
+  y:          H ? H/2 : window.innerHeight/2,
+  speed:      0,
+  vx:         0, vy: 0,
+  phase:      'idle',     // 'idle' | 'grip' | 'glide'
+  lastSnapTime: 0,
+  decelFrames: 0,
+  _lastX:      0,
+  _lastY:      0,
+  _snapFlash:  0,         // flash intensity (1.0 -> 0) after snap
+  _trail:      []          // motion trail buffer
+};
+
+function snapToGrid(px, py) {
+  return {
+    x: Math.round(px / gridSpacing) * gridSpacing,
+    y: Math.round(py / gridSpacing) * gridSpacing
+  };
+}
+
+// ============================================================
+// Main Render Loop (60fps via requestAnimationFrame)
+// ============================================================
+let loopTime = 0;
+let lastFrameTime = performance.now();
+
+function frame(now) {
+  requestAnimationFrame(frame);
+
+  const dt = Math.min((now - lastFrameTime) / 16.667, 2); // normalize to ~60fps
+  lastFrameTime = now;
+  loopTime += dt;
+
+  /* --- Grain update at ~60Hz (every 16ms) --- */
+  updateGrain(now);
+
+  /* --- Speed ratio [0,1] for blur mapping --- */
+  const speedRatio = Math.min(cursor.speed / 30, 1);
+
+  /* --- Linen/cursor motion blur (speed-proportional, max 3px at high velocity) --- */
+  linenCanvas.style.filter = 'url(#linen-grain) blur(' + (speedRatio * MAX_BLUR * 0.5) + 'px)';
+  cursorCanvas.style.filter = 'blur(' + (speedRatio * MAX_BLUR) + 'px)';
+
+  /* --- Phase transitions: grip -> glide / glide -> snap --- */
+  let newPhase = cursor.phase;
+
+  if (cursor.phase === 'idle') {
+    // Idle -> Grip when movement exceeds 30% of threshold
+    if (cursor.speed > GRIP_THRESHOLD * 0.3) newPhase = 'grip';
+  } else if (cursor.phase === 'grip') {
+    // Grip -> Glide when velocity stabilizes above threshold (8px/frame)
+    if (cursor.speed > GRIP_THRESHOLD) newPhase = 'glide';
+  } else if (cursor.phase === 'glide') {
+    const isDecel = cursor.speed < GRIP_THRESHOLD;
+    const nearGrid = isNearGrid(cursor.x, cursor.y);
+
+    if (isDecel && cursor.decelFrames >= SNAP_DECEL_FRAMES) {
+      // Deceleration snap: cursor slowed below threshold for 12ms -> execute micro-correction
+      performSnap();
+      newPhase = 'idle';
+    } else if (nearGrid && cursor.speed < GRIP_THRESHOLD * 0.5) {
+      // Grid intersection snap: near intersection at low speed -> instant correction
+      performSnap();
+      newPhase = 'idle';
+    } else if (!isDecel) {
+      // Reset deceleration count when not slowing
+      cursor.decelFrames = Math.max(0, cursor.decelFrames - 1);
+    }
+  }
+
+  cursor.phase = newPhase;
+
+  /* Update phase indicator */
+  const phaseNames = { idle: 'rest', grip: 'grip', glide: 'glide' };
+  phaseEl.textContent = phaseNames[cursor.phase] || '';
+
+  /* --- Physics update per phase --- */
+  let tx = cursor.rawX;
+  let ty = cursor.rawY;
+
+  if (cursor.phase === 'grip') {
+    // Grip: friction damping with felted resistance + Perlin grain micro-offsets
+    const dx = tx - cursor.x;
+    const dy = ty - cursor.y;
+    const spd = Math.sqrt(dx*dx + dy*dy);
+
+    // FRIC_CURVE damping: cursorDelta *= (1.0 - FRIC_CURVE * speed)
+    const fricDamp = Math.max(0, 1 - 0.82 * (spd / 20));
+    cursor.x += dx * fricDamp * dt;
+    cursor.y += dy * fricDamp * dt;
+
+    // Perlin noise micro-offsets simulate fabric grain under cursor tip
+    const grain = getGrainOffset(loopTime);
+    cursor.x += grain.x;
+    cursor.y += grain.y;
+
+  } else if (cursor.phase === 'glide') {
+    // Glide: fluid tracking with reduced sensitivity multiplier (0.55)
+    cursor.x += (tx - cursor.x) * 0.55 * dt;
+    cursor.y += (ty - cursor.y) * 0.55 * dt;
+
+  } else {
+    // Idle / post-snap: direct tracking with light smoothing
+    cursor.x += (tx - cursor.x) * 0.35 * dt;
+    cursor.y += (ty - cursor.y) * 0.35 * dt;
+  }
+
+  /* --- Velocity calculation --- */
+  const adx = cursor.rawX - cursor.x;
+  const ady = cursor.rawY - cursor.y;
+  cursor.speed = Math.sqrt(adx*adx + ady*ady);
+  cursor.vx = cursor.x - (cursor._lastX || cursor.x);
+  cursor.vy = cursor.y - (cursor._lastY || cursor.y);
+  cursor._lastX = cursor.x;
+  cursor._lastY = cursor.y;
+
+  /* --- Drone velocity modulation --- */
+  updateDroneVelocity(Math.min(cursor.speed / GRIP_THRESHOLD, 1));
+
+  /* --- Render everything --- */
+  renderCursor(now);
+}
+
+function isNearGrid(px, py) {
+  const tol = 20; // px tolerance around grid intersection
+  const gx  = Math.round(px / gridSpacing) * gridSpacing;
+  const gy  = Math.round(py / gridSpacing) * gridSpacing;
+  return Math.abs(px - gx) < tol && Math.abs(py - gy) < tol;
+}
+
+function performSnap() {
+  const now = performance.now();
+
+  // Enforce 12ms rest interval (cooldown timer prevents sub-12ms snaps)
+  if (now - cursor.lastSnapTime < SNAP_REST_MS) return;
+
+  // Instant micro-correction to exact grid intersection point
+  const snapped = snapToGrid(cursor.x, cursor.y);
+  cursor.x = snapped.x;
+  cursor.y = snapped.y;
+
+  // Visual: record snap target for pulse ring + diamond brightening overlay
+  snapTargets.push({ x: snapped.x, y: snapped.y, time: now });
+
+  // Visual: CSS flash on snap-flash element (mustard yellow radial)
+  grainEl.style.opacity = '1';
+  requestAnimationFrame(() => {
+    grainEl.style.transition = 'opacity 0.4s ease-out';
+    grainEl.style.opacity = '0';
+    setTimeout(() => { grainEl.style.transition = 'none'; }, 450);
+  });
+
+  // Audio: trigger glass chime at exact snap moment
+  triggerChime();
+
+  // Cursor flash indicator
+  cursor._snapFlash = 1.0;
+  cursor.lastSnapTime = now;
+}
+
+// ============================================================
+// Cursor Rendering - phase-aware visual feedback
+// ============================================================
+function renderCursor(now) {
+  const ctx = cursorCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  /* --- Snap overlays on grid (pulse rings + brightened diamonds) --- */
+  gridCtx.save();
+  renderSnapOverlays(gridCtx);
+  gridCtx.restore();
+
+  const cx = cursor.x;
+  const cy = cursor.y;
+
+  let dr, da, ra, rr; // dotRadius, dotAlpha, ringAlpha, ringRadius
+
+  if (cursor.phase === 'grip') {
+    // Grip: compact dot with resistive outer ring (size scales with force)
+    dr  = 5;
+    da  = 0.9;
+    ra  = 0.25 + cursor.speed * 0.02;
+    rr  = 16 + cursor.speed * 0.5;
+
+  } else if (cursor.phase === 'glide') {
+    // Glide: larger dot with fluid semi-transparent outer ring
+    dr  = 7;
+    da  = 0.9;
+    ra  = 0.12;
+    rr  = 28;
+
+  } else {
+    // Idle / post-snap: subtle indicator
+    dr  = 4;
+    da  = 0.85;
+    ra  = 0.08;
+    rr  = 12;
+  }
+
+  /* --- Snap flash overlay (indigo->mustard transition on snap) --- */
+  if (cursor._snapFlash > 0) {
+    ctx.save();
+    ctx.globalAlpha = cursor._snapFlash * 0.8;
+    ctx.fillStyle = SNAP_COLOR;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    cursor._snapFlash -= 0.08;
+    if (cursor._snapFlash < 0) cursor._snapFlash = 0;
+  }
+
+  /* --- Outer resistance ring --- */
+  ctx.save();
+  ctx.globalAlpha = ra;
+  ctx.strokeStyle = CURSOR_COLOR;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  /* --- Inner cursor dot (indigo radial gradient) --- */
+  ctx.save();
+  ctx.globalAlpha = da;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, dr);
+  grad.addColorStop(0, CURSOR_COLOR);
+  grad.addColorStop(1, 'rgba(79,70,229,0.3)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, dr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  /* --- Crosshair lines (subtle alignment guide at cursor) --- */
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = CURSOR_COLOR;
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 12, cy); ctx.lineTo(cx + 12, cy);
+  ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
+  ctx.restore();
+
+  /* --- Motion trail (glide phase only) --- */
+  if (cursor.phase === 'glide' && cursor.speed > GRIP_THRESHOLD * 0.8) {
+    cursor._trail.push({ x: cx, y: cy, t: now });
+    if (cursor._trail.length > 20) cursor._trail.shift();
+
+    ctx.save();
+    for (let i = 1; i < cursor._trail.length; i++) {
+      const p0 = cursor._trail[i - 1];
+      const p1 = cursor._trail[i];
+      const a = (i / cursor._trail.length) * 0.25;
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = CURSOR_COLOR;
+      ctx.lineWidth = 1 + (i / cursor._trail.length) * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (cursor.phase !== 'glide') {
+    cursor._trail = [];
+  }
+}
+
+// ============================================================
+// Input Handling - pointer events with passive:false
+// ============================================================
+let isActive = false;
+
+function handlePointerMove(e) {
+  if (!isActive) return;
+
+  // Raw pointer position (no damping here; cadence engine applies per-phase physics)
+  cursor.rawX = e.clientX;
+  cursor.rawY = e.clientY;
+
+  // Update current speed for phase transitions
+  const dx = e.clientX - cursor.x;
+  const dy = e.clientY - cursor.y;
+  cursor.speed = Math.sqrt(dx*dx + dy*dy);
+}
+
+// ============================================================
+// Initialization
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // Initial setup with current viewport dimensions
+  W = window.innerWidth;
+  H = window.innerHeight;
+
+
+  resize();
+
+  // Snap overlay canvas initialized after resize sets W/H
+  snapOverlay.width  = W;
+  snapOverlay.height = H;
+  snapCtx = snapOverlay.getContext('2d');
+
+  // Listen for viewport changes
+  window.addEventListener('resize', () => {
+    resize();
+    snapOverlay.width  = W;
+    snapOverlay.height = H;
+    snapCtx = snapOverlay.getContext('2d');
+  });
+
+  // Click overlay to initialize audio context (browser requires user gesture)
+  const overlay = document.getElementById('start-overlay');
+  overlay.addEventListener('click', () => {
+    initAudio();
+    overlay.style.transition = 'opacity 0.4s';
+    overlay.style.opacity = '0';
+    setTimeout(() => { overlay.style.display = 'none'; }, 400);
+    isActive = true;
+
+    // Set cursor to center on activation
+    cursor.rawX = W / 2;
+    cursor.rawY = H / 2;
+    cursor.x = W / 2;
+    cursor.y = H / 2;
+  });
+
+  // Pointer move events: passive:false for grip mechanics
+  document.addEventListener('pointermove', handlePointerMove, { passive: false });
+
+  // Start the render loop at 60fps
+  requestAnimationFrame(frame);
+});
+
+})();
+</script>
+</body>
+</html>
