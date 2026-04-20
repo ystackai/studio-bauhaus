@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Rhythmic Grid — Cursor Cadence &amp; Tactile Linen Lock</title>
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#E8DCC4;cursor:none;font-family:'Courier New',monospace}
+
+    /* Linen weave compositing layer — GPU-accelerated via translateZ */
+   #linen-layer{position:fixed;top:0;left:0;width:100%;height:100%;will-change:transform;transform:translateZ(0);z-index:1}
+
+    /* Grid overlay — pixel-perfect, no pointer events */
+   #grid-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:2;pointer-events:none}
+
+    /* Main interaction canvas — cursor, trails, snap visuals */
+   #main-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:3}
+
+    /* HUD overlay */
+   #hud{position:fixed;bottom:20px;left:20px;z-index:10;color:#36454F;font-size:11px;letter-spacing:.5px;opacity:.7;pointer-events:none;user-select:none;line-height:1.6}
+   #hud .phase{font-weight:bold;color:#4B0082}
+   #hud .accent{color:#FFDB58}
+
+    /* Click-to-init overlay */
+   #init-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(232,220,196,.95);cursor:pointer;transition:opacity .4s}
+   #init-overlay.hidden{opacity:0;pointer-events:none}
+   #init-overlay .prompt{text-align:center;color:#36454F;font-size:18px;letter-spacing:2px}
+   #init-overlay .prompt span{display:block;font-size:11px;margin-top:14px;opacity:.55;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<canvas id="linen-layer"></canvas>
+<canvas id="grid-canvas"></canvas>
+<canvas id="main-canvas"></canvas>
+
+<div id="hud">
+   PHASE: <span class="phase" id="hud-phase">IDLE</span><br>
+   SPEED: <span id="hud-speed">0.0</span> px/f &nbsp;|&nbsp; SNAP REST: <span class="accent" id="hud-rest">READY</span>
+</div>
+
+<div id="init-overlay"><div class="prompt">THE RHYTHMIC GRID<span>Move cursor to engage · Click to enable audio</span></div></div>
+
+<script>
+'use strict';
+
+/* ═══════════ CONSTANTS ═══════════ */
+var C={c:'#36454F',o:'#E8DCC4',i:'#4B0082',y:'#FFDB58'};
+var GRID=40, SNAP_R=4, REST_MS=12;
+var GLIDE_THRESH=15, FRIC_BASE=.82, FRIC_PWR=1.6;
+var CHIME_FQ=2500, CHIME_DUR=60;
+var BREATH_HZ=2.0, BREATH_AMP=.012;
+
+/* ═══════════ DOM REFS ═══════════ */
+var lCvs=document.getElementById('linen-layer');
+var gCvs   =document.getElementById('grid-canvas');
+var mCvs   =document.getElementById('main-canvas');
+var lCtx     =lCvs.getContext('2d');
+var gCtx     =gCvs.getContext('2d');
+var mCtx     =mCvs.getContext('2d');
+var elPhase= document.getElementById('hud-phase');
+var elSpeed= document.getElementById('hud-speed');
+var elRest   =document.getElementById('hud-rest');
+var elOverlay=document.getElementById('init-overlay');
+
+/* ═══════════ STATE ═══════════ */
+var W=0,H=0;
+var rawMX=0,rawMY=0;  // raw mouse target (screen coords)
+var curX=0,curY=0;     // eased cursor position
+var velX=0,velY=0;     // velocity px/frame
+var phase='IDLE';      // IDLE|GRIP|GLIDE|SNAP
+var inGrip=false;       // true while within grip threshold
+var snapRestEnd=-REST_MS; // timestamp when next snap is eligible
+
+var audioCtx=null,mGain=null,dOscs=[];
+var audioOn=false;
+
+/* Linen texture */
+var TILE=64, tileCvs=null, lPattern=null;
+var gBuf=TILE*TILE*4;  // grain tile buffer size in bytes
+
+/* Grid lines cached per resize */
+var vGL=[],hGL=[];
+
+/* Loop tracking */
+var fc=0,tAcc=0,lTs=0,rStart=0;
+
+/* ═══════════ HELPERS ═══════════ */
+function L(a,b,t){return a+(b-a)*clamp(t,0,1)}
+function clamp(v,lo,hi){return v<lo?lo:v>hi?hi:v}
+function hash(n){n^=(n>>>16);n=Math.imul(n,0x45d9f3b);n^=(n>>>13);n=Math.imul(n,0x45d9f3b);return n>>>0}
+function hexRgb(h){var i=parseInt(h.slice(1),16);return[(i>>16)&255,(i>>8)&255,i&255]}
+function rgba(h,a){var c=hexRgb(h);return'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'}
+
+/* ═══════════ RESIZE ═══════════ */
+function onResize(){
+  var dpr=window.devicePixelRatio||1;
+  W=window.innerWidth; H=window.innerHeight;
+    [lCvs,gCvs,mCvs].forEach(function(c){
+      c.width=W*dpr;c.height=H*dpr;
+      c.style.width=W+'px';c.style.height=H+'px';
+      c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+    });
+
+   // cache pixel-aligned grid lines
+  vGL.length=0;hGL.length=0;
+  for(var x=0;x<=W+GRID;x+=GRID) vGL.push(x);
+  for(var y=0;y<=H+GRID;y+=GRID) hGL.push(y);
+
+   genGrain(); // build initial linen tile + pattern
+  drawGrid();   // pixel-perfect grid lines (once, cached)
+}
+
+/* ═══════════ PROCEDURAL LINEN TEXTURE ═══════════ */
+function genGrain(){
+  var bp=Math.sin(tAcc*BREATH_HZ*Math.PI*2); // breath phase (-1..1)
+  var tc=document.createElement('canvas');
+  tc.width=TILE;tc.height=TILE;
+  var t=tc.getContext('2d');
+  var img=t.createImageData(TILE,TILE);
+  var d=img.data;
+
+   /* Generate one TILE×TILE grain tile */
+  for(var y=0;y<TILE;y++){
+    for(var x=0;x<TILE;x++){
+      var p=4; // thread pitch
+      var hw=Math.sin((y/p)*Math.PI*2);
+      var vw=Math.sin((x/p)*Math.PI*2);
+      var d1=Math.sin(((x+y)/(p*2))*Math.PI*2);
+      var d2=Math.sin(((x-y)/(p*2))*Math.PI*2);
+
+       /* Soft-threshold woven threads */
+      function ss(v,lo){var t=clamp((v-lo),0,1);return t*t*(3-2*t)}
+      var hT=ss(hw,.25),vT=ss(vw,.25);
+      var val=(hT+vT)*.48+(d1+d2)*.08;
+
+       /* Deterministic speckle noise */
+      var n=hash(x*73856093^y*19349669);
+      val+=(n/4294967295)*.10-.05;
+
+       /* Breathing brightness modulation (2Hz) */
+      val=clamp(val+bp*.018,0,1);
+
+      var i=(y*TILE+x)<<2;
+      d[i]  =Math.round(L(196,242,val)); // R
+      d[i+1]=Math.round(L(184,235,val)); // G
+      d[i+2]=Math.round(L(156,221,val)); // B
+      d[i+3]=255;                         // A
+     }
+   }
+
+  t.putImageData(img,0,0);
+  tileCvs=tc;
+  lPattern=lCtx.createPattern(tc,'repeat');
+}
+
+/* ═══════════ GRID RENDERING ═══════════ */
+function drawGrid(){
+  var c=hexRgb(C.c);
+  gCtx.clearRect(0,0,W,H);
+  gCtx.strokeStyle='rgba('+c[0]+','+c[1]+','+c[2]+',.45)';
+  gCtx.lineWidth=1;
+
+   // vertical lines — pixel-aligned (integer coords, no wobble)
+  for(var i=0;i<vGL.length;i++){
+    var x=vGL[i];if(x>W+.5)break;
+    gCtx.beginPath();gCtx.moveTo(x,0);gCtx.lineTo(x,H);gCtx.stroke();
+   }
+
+   // horizontal lines — pixel-aligned
+  for(var j=0;j<hGL.length;j++){
+    var y=hGL[j];if(y>H+.5)break;
+    gCtx.beginPath();gCtx.moveTo(0,y);gCtx.lineTo(W,y);gCtx.stroke();
+   }
+
+   // subtle intersection dots
+  gCtx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+',.55)';
+  for(var i=0;i<vGL.length;i++){
+    var gx=vGL[i];if(gx>W)break;
+    for(var j=0;j<hGL.length;j++){
+      var gy=hGL[j];if(gy>H)break;
+      gCtx.beginPath();gCtx.arc(gx,gy,1.2,0,Math.PI*2);gCtx.fill();
+     }
+   }
+}
+
+/* ═══════════ AUDIO ENGINE ═══════════ */
+function initAudio(){
+  if(audioOn)return;
+  var AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC)return;
+  audioCtx=new AC();
+  mGain=audioCtx.createGain();
+  mGain.gain.value=.10;        // base volume — gentle hum
+  mGain.connect(audioCtx.destination);
+
+   // C-major drone: C4=261.63, E4=329.63, G4=392.00
+   [261.63,329.63,392].forEach(function(f){
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='sine';osc.frequency.value=f;
+    osc.detune.value=(Math.random()-.5)*6; // ±3 cents warmth
+    g.gain.value=.28;
+    osc.connect(g);g.connect(mGain);osc.start();
+    dOscs.push(osc);
+   });
+
+  audioOn=true;
+}
+
+function modulateDrone(){
+  if(!mGain||!audioCtx)return;
+  var sp=Math.sqrt(velX*velX+velY*velY);
+  var n=clamp(sp/55,0,1);
+    /* ±8dB modulation: .03 (quiet) → .38 (loud) */
+  mGain.gain.setTargetAtTime(.03+n*.35,audioCtx.currentTime,.04);
+}
+
+function snapChime(xNorm){
+   // xNorm: 0→1 across screen for spatial panning
+  if(!audioCtx)return;
+  var now=audioCtx.currentTime;
+  var osc=audioCtx.createOscillator();
+  var g=audioCtx.createGain();
+  var pan=audioCtx.createStereoPanner();
+
+  osc.type='sine';osc.frequency.value=CHIME_FQ;
+    // subtle pitch bend for glass-shine quality
+  osc.frequency.exponentialRampToValueAtTime(CHIME_FQ*1.03,now+.015);
+  pan.pan.value=clamp(xNorm*2-1,-1,1);
+
+   // 60ms exponential decay envelope
+  g.gain.setValueAtTime(.30,now);
+  g.gain.exponentialRampToValueAtTime(.001,now+CHIME_DUR/1000);
+
+  osc.connect(g);g.connect(pan);pan.connect(audioCtx.destination);
+  osc.start(now);osc.stop(now+(CHIME_DUR/1000)+.06);
+}
+
+/* ═══════════ CURSOR PHYSICS ═══════════ */
+function physics(ts){
+   /* Raw displacement from target to eased cursor */
+  var dx=rawMX-curX, dy=rawMY-curY;
+  var dist=Math.sqrt(dx*dx+dy*dy);
+
+   /* Phase transitions: grip ↔ glide */
+  if(!inGrip&&dist>GLIDE_THRESH){ inGrip=true }
+  else if(inGrip&&dist<GLIDE_THRESH*.35){ inGrip=false }
+
+   /* Non-linear friction coefficient */
+  var nd=clamp(dist/80,0,1);
+  var nl=Math.pow(nd,FRIC_PWR);
+  var ef; // easing factor — how much of displacement to apply this frame
+
+  if(inGrip&&dist>GLIDE_THRESH*.5){
+     /* GRIP: heavy resistance — cursor feels tactile weight */
+    ef=1-(FRIC_BASE+nl*.25);
+    phase='GRIP';
+   }else if(dist>GLIDE_THRESH*.3){
+     /* GLIDE: fluid following, lighter drag */
+    var gd=FRIC_BASE*.5+nl*.10;
+    ef=1-gd;
+    phase='GLIDE';
+   }else if(dist>2){
+     /* Micro-movement: heavy grip feel */
+    ef=1-FRIC_BASE;
+    phase='GRIP';
+   }else{
+     /* Idle or microscopic movement */
+    ef=dist<.5?1:(1-FRIC_BASE*.3);
+    phase=dist<.5?'IDLE':'GRIP';
+   }
+
+   /* Apply easing factor to displacement — position-stable */
+  curX+=dx*ef; curY+=dy*ef;
+  velX=rawMX-curX; velY=rawMY-curY;
+
+   /* ── Snap-to-grid intersection ─────────────── */
+  var sx=Math.round(curX/GRID)*GRID;
+  var sy=Math.round(curY/GRID)*GRID;
+  var diSq=(curX-sx)*(curX-sx)+(curY-sy)*(curY-sy);
+
+  if(diSq<=SNAP_R*SNAP_R&&ts>=snapRestEnd&&diSq>.01){
+     /* Hard, direct transfer — no elastic bounce */
+    curX=sx;curY=sy;velX=0;velY=0;
+    phase='SNAP';
+    snapRestEnd=ts+REST_MS; // 12ms micro-rest starts NOW
+
+     /* Spatial chime panned to cursor X */
+    snapChime(curX/Math.max(W,1));
+
+      /* Phase release handled by physics catch below when ts>=snapRestEnd */
+   }else if(phase==='SNAP'&&ts>=snapRestEnd){
+    phase='GLIDE';
+   }
+}
+
+/* ═══════════ RENDER ═══════════ */
+function render(ts){
+  mCtx.clearRect(0,0,W,H);
+  var gc,ds; // glow color, dot size
+
+   /* Phase-dependent cursor appearance */
+  switch(phase){
+    case 'GRIP':
+      gc=C.y; ds=clamp(6+Math.sqrt(velX*velX+velY*velY)*.4,5,12); break;
+    case 'GLIDE':
+      gc=C.i; ds=6; renderTrail(); break;
+    case 'SNAP':
+      gc=C.y; ds=5; renderSnap(ts); break;
+    default:
+      gc=C.i; ds=4;
+   }
+
+   /* Radial gradient glow */
+  var gr=mCtx.createRadialGradient(curX,curY,0,curX,curY,ds*2.5);
+  gr.addColorStop(0,gc);
+  gr.addColorStop(.4,rgba(gc,.5));
+  gr.addColorStop(1,rgba(gc,0));
+  mCtx.beginPath();mCtx.arc(curX,curY,ds*2.5,0,Math.PI*2);
+  mCtx.fillStyle=gr;mCtx.fill();
+
+   /* Crisp core dot */
+  mCtx.beginPath();mCtx.arc(curX,curY,clamp(ds*.35,1.5,3),0,Math.PI*2);
+  mCtx.fillStyle=gc;mCtx.fill();
+
+   /* Grip indicator ring */
+  if(phase==='GRIP'){
+    var sp=Math.sqrt(velX*velX+velY*velY);
+    mCtx.beginPath();mCtx.arc(curX,curY,ds+3+sp*.2,0,Math.PI*2);
+    mCtx.strokeStyle=rgba(gc,.2);mCtx.lineWidth=1;mCtx.stroke();
+   }
+
+   /* HUD — throttled to every 4 frames (~15Hz for text updates) */
+  if(fc%4===0){
+    var spd=Math.sqrt(velX*velX+velY*velY);
+    elSpeed.textContent=spd.toFixed(1);
+    if(elPhase.textContent!==phase){
+      elPhase.textContent=phase;
+      elPhase.style.color=(phase==='SNAP'||phase==='GRIP')?C.y:
+                          phase==='GLIDE'?C.i:C.c;
+     }
+    var rl=Math.max(0,snapRestEnd-ts);
+    if(rl>0){
+      elRest.textContent=rl.toFixed(0)+'ms';
+      elRest.style.color=C.y;
+     }else{
+      elRest.textContent='READY';
+      elRest.style.color=C.c;
+     }
+   }
+}
+
+/* ── Motion trail (indigo blur during glide) ─ */
+function renderTrail(){
+  var sp=Math.sqrt(velX*velX+velY*velY);
+  if(sp<1)return;
+  var len=clamp(Math.floor(sp*3),0,20);
+  for(var i=len;i>=1;i--){
+    var tx=curX-velX*i*1.5, ty=curY-velY*i*1.5;
+    mCtx.beginPath();
+    mCtx.arc(tx,ty,clamp(6+sp*.15,4,14),0,Math.PI*2);
+    mCtx.fillStyle=rgba(C.i,.12*(1-i/len));
+    mCtx.fill();
+   }
+}
+
+/* ── Snap visuals (expanding ring + grid connection) ─ */
+function renderSnap(ts){
+  var pt=(ts%300)/300; // pulse 0→1 over 300ms cycle
+  var rr=clamp(8+pt*24,8,32);
+  var ra=.5*(1-pt);
+
+    /* Expanding ring from snap point */
+  mCtx.beginPath();mCtx.arc(curX,curY,rr,0,Math.PI*2);
+  mCtx.strokeStyle=rgba(C.y,ra);mCtx.lineWidth=1;mCtx.stroke();
+
+   /* Thin line to nearest intersection */
+  var sx=Math.round(curX/GRID)*GRID, sy=Math.round(curY/GRID)*GRID;
+  mCtx.beginPath();mCtx.moveTo(curX,curY);mCtx.lineTo(sx,sy);
+  mCtx.strokeStyle=rgba(C.y,.35*(1-pt*.5));mCtx.lineWidth=1;mCtx.stroke();
+
+   /* Corner accents at intersection */
+  var cl=8;
+  mCtx.beginPath();mCtx.moveTo(sx-cl,sy);mCtx.lineTo(sx,sy);mCtx.lineTo(sx,sy-cl);
+  mCtx.strokeStyle=rgba(C.y,.2*(1-pt));mCtx.lineWidth=1;mCtx.stroke();
+}
+
+/* ═══════════ BREATHING (CSS transform on GPU layer) ═══════════ */
+function updateBreathing(){
+   /* Scale oscillation ~2Hz with translateZ(0) for GPU compositing */
+  var s=1+Math.sin(tAcc*BREATH_HZ*Math.PI*2)*BREATH_AMP;
+  lCvs.style.transform='translateZ(0) scale('+s.toFixed(5)+')';
+
+   /* Regenerate grain tile periodically (smooth breathing texture change) */
+  if(fc%8===0){ genGrain(); }
+
+   /* Fill linen canvas with repeating pattern */
+  if(lPattern){
+    lCtx.clearRect(0,0,W,H);
+    lCtx.fillStyle=lPattern;
+    lCtx.fillRect(0,0,W,H);
+   }
+}
+
+/* ═══════════ EVENTS ═══════════ */
+elOverlay.addEventListener('click',function(){
+  initAudio();
+  if(audioCtx&&audioCtx.state==='suspended') audioCtx.resume();
+  elOverlay.classList.add('hidden');
+});
+document.addEventListener('mousemove',function(e){ rawMX=e.clientX;rawMY=e.clientY });
+document.addEventListener('touchmove',function(e){ e.preventDefault(); var t=e.touches[0];rawMX=t.clientX;rawMY=t.clientY },{passive:false});
+document.addEventListener('touchstart',function(e){ rawMX=e.touches[0].clientX;rawMY=e.touches[0].clientY });
+
+/* ═══════════ MAIN LOOP ═══════════ */
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(!rStart){ rStart=ts;lTs=ts }
+  var dt=ts-lTs;lTs=ts;
+  tAcc+=dt/1000; fc++;
+
+   /* Full frame: physics → audio → breathing → render */
+  physics(ts);
+  modulateDrone();
+  updateBreathing();
+  render(ts);
+}
+
+/* ═══════════ BOOT ═══════════ */
+window.addEventListener('resize',onResize);
+window.addEventListener('DOMContentLoaded',function(){
+  onResize();
+   // start cursor at viewport center, ready for input
+  curX=curY=W/2; rawMX=rawMY=W/2;
+  requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
