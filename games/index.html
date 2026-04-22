@@ -1,16 +1,774 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirecting to Drops</title>
-  <meta http-equiv="refresh" content="0; url=/bauhaus/drops/">
-  <link rel="canonical" href="/bauhaus/drops/">
-  <script>
-    window.location.replace('/bauhaus/drops/');
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bauhaus — Cursor Weave & Friction Lock</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  overflow: hidden;
+  background: #f5f0e8;
+  touch-action: none;
+  position: fixed; inset: 0;
+  cursor: none;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+canvas#mainCanvas {
+  display: block; width: 100vw; height: 100vh;
+  position: fixed; inset: 0; z-index: 1;
+}
+
+/* Linen-grain overlay */
+#linenOverlay {
+  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 3;
+  opacity: 0.12;
+  mix-blend-mode: multiply;
+}
+
+/* Ripple layer */
+#rippleLayer {
+  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 2;
+}
+
+/* Start overlay */
+#startOverlay {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(245, 240, 232, 0.95);
+  color: #2c2c2c;
+  font-size: 14px; letter-spacing: 0.10em;
+  text-transform: uppercase;
+  cursor: pointer; user-select: none;
+  transition: opacity 1.2s ease;
+}
+#startOverlay.hidden { opacity: 0; pointer-events: none; }
+#startOverlay h1 {
+  font-size: 28px; font-weight: 800; letter-spacing: 0.15em;
+  margin-bottom: 16px; color: #1a1a1a;
+}
+#startOverlay .sub {
+  font-size: 11px; color: #6b6b6b; letter-spacing: 0.18em;
+  margin-top: 8px; text-transform: none;
+}
+
+/* HUD */
+#hud {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 5; color: rgba(44,44,44,0.30); font-size: 10px;
+  letter-spacing: 0.15em; text-transform: uppercase; pointer-events: none;
+  text-align: center; line-height: 1.8;
+}
+
+/* SVG filter defs */
+.svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+</style>
 </head>
 <body>
-  <p>Redirecting to <a href="/bauhaus/drops/">Drops</a>…</p>
+
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <!-- Heavy cotton linen grain -->
+  <filter id="cottonGrain" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.65"
+     numOctaves="5" seed="42" stitchTiles="stitch" result="noise"/>
+    <feColorMatrix type="saturate" values="0" in="noise" result="desat"/>
+    <feComponentTransfer in="desat">
+      <feFuncA type="linear" slope="2.0"/>
+    </feComponentTransfer>
+  </filter>
+</defs>
+</svg>
+
+<canvas id="mainCanvas"></canvas>
+<canvas id="rippleLayer"></canvas>
+<canvas id="linenOverlay"></canvas>
+<div id="startOverlay">
+  <h1>CURSOR WEAVE</h1>
+  <span>Move slowly. Feel the grain.</span>
+  <span class="sub">click when the form settles</span>
+</div>
+<div id="hud">press · hold · resonate</div>
+
+<script>
+(function () {
+"use strict";
+
+/* ═══════════════════════════════════════════
+   BAHUHAUS CURSOR WEAVE — CONSTANTS
+    ════════════════════════════════════════════ */
+const MICRO_PAUSE_MS       = 20;         // 20ms breath between input & lock
+const TARGET_RADIUS        = 120;        // px radius of target zone
+const LOCK_THRESHOLD_PXS   = 3.5;        // px from center to declare "locked"
+const STATIC_FRICTION_COEFF= 0.92;       // resistance per frame during pause
+const DYNAMIC_FRICTION_COEFF= 0.85;      // reduced grip once sliding
+const MORNING_BLUE         = [135, 206, 235]; // #87CEEB
+const HEAVY_BROWN          = [44, 34, 28];     // warm dark grain
+const LINEN_WHITE          = [245, 240, 232];  // canvas base
+const C_MAJOR_FREQS        = [261.63, 329.63, 392.00, 523.25]; // C4 E4 G4 C5
+
+const GRAIN_SEED   = 42;
+const GRAIN_BASE_FREQ = 0.65;
+const TRAIL_MAX      = 80;
+
+/* ═══════════════════════════════════════════
+   STATE
+    ════════════════════════════════════════ */
+let W, H;
+let mouseX = 0, mouseY = 0;       // raw mouse coordinates
+let cursorX = 0, cursorY = 0;     // rendered (physics-driven) cursor
+let velX = 0, velY = 0;           // cursor velocity vectors
+let speed = 0;                    // scalar speed
+
+// Core interaction state machine
+const S_IDLE       = 'idle';
+const S_APPROACHING = 'approaching';
+const S_MICRO_PAUSE = 'micro_pause';
+const S_FRICTION    = 'friction';
+const S_LOCKING     = 'locking';
+const S_LOCKED      = 'locked';
+const S_RESOLVED    = 'resolved';
+
+let state   = S_IDLE;
+let targetX = 0, targetY = 0;    // where the cursor is heading (center of screen on hover)
+let enterTime = 0;               // when approach began
+let pauseStart = 0;              // when micro-pause timer started
+let frictionAccum = 0;           // accumulates static friction displacement
+let lockProgress = 0;            // 0→1 progress through lock transition
+let resolveTimer = 0;            // delay before color fade + audio chord
+
+// Trail for cursor path visualization
+let trail = [];
+
+// Ripple effects
+let ripples = [];                // { x, y, radius, maxRadius, alpha }
+
+// Grain noise accumulator (seeded pseudo-random walk)
+let grainPhaseX = 0;
+let grainPhaseY = 0;
+let lastGrainFrame = 0;
+
+// Color state for cursor & canvas fade
+let cursorColor = [...LINEN_WHITE];
+let targetColor = [...HEAVY_BROWN];
+let colorLerpT = 0;            // how far we've lerped toward morning blue
+
+// Audio
+let audioCtx    = null;
+let masterGain  = null;
+let humOscillators = [];
+let humGains     = [];
+let noiseSource  = null;
+let frictionGain = null;
+let snapGain     = null;
+
+// Timing
+let lastFrameTime = 0;
+let frameCount    = 0;
+
+/* ═══════════════════════════════════════════
+   CANVAS SETUP
+    ════════════════════════════════════════ */
+const mainCanvas      = document.getElementById('mainCanvas');
+const ctx             = mainCanvas.getContext('2d', { alpha: false });
+const rippleCanvas    = document.getElementById('rippleLayer');
+const rCtx            = rippleCanvas.getContext('2d', { alpha: true });
+const linenCanvas     = document.getElementById('linenOverlay');
+const lCtx            = linenCanvas.getContext('2d');
+const startOverlay    = document.getElementById('startOverlay');
+
+function resize () {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  [mainCanvas, rippleCanvas, linenCanvas].forEach(function (c) {
+    c.width  = W;
+    c.height = H;
+  });
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ═══════════════════════════════════════════
+   SEEDED NOISE — lightweight fractal noise for grain
+    ════════════════════════════════════════ */
+function hash2D (x, y) {
+  var h = (x * 374761393 + y * 668265263 + GRAIN_SEED * 1013904223) | 0;
+  h = ((h >> 13) ^ h) | 0;
+  return (h * (h * h * 15731 + 789221) + 1376312589) & 0x7fffffff;
+}
+
+function noise2D (x, y) {
+  var ix = Math.floor(x), iy = Math.floor(y);
+  var fx = x - ix, fy = y - iy;
+  // smoothstep
+  fx = fx * fx * (3 - 2 * fx);
+  fy = fy * fy * (3 - 2 * fy);
+  var n00 = hash2D(ix,   iy)    / 0x7fffffff;
+  var n10 = hash2D(ix+1, iy)    / 0x7fffffff;
+  var n01 = hash2D(ix,   iy+1)  / 0x7fffffff;
+  var n11 = hash2D(ix+1, iy+1)  / 0x7fffffff;
+  var nx0 = n00 + (n10 - n00) * fx;
+  var nx1 = n01 + (n11 - n01) * fx;
+  return (nx0 + (nx1 - nx0) * fy);
+}
+
+function fbm (x, y, octaves) {
+  var val = 0, amp = 0.5, freq = 1;
+  for (var i = 0; i < octaves; i++) {
+    val += amp * noise2D(x * freq, y * freq);
+    amp *= 0.5;
+    freq *= 2.0;
+  }
+  return val;
+}
+
+/* ═══════════════════════════════════════════
+   AUDIO ENGINE
+    ════════════════════════════════════════ */
+function initAudio () {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.35;
+  masterGain.connect(audioCtx.destination);
+
+  // C-major sustained hum (4 voices, soft attack)
+  var types = ['sine', 'sine', 'triangle', 'sine'];
+  for (var i = 0; i < C_MAJOR_FREQS.length; i++) {
+    var osc = audioCtx.createOscillator();
+    var g   = audioCtx.createGain();
+    osc.type     = types[i];
+    osc.frequency.value = C_MAJOR_FREQS[i];
+    g.gain.value = 0;
+    osc.connect(g);
+    g.connect(masterGain);
+    osc.start();
+    humOscillators.push(osc);
+    humGains.push(g);
+  }
+
+  // Brown noise for friction texture
+  var bufferSize = audioCtx.sampleRate * 2;
+  var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  var data = buffer.getChannelData(0);
+  var lastOut = 0;
+  for (var i = 0; i < bufferSize; i++) {
+    var white = Math.random() * 2 - 1;
+    lastOut = (lastOut + (0.02 * white)) / 1.02;
+    data[i] = lastOut * 3.5;
+  }
+  noiseSource = audioCtx.createBufferSource();
+  noiseSource.buffer = buffer;
+  noiseSource.loop = true;
+
+  frictionGain = audioCtx.createGain();
+  frictionGain.gain.value = 0;
+  noiseSource.connect(frictionGain);
+  frictionGain.connect(masterGain);
+  noiseSource.start();
+
+  // Snap / resolve click
+  snapGain = audioCtx.createGain();
+  snapGain.gain.value = 0;
+  snapGain.connect(masterGain);
+}
+
+function updateHumVolume (t) {
+  for (var i = 0; i < humOscillators.length; i++) {
+    var oscVol = t * 0.08; // max per-voice volume
+    humGains[i].gain.setTargetAtTime(oscVol, audioCtx.currentTime, 0.05);
+  }
+}
+
+function updateFrictionVolume (t) {
+  frictionGain.gain.setTargetAtTime(t * 0.12, audioCtx.currentTime, 0.02);
+}
+
+function playSnap () {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var g   = audioCtx.createGain();
+  osc.type     = 'sine';
+  osc.frequency.value = 523.25; // C5
+  g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+  osc.connect(g);
+  g.connect(masterGain);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.85);
+
+  // Gentle bell overtone
+  var osc2 = audioCtx.createOscillator();
+  var g2   = audioCtx.createGain();
+  osc2.type     = 'triangle';
+  osc2.frequency.value = 659.25; // E5
+  g2.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  g2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+  osc2.connect(g2);
+  g2.connect(masterGain);
+  osc2.start();
+  osc2.stop(audioCtx.currentTime + 1.05);
+
+  // Soft click noise
+  var bufSize = audioCtx.sampleRate * 0.05;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.1));
+  }
+  var ns = audioCtx.createBufferSource();
+  ns.buffer = buf;
+  var ng = audioCtx.createGain();
+  ng.gain.value = 0.05;
+  ns.connect(ng);
+  ng.connect(masterGain);
+  ns.start();
+}
+
+/* ═══════════════════════════════════════════
+   INPUT HANDLING
+    ════════════════════════════════════════ */
+document.addEventListener('mousemove', function (e) {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+
+document.addEventListener('mousedown', function (e) {
+  if (state === S_LOCKED) {
+    // Execute the lock — resolve!
+    triggerLock();
+  } else if (state === S_IDLE || state === S_APPROACHING) {
+    // Begin tracking target zone as mouse enters screen area
+    startApproach();
+  }
+});
+
+startOverlay.addEventListener('click', function () {
+  initAudio();
+  startOverlay.classList.add('hidden');
+  cursorX = W / 2;
+  cursorY = H / 2;
+  lastMoveX = mouseX || W / 2;
+  lastMoveY = mouseY || H / 2;
+});
+
+/* ═══════════════════════════════════════════
+   STATE MACHINE HELPERS
+    ════════════════════════════════════════ */
+function startApproach () {
+  state   = S_APPROACHING;
+  enterTime = performance.now();
+  targetX = W / 2;
+  targetY = H / 2;
+}
+
+function triggerMicroPause () {
+  state   = S_MICRO_PAUSE;
+  pauseStart = performance.now();
+  frictionAccum = 0;
+}
+
+function triggerFriction () {
+  state = S_FRICTION;
+}
+
+function triggerLocking () {
+  state = S_LOCKING;
+  lockProgress = 0;
+}
+
+function triggerLocked () {
+  state = S_LOCKED;
+}
+
+function triggerResolve () {
+  state = S_RESOLVED;
+  playSnap();
+  // Fade to morning blue
+  resolveTimer = performance.now();
+}
+
+/* ═══════════════════════════════════════════
+   INTERACTION LOGIC (called each frame)
+    ════════════════════════════════════════ */
+function updateInteraction (dt, now) {
+  // Distance from rendered cursor to center target
+  var dx = targetX - cursorX;
+  var dy = targetY - cursorY;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+
+  // Mouse proximity: is the raw mouse near the center zone?
+  var mDx = targetX - mouseX;
+  var mDy = targetY - mouseY;
+  var mouseDist = Math.sqrt(mDx * mDx + mDy * mDy);
+
+  switch (state) {
+    case S_IDLE:
+      // If mouse enters the target zone, begin approach sequence
+      if (mouseDist < TARGET_RADIUS) {
+        startApproach();
+      }
+      break;
+
+    case S_APPROACHING:
+      // Smoothly drive cursor toward center (the target zone)
+      var approachSpeed = Math.min(dist * 0.04, 8);
+      if (dist > 1) {
+        cursorX += (dx / dist) * approachSpeed;
+        cursorY += (dy / dist) * approachSpeed;
+      }
+
+      // As we get closer and mouse is held, enter the micro-pause
+      if (mouseDist < TARGET_RADIUS * 0.4 && dist < 30) {
+        triggerMicroPause();
+      }
+      break;
+
+    case S_MICRO_PAUSE:
+      // HARD 20ms wait — do NOT update cursor position during this window
+      var elapsed = now - pauseStart;
+      if (elapsed >= MICRO_PAUSE_MS) {
+        triggerFriction();
+      }
+      // During the pause, accumulate tiny grain drift for friction feel
+      var grainDriftX = (fbm(grainPhaseX, 0.3, 3) - 0.5) * STATIC_FRICTION_COEFF;
+      var grainDriftY = (fbm(0.3, grainPhaseY, 3) - 0.5) * STATIC_FRICTION_COEFF;
+      grainPhaseX += 0.15;
+      grainPhaseY += 0.15;
+      // Resist cursor movement with static friction — it SHOULD NOT move easily
+      cursorX += grainDriftX * 0.3;
+      cursorY += grainDriftY * 0.3;
+      frictionAccum = Math.abs(grainDriftX) + Math.abs(grainDriftY);
+      break;
+
+    case S_FRICTION:
+      // Static friction is breaking — cursor begins to "drag" toward target
+      // but with heavy resistance (the cotton grain grip)
+      var remaining = dist;
+      var frictionForce = STATIC_FRICTION_COEFF * 0.15;
+      // Gradually reduce friction as it "breaks loose"
+      var effectiveFriction = frictionForce * Math.max(0, 1 - frictionAccum * 0.1);
+      if (remaining > 1) {
+        cursorX += (dx / remaining) * Math.min(effectiveFriction, remaining);
+        cursorY += (dy / remaining) * Math.min(effectiveFriction, remaining);
+      }
+      frictionAccum += dt * 0.5;
+
+      if (remaining < LOCK_THRESHOLD_PXS || dist < 10) {
+        triggerLocking();
+      }
+      break;
+
+    case S_LOCKING:
+      // Stepped transition — no bounce, no spring, just press into position
+      lockProgress = Math.min(1, lockProgress + dt * 3.0); // ~333ms to fully lock
+      var lerpFactor = lockProgress * lockProgress; // ease-in squared (stepped)
+      cursorX = targetX + (cursorX - targetX) * (1 - lerpFactor);
+      cursorY = targetY + (cursorY - targetY) * (1 - lerpFactor);
+
+      if (lockProgress >= 1.0) {
+        cursorX = targetX;
+        cursorY = targetY;
+        triggerLocked();
+      }
+      break;
+
+    case S_LOCKED:
+      // Cursor is settled at target — pulsing gently, ready for click to resolve
+      velX = 0; velY = 0; speed = 0;
+      break;
+
+    case S_RESOLVED:
+      // Resolution fade-out handled in render loop
+      break;
+  }
+
+  // Velocity tracking
+  var prevVelX = velX, prevVelY = velY;
+  velX = (cursorX - (lastMoveX || cursorX)) / Math.max(dt, 0.16);
+  velY = (cursorY - (lastMoveY || cursorY)) / Math.max(dt, 0.16);
+  speed = Math.sqrt(velX * velX + velY * velY);
+  lastMoveX = cursorX;
+  lastMoveY = cursorY;
+
+  // Trail
+  trail.push({ x: cursorX, y: cursorY, t: now });
+  if (trail.length > TRAIL_MAX) trail.shift();
+}
+
+function triggerLock () {
+  if (state !== S_LOCKED) return;
+  // Create ripple at lock point
+  ripples.push({
+    x: targetX, y: targetY,
+    radius: 0, maxRadius: Math.max(W, H) * 0.6,
+    alpha: 1.0
+  });
+  triggerResolve();
+}
+
+/* ═══════════════════════════════════════════
+   RENDERING — each frame
+    ════════════════════════════════════════ */
+function render (now) {
+  // --- Main canvas: background + cursor trail + target zone ---
+  ctx.fillStyle = 'rgb(' + LINEN_WHITE.join(',') + ')';
+  ctx.fillRect(0, 0, W, H);
+
+  // Target zone (subtle circle)
+  var targetAlpha = state === S_IDLE ? 0.06 : 0.12;
+  ctx.beginPath();
+  ctx.arc(targetX, targetY, TARGET_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(' + HEAVY_BROWN.join(',') + ',' + targetAlpha + ')';
+  ctx.fill();
+
+  // Target ring
+  ctx.beginPath();
+  ctx.arc(targetX, targetY, TARGET_RADIUS, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(' + HEAVY_BROWN.join(',') + ',' + (targetAlpha * 1.5) + ')';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Cursor trail — the "weave"
+  if (trail.length > 2) {
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for (var i = 1; i < trail.length; i++) {
+      ctx.lineTo(trail[i].x, trail[i].y);
+    }
+    var trailAlphaBase = state === S_MICRO_PAUSE ? 0.25 : (state === S_FRICTION ? 0.18 : 0.10);
+    ctx.strokeStyle = 'rgba(' + cursorColor.join(',') + ',' + trailAlphaBase + ')';
+    ctx.lineWidth = state === S_MICRO_PAUSE ? 3 : 1.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // Cursor dot with grain offset (heavy cotton feel)
+  var grainOffX = (fbm(grainPhaseX, lastGrainFrame * 0.1, 4) - 0.5) * 3;
+  var grainOffY = (fbm(lastGrainFrame * 0.1, grainPhaseY, 4) - 0.5) * 3;
+
+  // Cursor color shifts during micro-pause (morning blue fade begins at end of pause)
+  if (state === S_MICRO_PAUSE) {
+    var pulseT = Math.sin((now - pauseStart) / MICRO_PAUSE_MS * Math.PI);
+    cursorColor = lerpColor(LINEN_WHITE, MORNING_BLUE, pulseT * 0.4);
+  } else if (state === S_FRICTION) {
+    cursorColor = lerpColor(cursorColor, MORNING_BLUE, 0.03);
+  } else if (state === S_LOCKING) {
+    colorLerpT = Math.min(1, lockProgress);
+    cursorColor = lerpColor(LINEN_WHITE, MORNING_BLUE, colorLerpT);
+  } else if (state === S_RESOLVED) {
+    var resolveElapsed = now - resolveTimer;
+    colorLerpT = Math.min(1, resolveElapsed / 800);
+    cursorColor = lerpColor(cursorColor, MORNING_BLUE, 0.05);
+  }
+
+  // Cursor glow during micro-pause (the "breath")
+  if (state === S_MICRO_PAUSE) {
+    var breathAlpha = Math.sin((now - pauseStart) / MICRO_PAUSE_MS * Math.PI) * 0.15;
+    ctx.beginPath();
+    ctx.arc(cursorX + grainOffX, cursorY + grainOffY, 20 + Math.sin(now * 0.005) * 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(' + MORNING_BLUE.join(',') + ',' + breathAlpha + ')';
+    ctx.fill();
+  }
+
+  // Main cursor circle (heavy grain-anchored feel)
+  var cursorRadius = state === S_LOCKED ? 6 : (state === S_FRICTION ? 5 : 4);
+  ctx.beginPath();
+  ctx.arc(cursorX + grainOffX, cursorY + grainOffY, cursorRadius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgb(' + cursorColor.map(Math.round).join(',') + ')';
+  ctx.fill();
+
+  // Cursor ring for locked state
+  if (state === S_LOCKED || state === S_RESOLVED) {
+    var pulseR = cursorRadius + 8 + Math.sin(now * 0.003) * 2;
+    ctx.beginPath();
+    ctx.arc(cursorX, cursorY, pulseR, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(' + MORNING_BLUE.join(',') + ',0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // --- Ripple layer ---
+  rCtx.clearRect(0, 0, W, H);
+  for (var ri = ripples.length - 1; ri >= 0; ri--) {
+    var rp = ripples[ri];
+    rp.radius += 6;
+    rp.alpha *= 0.96;
+    if (rp.alpha < 0.01) {
+      ripples.splice(ri, 1);
+      continue;
+    }
+    rCtx.beginPath();
+    rCtx.arc(rp.x, rp.y, rp.radius, 0, Math.PI * 2);
+    rCtx.strokeStyle = 'rgba(' + MORNING_BLUE.join(',') + ',' + rp.alpha * 0.6 + ')';
+    rCtx.lineWidth = 2;
+    rCtx.stroke();
+
+    // Inner ripple ring
+    rCtx.beginPath();
+    rCtx.arc(rp.x, rp.y, rp.radius * 0.7, 0, Math.PI * 2);
+    rCtx.strokeStyle = 'rgba(' + HEAVY_BROWN.join(',') + ',' + rp.alpha * 0.3 + ')';
+    rCtx.lineWidth = 1;
+    rCtx.stroke();
+  }
+
+  // --- Linen grain overlay (SVG filter texture) ---
+  renderGrain(lCtx, now);
+
+  // --- HUD text based on state ---
+  var hudEl = document.getElementById('hud');
+  if (!hudEl) return;
+  switch (state) {
+    case S_IDLE:      hudEl.innerHTML = 'move slowly · feel the grain'; break;
+    case S_APPROACHING: hudEl.innerHTML = 'press · hold · resonate'; break;
+    case S_MICRO_PAUSE: hudEl.innerHTML = 'hold'; break;
+    case S_FRICTION:  hudEl.innerHTML = 'drag · grip'; break;
+    case S_LOCKING:   hudEl.innerHTML = 'lock'; break;
+    case S_LOCKED:    hudEl.innerHTML = 'click to resonate'; break;
+    case S_RESOLVED:  hudEl.innerHTML = 'resonated'; break;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   GRAIN RENDERING — heavy cotton texture overlay
+    ════════════════════════════════════════ */
+function renderGrain (lCtx2, now) {
+  // Pre-computed low-res grain texture for performance; only update every 8 frames
+  var scale = 0.125;
+  var gw = Math.ceil(W * scale);
+  var gh = Math.ceil(H * scale);
+
+  if (!grainCanvas || grainCanvas.width !== gw || grainCanvas.height !== gh) {
+    grainCanvas = document.createElement('canvas');
+    grainCanvas.width = gw;
+    grainCanvas.height = gh;
+  }
+  // Recompute noise only every 8 frames (7.5Hz → looks organic at 60fps)
+  if (frameCount % 8 === 0 || !grainUpdated) {
+    var gc = grainCanvas.getContext('2d');
+    var imageData = gc.createImageData(gw, gh);
+    var data = imageData.data;
+    var seedOff = Math.floor(now * 0.00005) & 0xFFFF;
+    for (var y = 0; y < gh; y++) {
+      for (var x = 0; x < gw; x++) {
+        var gv = fbm((x / gw) * 2.0 + seedOff * 0.001, (y / gh) * 2.0 + seedOff * 0.0008, 3);
+        var intensity = Math.floor(gv * 30);
+        var idx = (y * gw + x) * 4;
+        data[idx]     = intensity;
+        data[idx+1]   = intensity - 5;
+        data[idx+2]   = intensity - 8;
+        data[idx+3]   = Math.floor(gv * 60);
+      }
+    }
+    gc.putImageData(imageData, 0, 0);
+    grainUpdated = true;
+  }
+  lCtx2.clearRect(0, 0, W, H);
+  lCtx2.drawImage(grainCanvas, 0, 0, gw, gh, 0, 0, W, H);
+}
+var grainCanvas = null;
+
+/* ═══════════════════════════════════════════
+   COLOR UTILS
+    ════════════════════════════════════════ */
+function lerpColor (a, b, t) {
+  t = Math.max(0, Math.min(1, t));
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t
+  ];
+}
+
+/* ═══════════════════════════════════════════
+   AUDIO UPDATE (per frame)
+    ════════════════════════════════════════ */
+function updateAudio (now) {
+  if (!audioCtx || !masterGain) return;
+
+  switch (state) {
+    case S_IDLE:
+      // Soft ambient — very low C note hum
+      for (var i = 0; i < humOscillators.length; i++) {
+        humGains[i].gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+      }
+      frictionGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+      break;
+
+    case S_APPROACHING:
+      // Very soft C-major chord beginning to fade in
+      var mDx = W/2 - mouseX; var mDy = H/2 - mouseY; var mouseDistApproach = Math.sqrt(mDx*mDx + mDy*mDy); var approachVol = Math.max(0, (TARGET_RADIUS * 0.5 - mouseDistApproach) / (TARGET_RADIUS * 0.5)) * 0.03;
+      updateHumVolume(Math.min(1, approachVol));
+      break;
+
+    case S_MICRO_PAUSE:
+      // Full C-major chord holds steady — the "breath" sound
+      var pauseProgress = Math.min(1, (now - pauseStart) / MICRO_PAUSE_MS);
+      var chordVol = pauseProgress * 0.12; // builds during the 20ms
+      updateHumVolume(chordVol);
+
+      // Friction noise also fades in (the cotton grain sound)
+      var frictionVol = pauseProgress * 0.08;
+      frictionGain.gain.setTargetAtTime(frictionVol, audioCtx.currentTime, 0.01);
+      break;
+
+    case S_FRICTION:
+      // Chord deepens as friction builds
+      updateHumVolume(0.12);
+      // Friction noise intensifies (heavy cotton grip)
+      frictionGain.gain.setTargetAtTime(0.15, audioCtx.currentTime, 0.02);
+      break;
+
+    case S_LOCKING:
+      // Chord resolves — harmonic lift
+      var lockT = lockProgress;
+      updateHumVolume(0.12 + lockT * 0.05);
+      // Friction noise fades as lock completes
+      frictionGain.gain.setTargetAtTime(0.15 * (1 - lockT), audioCtx.currentTime, 0.03);
+      break;
+
+    case S_LOCKED:
+      // Sustained C-major — steady hum
+      updateHumVolume(0.10);
+      frictionGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+      break;
+
+    case S_RESOLVED:
+      // After snap: chord sustains and slowly fades
+      var resolveElapsed = now - resolveTimer;
+      var fadeVol = Math.max(0, 1 - resolveElapsed / 2000) * 0.12;
+      updateHumVolume(fadeVol);
+      frictionGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+      break;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   MAIN LOOP — the heart of the weave
+    ════════════════════════════════════════ */
+function loop (now) {
+  requestAnimationFrame(loop);
+
+  // dt in milliseconds, clamped to avoid huge jumps
+  var dt = lastFrameTime ? Math.min(now - lastFrameTime, 32) : 16.67;
+  lastFrameTime = now;
+  frameCount++;
+
+  if (startOverlay.classList.contains('hidden')) {
+    updateInteraction(dt, now);
+    updateAudio(now);
+    render(now);
+  }
+}
+
+// Kick off the animation loop
+requestAnimationFrame(loop);
+
+})(); // end IIFE
+</script>
 </body>
 </html>
