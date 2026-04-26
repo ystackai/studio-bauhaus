@@ -131,38 +131,37 @@ canvas.addEventListener('mousedown', e => { ensureAudioCtx(); triggerSnap(); });
 
 // Snap interaction
 function triggerSnap() {
-   if (isSnapping) return;
-   isSnapping = true;
-   snapPhase = 0;
-   gridLocked = true;
-   stumbleOffset.x = 0;
-   stumbleOffset.y = 0;
-   needle.classList.add('active');
+    ensureAudioCtx();
+    if (isSnapping) return;
+    isSnapping = true;
+    snapPhase = 0;
+    gridLocked = true;
+    stumbleOffset.x = 0;
+    stumbleOffset.y = 0;
+    needle.classList.add('active');
 
-   // Trigger ducking for snap
-   targetDuckFactor = 0.4;
+    targetDuckFactor = 0.4;
+    playSnapAudio();
 
-   playSnapAudio();
+    setTimeout(() => {
+       snapPhase = 1;
+       gridLocked = false;
+       stumbleOffset.x = (Math.random() - 0.5) * 8;
+       stumbleOffset.y = (Math.random() - 0.5) * 8;
+       targetDuckFactor = 0.55;
+       setTimeout(() => { targetDuckFactor = 1; }, 280);
+     }, 150);
 
-   setTimeout(() => {
-      snapPhase = 1;
-      gridLocked = false;
-      stumbleOffset.x = (Math.random() - 0.5) * 8;
-      stumbleOffset.y = (Math.random() - 0.5) * 8;
-      targetDuckFactor = 0.55;
-      setTimeout(() => { targetDuckFactor = 1; }, 320);
-   }, 160);
-
-   setTimeout(() => {
-      snapPhase = 2;
-      exhaleProgress = 1;
-      playExhaleAudio();
-      setTimeout(() => {
-         isSnapping = false;
-         snapPhase = 0;
-         needle.classList.remove('active');
-      }, 1000);
-   }, 350);
+    setTimeout(() => {
+       snapPhase = 2;
+       exhaleProgress = 1;
+       playExhaleAudio();
+       setTimeout(() => {
+          isSnapping = false;
+          snapPhase = 0;
+          needle.classList.remove('active');
+        }, 800);
+     }, 300);
 }
 
 // Audio
@@ -304,8 +303,8 @@ function playExhaleAudio() {
    const ac = getAudioCtx();
    const t = ac.currentTime;
 
-   // Primary voice: descending minor arpeggio Cm7 (C4->Ab3->F3->C3)
-   const notes = [261.63, 207.65, 174.61, 130.81];
+    // Primary voice: descending minor arpeggio C4->A3->F3 (as per spec)
+    const notes = [261.63, 220.00, 174.61, 130.81];
    notes.forEach((freq, i) => {
       // Main tone
       const osc = ac.createOscillator();
@@ -344,8 +343,8 @@ function playExhaleAudio() {
       osc2.stop(st + 0.75);
    });
 
-   // Secondary voice: 5th octave down, soft pad
-   const notes2 = [130.81, 103.83, 87.31, 65.41];
+     // Secondary voice: octave down, soft pad
+    const notes2 = [130.81, 110.00, 87.31, 65.41];
    notes2.forEach((freq, i) => {
       const osc = ac.createOscillator();
       const g = ac.createGain();
@@ -369,16 +368,20 @@ const FRAME_MS = 1000 / 60;
 
 function render(ts) {
    requestAnimationFrame(render);
-   const delta = ts - lastTime;
-   if (delta < FRAME_MS * 0.8) return;
-   lastTime = ts;
+    if (lastTime === 0) lastTime = ts;
+    const delta = ts - lastTime;
+    if (delta < FRAME_MS * 0.8) return;
+    lastTime = ts;
 
    const w = window.innerWidth;
    const h = window.innerHeight;
    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-   // Smooth duck factor interpolation
-   audioDuckFactor += (targetDuckFactor - audioDuckFactor) * 0.15;
+     // Smooth duck factor interpolation + apply to master gain
+    audioDuckFactor += (targetDuckFactor - audioDuckFactor) * 0.15;
+    if (masterGain) {
+       masterGain.gain.setTargetAtTime(audioDuckFactor, getAudioCtx().currentTime, 0.02);
+    }
 
    // Hover audio throttle
    if (ts - lastAudioTime > 16) {
