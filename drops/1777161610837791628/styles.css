@@ -1,48 +1,64 @@
 * {
-   margin: 0;
-   padding: 0;
-   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 html, body {
-   width: 100%;
-   height: 100%;
-   overflow: hidden;
-   background: #2a2a2a;
-   -webkit-tap-highlight-color: transparent;
-   touch-action: none;
-   user-select: none;
-   -webkit-user-select: none;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #2a2a2a;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 #canvas {
-   display: block;
-   width: 100%;
-   height: 100%;
-   cursor: crosshair;
-   image-rendering: auto;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: none;
+  image-rendering: auto;
 }
 #compass-needle {
-   position: fixed;
-   pointer-events: none;
-   width: 24px;
-   height: 24px;
-   transform: translate(-50%, -50%);
-   z-index: 10;
+  position: fixed;
+  pointer-events: none;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  opacity: 0;
 }
 #compass-needle::before {
-   content: '';
-   position: absolute;
-   top: 50%;
-   left: 50%;
-   transform: translate(-50%, -50%);
-   width: 12px;
-   height: 12px;
-   background: #3a7aff;
-   border-radius: 50%;
-   box-shadow: 0 0 6px 2px rgba(42, 92, 170, 0.7);
-   transition: transform 0.08s ease-out, background 0.08s ease-out;
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #3a7aff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px rgba(42, 92, 170, 0.7);
+  transition: transform 0.08s ease-out, background 0.08s ease-out;
+}
+#compass-needle.vis {
+  opacity: 1;
+}
+#compass-needle.active {
+  opacity: 1;
 }
 #compass-needle.active::before {
-   transform: translate(-50%, -50%) scale(1.6);
-   background: #5aa0ff;
-   box-shadow: 0 0 12px 4px rgba(90, 160, 255, 0.8);
+  transform: translate(-50%, -50%) scale(1.6);
+  background: #5aa0ff;
+  box-shadow: 0 0 12px 4px rgba(90, 160, 255, 0.8);
+  transition: transform 0.05s ease-in-out, background 0.05s ease-in-out;
+}
+body.snap-rest #canvas {
+  filter: brightness(0.92) contrast(1.1);
+  transition: filter 0.15s ease-in;
+}
+body.exhale #canvas {
+  filter: brightness(0.85) saturate(0.7);
+  transition: filter 0.4s ease-out;
 }
