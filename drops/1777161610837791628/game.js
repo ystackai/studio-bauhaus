@@ -91,6 +91,9 @@ let isSnapping = false;
 let snapPhase = 0;
 let exhaleProgress = 0;
 let gridLocked = false;
+let stumbleOffset = { x: 0, y: 0 };
+let breathPhase = 0;
+let audioDuckFactor = 1;
 
 // Grid
 const cellSize = 40;
@@ -116,27 +119,35 @@ canvas.addEventListener('touchstart', triggerSnap);
 
 // Snap interaction
 function triggerSnap() {
-   if (isSnapping) return;
-   isSnapping = true;
-   snapPhase = 0;
-   gridLocked = true;
-   needle.classList.add('active');
-   playSnapAudio();
-   setTimeout(() => {
-      snapPhase = 1;
-      gridLocked = false;
-    }, 160);
-   setTimeout(() => {
-      snapPhase = 2;
-      exhaleProgress = 1;
-      playExhaleAudio();
-      setTimeout(() => {
-         isSnapping = false;
-         snapPhase = 0;
-         needle.classList.remove('active');
-       }, 1000);
-    }, 350);
-}
+    if (isSnapping) return;
+    isSnapping = true;
+    snapPhase = 0;
+    gridLocked = true;
+    stumbleOffset.x = 0;
+    stumbleOffset.y = 0;
+    needle.classList.add('active');
+    audioDuckFactor = 1;
+    playSnapAudio();
+    setTimeout(() => {
+       snapPhase = 1;
+       gridLocked = false;
+       stumbleOffset.x = (Math.random() - 0.5) * 8;
+       stumbleOffset.y = (Math.random() - 0.5) * 8;
+       const ac = getAudioCtx();
+       audioDuckFactor = 0.55;
+       setTimeout(() => { audioDuckFactor = 1; }, 320);
+      }, 160);
+    setTimeout(() => {
+       snapPhase = 2;
+       exhaleProgress = 1;
+       playExhaleAudio();
+       setTimeout(() => {
+          isSnapping = false;
+          snapPhase = 0;
+          needle.classList.remove('active');
+         }, 1000);
+      }, 350);
+ }
 
 // Audio
 let audioCtx = null;
@@ -157,7 +168,7 @@ function playHoverAudio(vel) {
    filter.frequency.value = 6000;
    osc.type = 'triangle';
    osc.frequency.value = 8000 + vel * 100;
-   gain.gain.value = Math.min(vel / 50, 0.06);
+    gain.gain.value = Math.min(vel / 50, 0.06) * audioDuckFactor;
    osc.connect(filter);
    filter.connect(gain);
    gain.connect(ac.destination);
@@ -247,8 +258,15 @@ function render(ts) {
       hoverCooldown = Math.max(0, hoverCooldown - 1);
     }
 
-   // Exhale decay
-   exhaleProgress *= 0.983;
+    // Exhale decay
+    exhaleProgress *= 0.983;
+
+    // Stumble interpolation (micro-stumble after grid lock)
+    stumbleOffset.x *= 0.92;
+    stumbleOffset.y *= 0.92;
+
+    // Breathing phase
+    breathPhase += 0.015;
 
    // Background - matte charcoal
    ctx.fillStyle = '#2a2a2a';
@@ -266,70 +284,77 @@ function render(ts) {
    const maxReach = Math.min(w, h) * 0.4;
    const nCols = Math.ceil(w / cellSize) + 2;
    const nRows = Math.ceil(h / cellSize) + 2;
-   for (let i = 0; i < nRows; i++) {
-      for (let j = 0; j < nCols; j++) {
-         const cx = j * cellSize + cellSize * 0.5;
-         const cy = i * cellSize + cellSize * 0.5;
-         const dx = cx - cursor.x;
-         const dy = cy - cursor.y;
-         const dist = Math.sqrt(dx * dx + dy * dy);
-         const prox = 1 - Math.min(dist / maxReach, 1);
-         if (prox < 0.05) continue;
-         const sat = 0.4 + prox * 0.6;
-         const rc = Math.round(42 * sat);
-         const gc = Math.round(92 * sat);
-         const bc = Math.round(170 * sat);
-         ctx.fillStyle = `rgba(${rc},${gc},${bc},${prox * 0.35})`;
-         ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+     const breathMod = 1 + Math.sin(breathPhase) * 0.12;
+    for (let i = 0; i < nRows; i++) {
+       for (let j = 0; j < nCols; j++) {
+          const cx = j * cellSize + cellSize * 0.5;
+          const cy = i * cellSize + cellSize * 0.5;
+          const dx = cx - effectiveX;
+          const dy = cy - effectiveY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const prox = 1 - Math.min(dist / (maxReach * breathMod), 1);
+          if (prox < 0.05) continue;
+          const sat = 0.4 + prox * 0.6;
+          const breathShift = Math.sin(breathPhase * 0.7 + cx * 0.005) * 0.15;
+          const rc = Math.round((42 + breathShift * 20) * sat);
+          const gc = Math.round((92 + breathShift * 10) * sat);
+          const bc = Math.round((170 - breathShift * 15) * sat);
+          const alpha = prox * (0.35 + breathShift * 0.3) * (1 - exhaleProgress * 0.5);
+          ctx.fillStyle = `rgba(${rc},${gc},${bc},${alpha})`;
+          ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
        }
-     }
+    }
 
-   // Time for wobble
-   const t = ts * 0.001;
+    // Time for wobble
+    const t = ts * 0.001;
+
+    // Cursor effective position with stumble offset
+    const effectiveX = cursor.x + stumbleOffset.x;
+    const effectiveY = cursor.y + stumbleOffset.y;
 
    // Structural grid lines with cursor-proximity wobble
    ctx.lineWidth = 1;
    ctx.strokeStyle = 'rgba(8,8,8,0.8)';
 
-   // Horizontal lines
-   for (let i = 0; i <= nRows; i++) {
-      ctx.beginPath();
-      const baseY = i * cellSize;
-      for (let j = 0; j <= nCols; j++) {
-         const bx = j * cellSize;
-         const dx = bx - cursor.x;
-         const dy = baseY - cursor.y;
-         const dist = Math.sqrt(dx * dx + dy * dy) + 1;
-         const wobbleAmt = Math.min(4 / (dist * 0.015), 3.5);
-         const nx = noise.noise2D(bx * 0.02 + t * 0.3, baseY * 0.02) * wobbleAmt;
-         const ny = noise.noise2D(baseY * 0.02 + t * 0.2, bx * 0.02) * wobbleAmt;
-         const px = bx + nx;
-         const py = baseY + ny;
-         if (j === 0) ctx.moveTo(px, py);
-         else ctx.lineTo(px, py);
+     // Horizontal lines
+    for (let i = 0; i <= nRows; i++) {
+       ctx.beginPath();
+       const baseY = i * cellSize;
+       for (let j = 0; j <= nCols; j++) {
+          const bx = j * cellSize;
+          const dx = bx - effectiveX;
+          const dy = baseY - effectiveY;
+          const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+          const wobbleAmt = Math.min(4 / (dist * 0.015), 3.5) * (gridLocked ? 0.1 : 1);
+          const nx = noise.noise2D(bx * 0.02 + t * 0.3, baseY * 0.02) * wobbleAmt;
+          const ny = noise.noise2D(baseY * 0.02 + t * 0.2, bx * 0.02) * wobbleAmt;
+          const px = bx + nx;
+          const py = baseY + ny;
+          if (j === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
        }
       ctx.stroke();
-    }
+     }
 
-   // Vertical lines
-   for (let j = 0; j <= nCols; j++) {
-      ctx.beginPath();
-      const baseX = j * cellSize;
-      for (let i = 0; i <= nRows; i++) {
-         const by = i * cellSize;
-         const dx = baseX - cursor.x;
-         const dy = by - cursor.y;
-         const dist = Math.sqrt(dx * dx + dy * dy) + 1;
-         const wobbleAmt = Math.min(4 / (dist * 0.015), 3.5);
-         const nx = noise.noise2D(baseX * 0.02 + t * 0.3, by * 0.02) * wobbleAmt;
-         const ny = noise.noise2D(by * 0.02 + t * 0.2, baseX * 0.02) * wobbleAmt;
-         const px = baseX + nx;
-         const py = by + ny;
-         if (i === 0) ctx.moveTo(px, py);
-         else ctx.lineTo(px, py);
-       }
-      ctx.stroke();
-    }
+      // Vertical lines
+    for (let j = 0; j <= nCols; j++) {
+       ctx.beginPath();
+       const baseX = j * cellSize;
+       for (let i = 0; i <= nRows; i++) {
+          const by = i * cellSize;
+          const dx = baseX - effectiveX;
+          const dy = by - effectiveY;
+          const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+          const wobbleAmt = Math.min(4 / (dist * 0.015), 3.5) * (gridLocked ? 0.1 : 1);
+          const nx = noise.noise2D(baseX * 0.02 + t * 0.3, by * 0.02) * wobbleAmt;
+          const ny = noise.noise2D(by * 0.02 + t * 0.2, baseX * 0.02) * wobbleAmt;
+          const px = baseX + nx;
+          const py = by + ny;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+       ctx.stroke();
+      }
 
    // Grain overlay (pre-rendered pattern)
    if (grainPattern) {
