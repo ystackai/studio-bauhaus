@@ -172,104 +172,191 @@ function getAudioCtx() {
    if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 1;
+      masterGain.gain.value = audioDuckFactor;
       masterGain.connect(audioCtx.destination);
    }
    if (audioCtx.state === 'suspended') audioCtx.resume();
    return audioCtx;
 }
 
-// Helper: connect node through master gain
-function connectToMaster(node) {
-   node.connect(masterGain || audioCtx.destination);
+function setMasterDuck(val) {
+   if (!masterGain) return;
+   masterGain.gain.setTargetAtTime(val, getAudioCtx().currentTime, 0.02);
 }
 
 let hoverCooldown = 0;
+let lastHoverAudioTime = 0;
 function playHoverAudio(vel) {
-   if (vel < 2) return;
+   if (vel < 3) return;
    const ac = getAudioCtx();
-   const osc = ac.createOscillator();
+   const t = ac.currentTime;
+   const dur = Math.min(0.03 + vel * 0.001, 0.08);
+   const amp = Math.min(vel / 80, 0.12);
+
+   // Brush noise for hi-hat texture
+   const bufLen = Math.floor(ac.sampleRate * dur);
+   const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+   const data = buf.getChannelData(0);
+   for (let i = 0; i < bufLen; i++) {
+      const env = Math.exp(-i / (bufLen * 0.3));
+      data[i] = (Math.random() * 2 - 1) * env;
+   }
+   const src = ac.createBufferSource();
+   src.buffer = buf;
+
+   const hp = ac.createBiquadFilter();
+   hp.type = 'highpass';
+   hp.frequency.value = 7000 + Math.min(vel * 50, 3000);
+   hp.Q.value = 0.8;
+
    const gain = ac.createGain();
-   const filter = ac.createBiquadFilter();
-   filter.type = 'highpass';
-   filter.frequency.value = 6000;
-   osc.type = 'triangle';
-   osc.frequency.value = 8000 + vel * 100;
-   gain.gain.value = Math.min(vel / 50, 0.06) * audioDuckFactor;
-   osc.connect(filter);
-   filter.connect(gain);
-   gain.connect(ac.destination);
-   osc.start();
-   osc.stop(ac.currentTime + 0.04);
+   gain.gain.value = amp;
+
+   src.connect(hp);
+   hp.connect(gain);
+   gain.connect(masterGain);
+   src.start(t);
+
+   // Tonal tick for snap-tactile feel at higher velocities
+   if (vel > 20) {
+      const osc = ac.createOscillator();
+      const tg = ac.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 3200 + vel * 30;
+      tg.gain.setValueAtTime(amp * 0.3, t);
+      tg.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+      osc.connect(tg);
+      tg.connect(masterGain);
+      osc.start(t);
+      osc.stop(t + 0.03);
+   }
 }
 
 function playSnapAudio() {
    const ac = getAudioCtx();
    const t = ac.currentTime;
-   // Metallic click
-   const osc = ac.createOscillator();
-   const g1 = ac.createGain();
-   osc.type = 'square';
-   osc.frequency.setValueAtTime(2200, t);
-   osc.frequency.exponentialRampToValueAtTime(800, t + 0.06);
-   g1.gain.setValueAtTime(0.15, t);
-   g1.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-   osc.connect(g1);
-   g1.connect(ac.destination);
-   osc.start(t);
-   osc.stop(t + 0.09);
-   // Brushed steel swipe
-   const buf = ac.createBuffer(1, ac.sampleRate * 0.12, ac.sampleRate);
-   const d = buf.getChannelData(0);
-   for (let i = 0; i < d.length; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.25));
+
+   // Metallic click: FM synthesis with two oscillators
+   const carrier = ac.createOscillator();
+   const modulator = ac.createOscillator();
+   const modGain = ac.createGain();
+   const clickGain = ac.createGain();
+
+   carrier.type = 'sine';
+   carrier.frequency.setValueAtTime(2800, t);
+   carrier.frequency.exponentialRampToValueAtTime(400, t + 0.12);
+
+   modulator.type = 'square';
+   modulator.frequency.setValueAtTime(6000, t);
+   modulator.frequency.exponentialRampToValueAtTime(1000, t + 0.06);
+   modGain.gain.setValueAtTime(1200, t);
+   modGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+
+   clickGain.gain.setValueAtTime(0.12, t);
+   clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+   modulator.connect(modGain);
+   modGain.connect(carrier.frequency);
+   carrier.connect(clickGain);
+   clickGain.connect(masterGain);
+
+   carrier.start(t);
+   modulator.start(t);
+   carrier.stop(t + 0.16);
+   modulator.stop(t + 0.1);
+
+   // Brushed steel swipe noise
+   const swipeDur = 0.18;
+   const sBuf = ac.createBuffer(1, ac.sampleRate * swipeDur, ac.sampleRate);
+   const sData = sBuf.getChannelData(0);
+   for (let i = 0; i < sData.length; i++) {
+      const env = Math.exp(-i / (sData.length * 0.35)) * (0.5 + 0.5 * Math.sin(i * 0.02));
+      sData[i] = (Math.random() * 2 - 1) * env;
    }
-   const ns = ac.createBufferSource();
-   ns.buffer = buf;
-   const g2 = ac.createGain();
-   g2.gain.value = 0.1;
+   const swSrc = ac.createBufferSource();
+   swSrc.buffer = sBuf;
+   const swGain = ac.createGain();
+   swGain.gain.value = 0.08;
    const bp = ac.createBiquadFilter();
    bp.type = 'bandpass';
-   bp.frequency.value = 3000;
-   bp.Q.value = 1.5;
-   ns.connect(bp);
-   bp.connect(g2);
-   g2.connect(ac.destination);
-   ns.start(t + 0.03);
+   bp.frequency.value = 2500;
+   bp.Q.value = 2;
+   swSrc.connect(bp);
+   bp.connect(swGain);
+   swGain.connect(masterGain);
+   swSrc.start(t + 0.02);
+
+   // Sub-thump for tactile weight
+   const thump = ac.createOscillator();
+   const tGain = ac.createGain();
+   thump.type = 'sine';
+   thump.frequency.setValueAtTime(150, t);
+   thump.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+   tGain.gain.setValueAtTime(0.1, t);
+   tGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+   thump.connect(tGain);
+   tGain.connect(masterGain);
+   thump.start(t);
+   thump.stop(t + 0.13);
 }
 
 function playExhaleAudio() {
    const ac = getAudioCtx();
    const t = ac.currentTime;
-   // Descending minor arpeggio C4->A3->F3
-   const notes = [261.63, 220, 174.61];
+
+   // Primary voice: descending minor arpeggio Cm7 (C4->Ab3->F3->C3)
+   const notes = [261.63, 207.65, 174.61, 130.81];
    notes.forEach((freq, i) => {
+      // Main tone
       const osc = ac.createOscillator();
       const g = ac.createGain();
+      const lp = ac.createBiquadFilter();
       osc.type = 'sine';
       osc.frequency.value = freq;
       const st = t + i * 0.2;
+      const peakAmp = 0.08 / (1 + i * 0.15);
+      // ADSR: fast attack, medium sustain, smooth release
       g.gain.setValueAtTime(0, st);
-      g.gain.linearRampToValueAtTime(0.07, st + 0.02);
+      g.gain.linearRampToValueAtTime(peakAmp, st + 0.015);
+      g.gain.linearRampToValueAtTime(peakAmp * 0.7, st + 0.08);
       g.gain.exponentialRampToValueAtTime(0.001, st + 0.8);
-      osc.connect(g);
-      g.connect(ac.destination);
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(2000, st);
+      lp.frequency.exponentialRampToValueAtTime(300, st + 0.8);
+      lp.Q.value = 1;
+      osc.connect(lp);
+      lp.connect(g);
+      g.connect(masterGain);
       osc.start(st);
       osc.stop(st + 0.85);
+
+      // Slight detune for chorus warmth
+      const osc2 = ac.createOscillator();
+      const g2 = ac.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq * 1.003;
+      g2.gain.setValueAtTime(0, st + 0.005);
+      g2.gain.linearRampToValueAtTime(peakAmp * 0.3, st + 0.02);
+      g2.gain.exponentialRampToValueAtTime(0.001, st + 0.7);
+      osc2.connect(g2);
+      g2.connect(masterGain);
+      osc2.start(st + 0.005);
+      osc2.stop(st + 0.75);
    });
-   // Second arpeggio voice for richness, a minor third below
-   const notes2 = [196.00, 164.81, 130.81];
+
+   // Secondary voice: 5th octave down, soft pad
+   const notes2 = [130.81, 103.83, 87.31, 65.41];
    notes2.forEach((freq, i) => {
       const osc = ac.createOscillator();
       const g = ac.createGain();
-      osc.type = 'sine';
+      osc.type = 'triangle';
       osc.frequency.value = freq;
-      const st = t + i * 0.2 + 0.03;
+      const st = t + i * 0.2 + 0.05;
       g.gain.setValueAtTime(0, st);
-      g.gain.linearRampToValueAtTime(0.03, st + 0.02);
+      g.gain.linearRampToValueAtTime(0.025, st + 0.04);
       g.gain.exponentialRampToValueAtTime(0.001, st + 0.9);
       osc.connect(g);
-      g.connect(ac.destination);
+      g.connect(masterGain);
       osc.start(st);
       osc.stop(st + 0.95);
    });
