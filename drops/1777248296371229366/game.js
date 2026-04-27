@@ -133,12 +133,11 @@ function getOffBeatPulse(elapsed) {
 
 function generateWeaveTexture() {
   if (!weaveCtx) return;
-  var w = 512;
-  var h = 512;
-  var offC = document.createElement('canvas');
-  offC.width = w;
-  offC.height = h;
-  var ctx = offC.getContext('2d');
+  var w = 128, h = 128;
+  weaveSource = document.createElement('canvas');
+  weaveSource.width = w;
+  weaveSource.height = h;
+  var ctx = weaveSource.getContext('2d');
 
   var imgData = ctx.createImageData(w, h);
   var d = imgData.data;
@@ -159,9 +158,7 @@ function generateWeaveTexture() {
     }
   }
   ctx.putImageData(imgData, 0, 0);
-  weaveCtx.imageSmoothingEnabled = true;
-  weaveCtx.clearRect(0, 0, weaveCanvas.width, weaveCanvas.height);
-  weaveCtx.drawImage(offC, 0, 0, weaveCanvas.width, weaveCanvas.height);
+  weavePattern = null;
 }
 
 function resize() {
@@ -221,8 +218,13 @@ function drawMetronomePulse(elapsed) {
     if (phase === 'hover' && hoverActive) {
       gridCtx.fillStyle = 'rgba(26, 26, 26, 0.08)';
       gridCtx.fillRect(0, 0, W, H);
-    }
-  }
+      playMetronomeTick();
+     } else if (phase === 'releasing' && !resolved) {
+      gridCtx.fillStyle = 'rgba(26, 26, 26, 0.04)';
+      gridCtx.fillRect(0, 0, W, H);
+      if (currentBeat % 2 === 0) playMetronomeTick();
+     }
+   }
 
   var offBeat = getBeatOffset(elapsed);
   var onBeat = Math.max(0, 1 - offBeat / (BEAT_MS * 0.15));
@@ -230,7 +232,7 @@ function drawMetronomePulse(elapsed) {
     gridCtx.strokeStyle = 'rgba(242, 210, 105, ' + (onBeat * 0.15) + ')';
     gridCtx.lineWidth = 1;
     gridCtx.strokeRect(0.5, 0.5, W - 1, H - 1);
-  }
+   }
 }
 
 function easeOutCubic(t) {
@@ -447,6 +449,21 @@ function updateRevealState(elapsed) {
   overlayEl.style.opacity = overlayOpacity.toFixed(4);
 }
 
+var weavePattern = null;
+var weaveSource = null;
+
+function drawWeave(elapsed) {
+  if (!weaveCtx || !weaveSource) return;
+  if (!weavePattern) {
+    weavePattern = weaveCtx.createPattern(weaveSource, 'repeat');
+    }
+  weaveCtx.clearRect(0, 0, W, H);
+  weaveCtx.globalAlpha = 0.35;
+  weaveCtx.fillStyle = weavePattern;
+  weaveCtx.fillRect(0, 0, W, H);
+  weaveCtx.globalAlpha = 1;
+}
+
 var lastTs = 0;
 
 function loop(ts) {
@@ -460,6 +477,7 @@ function loop(ts) {
   drawMetronomePulse(ts);
   drawMotif(ts);
   drawCursorTrail();
+  drawWeave(ts);
 
   requestAnimationFrame(loop);
 }
