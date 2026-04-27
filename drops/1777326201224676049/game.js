@@ -2,13 +2,13 @@
 const TARGET_FPS = 60;
 const FRAME_DURATION = 1000 / TARGET_FPS;
 const BPM = 120;
-const BEAT_INTERVAL = 60 / BPM;
+const BEAT_INTERVAL = 60 / BPM; // 0.5s per beat
 const CYCLE_DURATION = 2.4;
 const PHASE_GRID_SNAP = 0.0;
 const PHASE_LANTERN_START = 0.8;
 const PHASE_TRIANGLE_BLOOM = 1.8;
 const PHASE_STRUCTURAL_LOCK = 2.4;
-const TRANGLE_YELLOW = [242, 208, 43];
+const TRIANGLE_YELLOW = [242, 208, 43];
 const PAPER_COLOR = [245, 240, 232];
 const BLUE_CHANNEL_FREQ = 293.66;
 
@@ -28,6 +28,14 @@ let halfPixelDrift = 0;
 let w = window.innerWidth;
 let h = window.innerHeight;
 
+// Audio trigger guards
+let lastMetronomeBeat = -1;
+let lastPhase = -1;
+let lanternPlayed = false;
+let driftHumPlayed = false;
+let lockThudPlayed = false;
+let gridSnapPlayed = false;
+
 // === Audio Engine ===
 function initAudio() {
   if (audioStarted) return;
@@ -41,8 +49,9 @@ function initAudio() {
   masterGain.connect(audioCtx.destination);
 }
 
-function playMetronomeClick(time, volume = 0.15) {
+function playMetronomeClick(time, volume) {
   if (!audioCtx) return;
+  volume = volume || 0.15;
 
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -164,17 +173,52 @@ function playDriftHum(time, driftAmount) {
   osc.stop(time + 0.2);
 }
 
+function playHoverRustle(time) {
+  if (!audioCtx) return;
+
+  // Low-tension fabric rustle on hover entry
+  const bufferSize = audioCtx.sampleRate * 0.3;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < bufferSize; i++) {
+    const t = i / audioCtx.sampleRate;
+    const envelope = Math.exp(-t * 8);
+    const noise = (Math.random() * 2 - 1);
+    // Bandpass-filtered by hand for fabric-like texture
+    const filtered = Math.sin(t * 600) * noise;
+    data[i] = filtered * envelope * 0.04;
+  }
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 800;
+  filter.Q.value = 2;
+
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.5;
+
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  source.start(time);
+}
+
 // === Timeline Logic ===
 function getPhase(elapsed) {
   return elapsed % CYCLE_DURATION;
 }
 
 function sineEase(t) {
-  return Math.sin(Math.PI * t);
+  return Math.sin(Math.PI * Math.max(0, Math.min(1, t)));
 }
 
 function sineEaseIn(t) {
-  return 1 - Math.cos((Math.PI / 2) * t);
+  return 1 - Math.cos((Math.PI / 2) * Math.max(0, Math.min(1, t)));
 }
 
 function computeLanternOpacity(elapsed) {
@@ -196,23 +240,21 @@ function computeTriangleBleed(elapsed) {
 function computeHalfPixelDrift(elapsed) {
   const phase = getPhase(elapsed);
   // Half-pixel drift coupled to sine curve, peaks during structural lock
-  if (phase >= PHASE_STRUCTURAL_LOCK - 0.4) {
-    const t = (phase - (PHASE_STRUCTURAL_LOCK - 0.4)) / 0.4;
-    return 0.5 * Math.sin(Math.PI * t);
-  }
-  return 0;
+  if (phase < 2.0) return 0;
+  const t = (phase - 2.0) / 0.4;
+  return 0.5 * Math.sin(Math.PI * Math.min(t, 1));
 }
 
 function computeGrainDensity(elapsed, drift) {
   // Grain density tilts dynamically with half-pixel drift
   const baseDensity = 180;
   const tilt = drift * 20;
-  return baseDensity + tilt;
+  return Math.round(baseDensity + tilt);
 }
 
 // === Rendering ===
 function drawRicePaperBase() {
-  ctx.fillStyle = `rgb(${PAPER_COLOR[0]}, ${PAPER_COLOR[1]}, ${PAPER_COLOR[2]})`;
+  ctx.fillStyle = 'rgb(' + PAPER_COLOR[0] + ', ' + PAPER_COLOR[1] + ', ' + PAPER_COLOR[2] + ')';
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -227,17 +269,16 @@ function drawGrain(elapsed, drift) {
     const x = ((i * 7 + seed) % w) + drift * ((i % 2 === 0) ? 1 : -1);
     const y = ((i * 13 + seed * 3) % h);
     ctx.fillRect(Math.round(x + 0.5), Math.round(y), grainSize, grainSize);
-   }
+  }
 }
 
 function drawGrid(elapsed) {
   const phase = getPhase(elapsed);
-  const snapIntensity = phase < 0.1 ? sineEase(phase / 0.1) : Math.max(0, 1 - (phase - 0.1) / 0.5);
+  const snapIntensity = (phase < 0.1) ? sineEase(phase / 0.1) : Math.max(0, 1 - (phase - 0.1) / 0.5);
 
   const spacing = 60;
-  const hasSnapped = phase >= PHASE_GRID_SNAP && phase <= 0.1;
 
-  ctx.strokeStyle = `rgba(80, 90, 110, ${0.08 + snapIntensity * 0.25})`;
+  ctx.strokeStyle = 'rgba(80, 90, 110, ' + (0.08 + snapIntensity * 0.25) + ')';
   ctx.lineWidth = 0.5 + snapIntensity * 0.5;
 
   for (let x = spacing; x < w; x += spacing) {
@@ -246,7 +287,7 @@ function drawGrid(elapsed) {
     ctx.moveTo(x + driftOffset, 0);
     ctx.lineTo(x + driftOffset, h);
     ctx.stroke();
-   }
+  }
 
   for (let y = spacing; y < h; y += spacing) {
     const driftOffset = halfPixelDrift * Math.cos(y * 0.01);
@@ -254,16 +295,16 @@ function drawGrid(elapsed) {
     ctx.moveTo(0, y + driftOffset);
     ctx.lineTo(w, y + driftOffset);
     ctx.stroke();
-   }
+  }
 }
 
 function drawStructuralLines(elapsed) {
   const phase = getPhase(elapsed);
-  const lockProgress = phase >= PHASE_STRUCTURAL_LOCK - 0.5
+  const lockProgress = (phase >= PHASE_STRUCTURAL_LOCK - 0.5)
     ? Math.min((phase - (PHASE_STRUCTURAL_LOCK - 0.5)) / 0.5, 1)
     : 0;
 
-  ctx.strokeStyle = `rgba(60, 70, 90, ${0.12 + lockProgress * 0.3})`;
+  ctx.strokeStyle = 'rgba(60, 70, 90, ' + (0.12 + lockProgress * 0.3) + ')';
   ctx.lineWidth = 1 + lockProgress * 1.5;
 
   const cx = w / 2;
@@ -283,7 +324,7 @@ function drawStructuralLines(elapsed) {
 
   // Bevel highlight
   if (lockProgress > 0.3) {
-    ctx.strokeStyle = `rgba(255, 255, 255, ${(lockProgress - 0.3) * 0.4})`;
+    ctx.strokeStyle = 'rgba(255, 255, 255, ' + ((lockProgress - 0.3) * 0.4) + ')';
     ctx.lineWidth = 0.5;
 
     ctx.beginPath();
@@ -300,19 +341,19 @@ function drawStructuralLines(elapsed) {
 
 function drawLanternFade(elapsed) {
   const opacity = computeLanternOpacity(elapsed);
-  if (opacity <= 0) return;
+  if (opacity <= 0.001) return;
 
   const cx = w / 2;
   const cy = h / 2;
   const radius = Math.max(w, h) * 0.6;
 
   const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-  gradient.addColorStop(0, `rgba(255, 250, 230, ${opacity * 0.6})`);
-  gradient.addColorStop(0.7, `rgba(255, 245, 220, ${opacity * 0.3})`);
-  gradient.addColorStop(1, `rgba(255, 240, 215, 0)`);
+  gradient.addColorStop(0, 'rgba(255, 250, 230, ' + (opacity * 0.6) + ')');
+  gradient.addColorStop(0.7, 'rgba(255, 245, 220, ' + (opacity * 0.3) + ')');
+  gradient.addColorStop(1, 'rgba(255, 240, 215, 0)');
 
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, w, h);
 }
 
 function drawTriangle(elapsed) {
@@ -320,9 +361,9 @@ function drawTriangle(elapsed) {
   const cy = h / 2;
   const size = Math.min(w, h) * 0.12;
 
-  let r = TRANGLE_YELLOW[0];
-  let g = TRANGLE_YELLOW[1];
-  let b = TRANGLE_YELLOW[2];
+  let r = TRIANGLE_YELLOW[0];
+  let g = TRIANGLE_YELLOW[1];
+  let b = TRIANGLE_YELLOW[2];
 
   const bleed = computeTriangleBleed(elapsed);
   r = Math.round(r + (PAPER_COLOR[0] - r) * bleed);
@@ -333,8 +374,8 @@ function drawTriangle(elapsed) {
   const driftX = halfPixelDrift * 0.5;
   const driftY = halfPixelDrift * 0.3;
 
-  ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-  ctx.strokeStyle = `rgba(80, 70, 20, ${0.3 - bleed * 0.2})`;
+  ctx.fillStyle = 'rgb(' + r + ', ' + g + ', ' + b + ')';
+  ctx.strokeStyle = 'rgba(80, 70, 20, ' + (0.3 - bleed * 0.2) + ')';
   ctx.lineWidth = 1;
 
   ctx.beginPath();
@@ -352,7 +393,7 @@ function drawHoverIndicator() {
   const elapsed = (performance.now() - hoverStartTime) / 1000;
   const opacity = Math.min(elapsed * 2, 0.3);
 
-  ctx.strokeStyle = `rgba(180, 160, 100, ${opacity})`;
+  ctx.strokeStyle = 'rgba(180, 160, 100, ' + opacity + ')';
   ctx.lineWidth = 1;
 
   ctx.beginPath();
@@ -360,12 +401,87 @@ function drawHoverIndicator() {
   ctx.stroke();
 }
 
+function drawStillnessIndicator(elapsed) {
+  // After 2.4s structural lock, show a subtle stillness ring
+  const phase = getPhase(elapsed);
+  const cycle = Math.floor(elapsed / CYCLE_DURATION);
+  const timeSinceLock = elapsed - (cycle * CYCLE_DURATION);
+
+  if (timeSinceLock > PHASE_STRUCTURAL_LOCK) {
+    const linger = Math.min((timeSinceLock - PHASE_STRUCTURAL_LOCK) / 0.3, 1);
+    const cx = w / 2;
+    const cy = h / 2;
+
+    ctx.strokeStyle = 'rgba(245, 240, 232, ' + (linger * 0.15) + ')';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30 + linger * 10, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// === Main Render Loop ===
+function scheduleAudioForPhase(phase, prevPhase) {
+  if (!audioCtx) return;
+
+  const audioTime = audioCtx.currentTime;
+  const cycle = Math.floor(globalTime / CYCLE_DURATION);
+
+  // Metronome click every beat
+  const beatIndex = Math.floor(globalTime / BEAT_INTERVAL);
+  if (beatIndex !== lastMetronomeBeat) {
+    lastMetronomeBeat = beatIndex;
+    playMetronomeClick(audioTime, 0.1);
+  }
+
+  // Grid snap at 0.0s of each cycle
+  if (prevPhase > (CYCLE_DURATION - 0.1) && phase < 0.1) {
+    playGridSnap(audioTime);
+    gridSnapPlayed = true;
+  }
+  if (phase > 0.15) {
+    gridSnapPlayed = false;
+  }
+
+  // Lantern exhale at 0.8s
+  if ((prevPhase < PHASE_LANTERN_START && phase >= PHASE_LANTERN_START) ||
+       (prevPhase >= PHASE_LANTERN_START && phase > PHASE_LANTERN_START && phase < PHASE_LANTERN_START + 0.05 && !lanternPlayed)) {
+    lanternPlayed = true;
+    playLanternExhale(audioTime);
+  }
+  if (phase > PHASE_LANTERN_START + 0.1) {
+    lanternPlayed = false;
+  }
+
+  // Drift hum during half-pixel drift (2.0s - 2.4s)
+  if (halfPixelDrift > 0.01) {
+    if (!driftHumPlayed) {
+      driftHumPlayed = true;
+      playDriftHum(audioTime, halfPixelDrift);
+    }
+  }
+  if (halfPixelDrift < 0.01) {
+    driftHumPlayed = false;
+  }
+
+  // Structural lock thud at 2.4s (transition to next cycle)
+  if (prevPhase > (CYCLE_DURATION - 0.08) && phase < 0.08 && globalTime > CYCLE_DURATION * 0.5) {
+    if (!lockThudPlayed) {
+      lockThudPlayed = true;
+      playStructuralLock(audioTime);
+    }
+  }
+  if (phase > 0.15) {
+    lockThudPlayed = false;
+  }
+}
+
 function render(timestamp) {
   if (!lastFrameTime) lastFrameTime = timestamp;
 
   const delta = timestamp - lastFrameTime;
 
-  // Frame rate capping to 60fps
+  // Frame rate capping to 60fps with minimal jitter
   if (delta < FRAME_DURATION) {
     requestAnimationFrame(render);
     return;
@@ -375,87 +491,39 @@ function render(timestamp) {
 
   // Update global time
   const now = performance.now();
-  globalTime = (now - cycleStartTime) / 1000;
+  if (cycleStartTime) {
+    globalTime = (now - cycleStartTime) / 1000;
+  }
 
   // Compute half-pixel drift (coupled to sine curve)
   halfPixelDrift = computeHalfPixelDrift(globalTime);
 
-  // Clear and draw
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Audio scheduling on frame-complete
+  const prevPhase = lastPhase;
+  const phase = getPhase(globalTime);
+  if (cycleStartTime) {
+    scheduleAudioForPhase(phase, prevPhase);
+  }
+  lastPhase = phase;
+
+  // Clear and draw layers
+  ctx.clearRect(0, 0, w, h);
   drawRicePaperBase();
   drawGrain(globalTime, halfPixelDrift);
   drawGrid(globalTime);
   drawStructuralLines(globalTime);
   drawLanternFade(globalTime);
   drawTriangle(globalTime);
+  drawStillnessIndicator(globalTime);
   drawHoverIndicator();
-
-  // Schedule audio events on frame-complete
-  const phase = getPhase(globalTime);
-  const audioTime = audioCtx ? audioCtx.currentTime : null;
-
-  if (audioTime) {
-    // Metronome click every beat
-    const beatIndex = Math.floor(globalTime / BEAT_INTERVAL);
-    if (beatIndex !== (lastMetronomeBeat || -1)) {
-      lastMetronomeBeat = beatIndex;
-      playMetronomeClick(audioTime, 0.1);
-    }
-
-    // Grid snap at 0.0s
-    if (phase < 0.05 && !(lastPhase >= CYCLE_DURATION - 0.05)) {
-      playGridSnap(audioTime);
-    }
-
-    // Lantern exhale at 0.8s
-    if (Math.abs(phase - PHASE_LANTERN_START) < 0.05 && !lanternPlayed) {
-      lanternPlayed = true;
-      playLanternExhale(audioTime);
-    }
-    if (phase > PHASE_LANTERN_START + 0.1) {
-      lanternPlayed = false;
-    }
-
-    // Drift hum during structural lock transition
-    if (Math.abs(phase - PHASE_STRUCTURAL_LOCK) < 0.2 && Math.abs(halfPixelDrift) > 0.01) {
-      if (!driftHumPlayed || Math.random() < 0.02) {
-        driftHumPlayed = true;
-        playDriftHum(audioTime, halfPixelDrift);
-      }
-    } else {
-      driftHumPlayed = false;
-    }
-
-    // Structural lock thud at 2.4s
-    if (Math.abs(phase) < 0.05 && globalTime > CYCLE_DURATION) {
-      if (!lockThudPlayed) {
-        lockThudPlayed = true;
-        playStructuralLock(audioTime);
-      }
-    }
-    if (phase > 0.1) {
-      lockThudPlayed = false;
-    }
-  }
-
-  lastPhase = phase;
 
   requestAnimationFrame(render);
 }
 
 // === Event Handlers ===
-let lastMetronomeBeat = -1;
-let lastPhase = -1;
-let lanternPlayed = false;
-let driftHumPlayed = false;
-let lockThudPlayed = false;
-
 function init() {
   canvas = document.getElementById('stage');
   ctx = canvas.getContext('2d');
-
-  let w = window.innerWidth;
-  let h = window.innerHeight;
 
   function resize() {
     w = window.innerWidth;
@@ -471,19 +539,61 @@ function init() {
   resize();
   window.addEventListener('resize', resize);
 
-  canvas.addEventListener('mouseenter', (e) => {
-    initAudio();
+  canvas.addEventListener('mouseenter', function(e) {
+    if (!audioStarted) {
+      initAudio();
+    }
     isHovering = true;
     hoverStartTime = performance.now();
-    cycleStartTime = performance.now();
+    if (!cycleStartTime) {
+      cycleStartTime = performance.now();
+    }
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+
+    // Play hover rustle on first hover
+    if (audioCtx) {
+      playHoverRustle(audioCtx.currentTime);
+    }
   });
 
-  canvas.addEventListener('mousemove', (e) => {
+  canvas.addEventListener('mousemove', function(e) {
     mouseX = e.clientX;
     mouseY = e.clientY;
   });
 
-  canvas.addEventListener('mouseleave', () => {
+  canvas.addEventListener('mouseleave', function() {
+    isHovering = false;
+  });
+
+  // Touch support
+  canvas.addEventListener('touchstart', function(e) {
+    if (!audioStarted) {
+      initAudio();
+    }
+    isHovering = true;
+    hoverStartTime = performance.now();
+    if (!cycleStartTime) {
+      cycleStartTime = performance.now();
+    }
+    const touch = e.touches[0];
+    mouseX = touch.clientX;
+    mouseY = touch.clientY;
+
+    if (audioCtx) {
+      playHoverRustle(audioCtx.currentTime);
+    }
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('touchmove', function(e) {
+    const touch = e.touches[0];
+    mouseX = touch.clientX;
+    mouseY = touch.clientY;
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('touchend', function() {
     isHovering = false;
   });
 
