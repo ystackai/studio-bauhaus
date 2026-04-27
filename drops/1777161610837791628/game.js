@@ -117,6 +117,9 @@ function ensureAudioCtx() {
    getAudioCtx();
 }
 
+function showNeedle() {
+   needle.classList.add('vis');
+}
 function updateCursor(x, y, dt) {
    prevPrevCursor.x = prevCursor.x;
    prevPrevCursor.y = prevCursor.y;
@@ -141,16 +144,19 @@ function updateCursor(x, y, dt) {
    needle.style.top = cursor.y + 'px';
 }
 
-canvas.addEventListener('mousemove', e => { ensureAudioCtx(); updateCursor(e.clientX, e.clientY); });
+let cursorOnScreen = true;
+canvas.addEventListener('mousemove', e => { ensureAudioCtx(); updateCursor(e.clientX, e.clientY); showNeedle(); });
+canvas.addEventListener('mouseleave', () => { cursorOnScreen = false; needle.classList.remove('vis'); });
+canvas.addEventListener('mouseenter', () => { cursorOnScreen = true; showNeedle(); });
 canvas.addEventListener('touchmove', e => {
    e.preventDefault();
    ensureAudioCtx();
-   if (e.touches.length > 0) updateCursor(e.touches[0].clientX, e.touches[0].clientY);
+   if (e.touches.length > 0) { updateCursor(e.touches[0].clientX, e.touches[0].clientY); showNeedle(); cursorOnScreen = true; }
 }, { passive: false });
 canvas.addEventListener('touchstart', e => {
    e.preventDefault();
    ensureAudioCtx();
-   if (e.touches.length > 0) updateCursor(e.touches[0].clientX, e.touches[0].clientY);
+   if (e.touches.length > 0) { updateCursor(e.touches[0].clientX, e.touches[0].clientY); showNeedle(); cursorOnScreen = true; }
    triggerSnap();
 }, { passive: false });
 canvas.addEventListener('touchend', e => {
@@ -159,6 +165,12 @@ canvas.addEventListener('touchend', e => {
    if (isSnapping && snapPhase === 0) {
       abortSnap();
    }
+   if (e.touches.length === 0) { cursorOnScreen = false; needle.classList.remove('vis'); }
+}, { passive: false });
+canvas.addEventListener('touchcancel', e => {
+   e.preventDefault();
+   if (isSnapping && snapPhase === 0) { abortSnap(); }
+   if (e.touches.length === 0) { cursorOnScreen = false; needle.classList.remove('vis'); }
 }, { passive: false });
 canvas.addEventListener('mousedown', e => { ensureAudioCtx(); triggerSnap(); });
 canvas.addEventListener('mouseup', e => {
@@ -186,13 +198,13 @@ function triggerSnap() {
       // If already snapping, abort and restart (handles rapid clicks)
       abortSnap();
    }
-   isSnapping = true;
-   snapPhase = 0;
-   gridLocked = true;
-   snapStartTime = performance.now();
-   stumbleOffset.x = 0;
-   stumbleOffset.y = 0;
-   needle.classList.add('active');
+    isSnapping = true;
+    snapPhase = 0;
+    gridLocked = true;
+    snapStartTime = lastTickTime; // Use tick time for deterministic phase tracking
+    stumbleOffset.x = 0;
+    stumbleOffset.y = 0;
+    needle.classList.add('active');
 
    targetDuckFactor = 0.4;
    playSnapAudio();
@@ -391,302 +403,316 @@ function playExhaleAudio() {
 
 // Deterministic 60fps render loop
 let lastFrameTime = 0;
+let lastTickTime = 0;
 let frameAccumulator = 0;
 const FRAME_DURATION = 1000 / 60; // Fixed timestep for determinism
 let lastAudioTime = 0;
+let globalTick = 0; // Monotonic frame counter
 
-function render(ts) {
-   requestAnimationFrame(render);
-   
-   if (lastFrameTime === 0) {
-      lastFrameTime = ts;
-      return;
-   }
-   
-   // Fixed timestep: accumulate time and process at 60fps intervals
-   const delta = ts - lastFrameTime;
-   frameAccumulator += delta;
-   
-   // Process at most 3 frames to prevent spiral of death
-   let framesProcessed = 0;
-   while (frameAccumulator >= FRAME_DURATION && framesProcessed < 3) {
-      frameAccumulator -= FRAME_DURATION;
-      lastFrameTime = ts;
-      framesProcessed++;
-      
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      
-      // ---- Update phase ----
-      
-      // Smooth duck factor interpolation
-      audioDuckFactor += (targetDuckFactor - audioDuckFactor) * 0.12;
-      if (masterGain) {
-         masterGain.gain.setTargetAtTime(audioDuckFactor, getAudioCtx().currentTime, 0.015);
-      }
-      
-      // Snap phase timing (deterministic)
-      if (isSnapping) {
-         const elapsed = ts - snapStartTime;
-         
-         if (snapPhase === 0) {
-            // 150ms hesitation before downbeat
-            if (elapsed > 150) {
-               snapPhase = 1;
-               gridLocked = false;
-               // Seed tumble offset
-               const tumbleRadius = 6 + Math.random() * 4;
-               const stumbleAngle = Math.random() * Math.PI * 2;
-               stumbleStart.x = Math.cos(stumbleAngle) * tumbleRadius;
-               stumbleStart.y = Math.sin(stumbleAngle) * tumbleRadius;
-               stumbleOffset.x = stumbleStart.x;
-               stumbleOffset.y = stumbleStart.y;
-               targetDuckFactor = 0.55;
-            }
+function update() {
+    // Smooth duck factor interpolation
+   audioDuckFactor += (targetDuckFactor - audioDuckFactor) * 0.12;
+   if (masterGain) {
+      masterGain.gain.setTargetAtTime(audioDuckFactor, getAudioCtx().currentTime, 0.015);
+    }
+
+    // Snap phase timing (deterministic)
+   if (isSnapping) {
+      const elapsed = lastTickTime - snapStartTime;
+
+        if (snapPhase === 0) {
+            // ~160ms half-beat hesitation before downbeat (per brief)
+          if (elapsed > 160) {
+            snapPhase = 1;
+            gridLocked = false;
+             // Seed stumble offset
+            const tumbleRadius = 6 + Math.random() * 4;
+            const stumbleAngle = Math.random() * Math.PI * 2;
+            stumbleStart.x = Math.cos(stumbleAngle) * tumbleRadius;
+            stumbleStart.y = Math.sin(stumbleAngle) * tumbleRadius;
+            stumbleOffset.x = stumbleStart.x;
+            stumbleOffset.y = stumbleStart.y;
+            targetDuckFactor = 0.55;
+            document.body.classList.add('snap-rest');
+          }
          } else if (snapPhase === 1) {
-            // Stumble phase: 280ms micro-stumble
-            if (elapsed > 160 + 280) {
-               snapPhase = 2;
-               exhaleProgress = 1;
-               targetDuckFactor = 0.3;
-               playExhaleAudio();
+             // Stumble phase: 280ms micro-stumble
+          if (elapsed > 440) {
+             snapPhase = 2;
+             exhaleProgress = 1;
+             targetDuckFactor = 0.3;
+             document.body.classList.remove('snap-rest');
+             document.body.classList.add('exhale');
+             playExhaleAudio();
             }
-            // Stumble interpolation with eased return
-            const stumbleT = Math.min((elapsed - 160) / 280, 1);
-            const easedT = easeOutCubic(stumbleT);
-            stumbleOffset.x = stumbleStart.x * (1 - easedT);
-            stumbleOffset.y = stumbleStart.y * (1 - easedT);
+             // Stumble interpolation with eased return
+          const stumbleT = Math.min((elapsed - 160) / 280, 1);
+          const easedT = easeOutCubic(stumbleT);
+          stumbleOffset.x = stumbleStart.x * (1 - easedT);
+          stumbleOffset.y = stumbleStart.y * (1 - easedT);
             // Add a secondary wobble during stumble
-            stumbleOffset.x += Math.sin(stumbleT * Math.PI * 3) * 3 * (1 - easedT);
-            stumbleOffset.y += Math.cos(stumbleT * Math.PI * 2.5) * 2 * (1 - easedT);
+          stumbleOffset.x += Math.sin(stumbleT * Math.PI * 3) * 3 * (1 - easedT);
+          stumbleOffset.y += Math.cos(stumbleT * Math.PI * 2.5) * 2 * (1 - easedT);
          } else if (snapPhase === 2) {
-            // Exhale phase: 800ms resolution
-            if (elapsed > 160 + 280 + 800) {
-               isSnapping = false;
-               snapPhase = 0;
-               needle.classList.remove('active');
-               targetDuckFactor = 1;
-            }
-         }
-      }
-      
-      // Exhale decay (completes within ~1s)
-      exhaleProgress *= 0.975;
-      if (exhaleProgress < 0.001) exhaleProgress = 0;
-      
-      // Smooth stumble offset decay outside of snap
-      if (!isSnapping) {
-         stumbleOffset.x *= 0.9;
-         stumbleOffset.y *= 0.9;
-      }
-      
-      // Breathing phase (continuous)
-      breathPhase += 0.018;
-      
-      // Cursor effective position with stumble offset
-      const effectiveX = cursor.x + stumbleOffset.x;
-      const effectiveY = cursor.y + stumbleOffset.y;
-      
-      // Hover audio (throttled to ~60fps check, 16ms interval)
-      const speed = Math.sqrt(cursor.vx * cursor.vx + cursor.vy * cursor.vy);
-      hoverCooldown = Math.max(0, hoverCooldown - 1);
-      if (hoverCooldown <= 0 && speed > 2 && !isSnapping) {
-         playHoverAudio(speed);
-         hoverCooldown = 3;
-      }
-      
-      // ---- Draw phase ----
-      
-      // Background - matte charcoal
-      ctx.fillStyle = '#2a2a2a';
-      ctx.fillRect(0, 0, w, h);
-      
-      // Base blue field with exhale desaturation
-      const blueIntensity = 0.35 - exhaleProgress * 0.25;
-      const cr = Math.round(26 * blueIntensity);
-      const cg = Math.round(58 * blueIntensity);
-      const cb = Math.round(106 * blueIntensity);
-      ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
-      ctx.fillRect(0, 0, w, h);
-      
-      // Proximity-based breathing blue field
-      const maxReach = Math.min(w, h) * 0.45;
-      const nCols = Math.ceil(w / cellSize) + 2;
-      const nRows = Math.ceil(h / cellSize) + 2;
-      const breathMod = 1 + Math.sin(breathPhase) * 0.12;
-      
-      for (let i = 0; i < nRows; i++) {
-         for (let j = 0; j < nCols; j++) {
-            const cx = j * cellSize + cellSize * 0.5;
-            const cy = i * cellSize + cellSize * 0.5;
-            const dx = cx - effectiveX;
-            const dy = cy - effectiveY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            // Smooth proximity falloff using cosine
-            const prox = Math.max(0, 1 - dist / (maxReach * breathMod));
-            const smoothProx = prox * prox * (3 - 2 * prox); // smoothstep
-            if (smoothProx < 0.02) continue;
-            
-            // Blue saturation shift based on proximity
-            const sat = 0.25 + smoothProx * 0.75;
-            const breathShift = Math.sin(breathPhase * 0.7 + cx * 0.004 + cy * 0.003) * 0.15;
-            
-            // #2A5CAA to #1A3A6A gradient based on proximity
-            const r = Math.round((42 + breathShift * 15) * sat);
-            const g = Math.round((92 + breathShift * 8) * sat);
-            const b = Math.round((170 - breathShift * 12) * sat);
-            const alpha = smoothProx * (0.3 + breathShift * 0.2) * (1 - exhaleProgress * 0.45);
-            
-            ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
-            ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
-         }
-      }
-      
-      // Time for wobble calculations
-      const t = ts * 0.001;
-      
-      // Structural grid lines with cursor-proximity wobble + velocity-driven displacement
-      ctx.lineWidth = 0.8;
-      ctx.strokeStyle = 'rgba(6,6,6,0.85)';
-      
-      // Horizontal lines
-      for (let i = 0; i <= nRows; i++) {
-         ctx.beginPath();
-         const baseY = i * cellSize;
-         for (let j = 0; j <= nCols; j++) {
-            const bx = j * cellSize;
-            const dx = bx - effectiveX;
-            const dy = baseY - effectiveY;
-            const dist = Math.sqrt(dx * dx + dy * dy) + 1;
-            
-            // Proximity-based wobble amplitude
-            const proxWobble = Math.min(6 / (dist * 0.012), 4) * (gridLocked ? 0.15 : 1);
-            
-            // Noise-based organic wobble
-            const nx = noise.noise2D(bx * 0.018 + t * 0.25, baseY * 0.018) * proxWobble;
-            const ny = noise.noise2D(baseY * 0.018 + t * 0.2, bx * 0.018) * proxWobble * 0.7;
-            
-            // Velocity-driven displacement (cursor motion pulls nearby grid)
-            const velInfluence = speed * 0.08 * Math.max(0, 1 - dist / 200);
-            const vxDisp = (cursor.vx * velInfluence * 0.3);
-            const vyDisp = (cursor.vy * velInfluence * 0.5);
-            
-            const px = bx + nx + vxDisp;
-            const py = baseY + ny + vyDisp;
-            
-            if (j === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-         }
-         ctx.stroke();
-      }
-      
-      // Vertical lines
-      for (let j = 0; j <= nCols; j++) {
-         ctx.beginPath();
-         const baseX = j * cellSize;
-         for (let i = 0; i <= nRows; i++) {
-            const by = i * cellSize;
-            const dx = baseX - effectiveX;
-            const dy = by - effectiveY;
-            const dist = Math.sqrt(dx * dx + dy * dy) + 1;
-            
-            const proxWobble = Math.min(6 / (dist * 0.012), 4) * (gridLocked ? 0.15 : 1);
-            
-            const nx = noise.noise2D(baseX * 0.018 + t * 0.25, by * 0.018) * proxWobble;
-            const ny = noise.noise2D(by * 0.018 + t * 0.2, baseX * 0.018) * proxWobble * 0.7;
-            
-            const velInfluence = speed * 0.08 * Math.max(0, 1 - dist / 200);
-            const vxDisp = cursor.vx * velInfluence * 0.5;
-            const vyDisp = cursor.vy * velInfluence * 0.3;
-            
-            const px = baseX + nx + vxDisp;
-            const py = by + ny + vyDisp;
-            
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-         }
-         ctx.stroke();
-      }
-      
-       // Grain overlay (pre-rendered pattern, slight offset for parallax feel)
-      if (grainPattern) {
-         ctx.save();
-         const grainAlpha = 0.28 - exhaleProgress * 0.12;
-         ctx.globalAlpha = grainAlpha;
-         const grainOffX = (cursor.x * 0.08) % GRAIN_RES;
-         const grainOffY = (cursor.y * 0.08) % GRAIN_RES;
-         ctx.translate(grainOffX, grainOffY);
-         ctx.fillStyle = grainPattern;
-         ctx.fillRect(-GRAIN_RES, -GRAIN_RES, w + 2 * GRAIN_RES, h + 2 * GRAIN_RES);
-         ctx.restore();
+             // Exhale phase: 800ms resolution
+          if (elapsed > 1240) {
+             document.body.classList.remove('exhale');
+            isSnapping = false;
+            snapPhase = 0;
+            needle.classList.remove('active');
+            targetDuckFactor = 1;
+          }
        }
-      
-      // Snap phase visual overlays
-      if (isSnapping && snapPhase === 0) {
-         // Half-beat structural rest: subtle pulse
-         const pulse = 0.12 + Math.sin(ts * 0.025) * 0.03;
-         ctx.fillStyle = `rgba(12,12,12,${pulse})`;
-         ctx.fillRect(0, 0, w, h);
-      } else if (isSnapping && snapPhase === 2) {
-         // Exhale: dimming overlay
-         const exhaleAlpha = exhaleProgress * 0.2;
-         ctx.fillStyle = `rgba(20,20,20,${exhaleAlpha})`;
-         ctx.fillRect(0, 0, w, h);
-      }
-      
-      // Compass needle at cursor (canvas-drawn)
-      const compR = 6;
-      const compAlpha = Math.min(0.4 + speed * 0.015, 0.9);
-      
-      // Outer ring
+    }
+
+    // Exhale decay (completes within ~1s)
+   exhaleProgress *= 0.975;
+   if (exhaleProgress < 0.001) exhaleProgress = 0;
+
+    // Smooth stumble offset decay outside of snap
+   if (!isSnapping) {
+      stumbleOffset.x *= 0.9;
+      stumbleOffset.y *= 0.9;
+    }
+
+    // Breathing phase (continuous)
+   breathPhase += 0.018;
+
+    // Hover audio (throttled, only when cursor is moving meaningfully)
+   const speed = Math.sqrt(cursor.vx * cursor.vx + cursor.vy * cursor.vy);
+   hoverCooldown = Math.max(0, hoverCooldown - 1);
+   if (hoverCooldown <= 0 && speed > 2 && !isSnapping) {
+      playHoverAudio(speed);
+      hoverCooldown = 3;
+    }
+}
+
+function draw(ts) {
+   const w = window.innerWidth;
+   const h = window.innerHeight;
+   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    // Cursor effective position with stumble offset
+   const effectiveX = cursor.x + stumbleOffset.x;
+   const effectiveY = cursor.y + stumbleOffset.y;
+   const speed = Math.sqrt(cursor.vx * cursor.vx + cursor.vy * cursor.vy);
+   const t = ts * 0.001;
+
+    // Background - matte charcoal
+   ctx.fillStyle = '#2a2a2a';
+   ctx.fillRect(0, 0, w, h);
+
+    // Base blue field with exhale desaturation
+   const blueIntensity = 0.35 - exhaleProgress * 0.25;
+   const cr = Math.round(26 * blueIntensity);
+   const cg = Math.round(58 * blueIntensity);
+   const cb = Math.round(106 * blueIntensity);
+   ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+   ctx.fillRect(0, 0, w, h);
+
+    // Proximity-based breathing blue field
+   const maxReach = Math.min(w, h) * 0.45;
+   const nCols = Math.ceil(w / cellSize) + 2;
+   const nRows = Math.ceil(h / cellSize) + 2;
+   const breathMod = 1 + Math.sin(breathPhase) * 0.12;
+
+   for (let i = 0; i < nRows; i++) {
+      for (let j = 0; j < nCols; j++) {
+         const cx = j * cellSize + cellSize * 0.5;
+         const cy = i * cellSize + cellSize * 0.5;
+         const dx = cx - effectiveX;
+         const dy = cy - effectiveY;
+         const dist = Math.sqrt(dx * dx + dy * dy);
+
+          // Smooth proximity falloff using smoothstep
+         const prox = Math.max(0, 1 - dist / (maxReach * breathMod));
+         const smoothProx = prox * prox * (3 - 2 * prox);
+         if (smoothProx < 0.02) continue;
+
+          // Blue saturation shift based on proximity
+         const sat = 0.25 + smoothProx * 0.75;
+         const breathShift = Math.sin(breathPhase * 0.7 + cx * 0.004 + cy * 0.003) * 0.15;
+
+          // #2A5CAA to #1A3A6A gradient based on proximity
+         const r = Math.round((42 + breathShift * 15) * sat);
+         const g = Math.round((92 + breathShift * 8) * sat);
+         const b = Math.round((170 - breathShift * 12) * sat);
+         const alpha = smoothProx * (0.3 + breathShift * 0.2) * (1 - exhaleProgress * 0.45);
+
+         ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+         ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+       }
+    }
+
+    // Structural grid lines with cursor-proximity wobble + velocity-driven displacement
+   ctx.lineWidth = 0.8;
+   ctx.strokeStyle = 'rgba(6,6,6,0.85)';
+
+    // Horizontal lines
+   for (let i = 0; i <= nRows; i++) {
+      ctx.beginPath();
+      const baseY = i * cellSize;
+      for (let j = 0; j <= nCols; j++) {
+         const bx = j * cellSize;
+         const dx = bx - effectiveX;
+         const dy = baseY - effectiveY;
+         const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+
+          // Proximity-based wobble amplitude
+         const proxWobble = Math.min(6 / (dist * 0.012), 4) * (gridLocked ? 0.15 : 1);
+
+          // Noise-based organic wobble
+         const nx = noise.noise2D(bx * 0.018 + t * 0.25, baseY * 0.018) * proxWobble;
+         const ny = noise.noise2D(baseY * 0.018 + t * 0.2, bx * 0.018) * proxWobble * 0.7;
+
+          // Velocity-driven displacement (cursor motion pulls nearby grid)
+         const velInfluence = speed * 0.08 * Math.max(0, 1 - dist / 200);
+         const vxDisp = cursor.vx * velInfluence * 0.3;
+         const vyDisp = cursor.vy * velInfluence * 0.5;
+
+         const px = bx + nx + vxDisp;
+         const py = baseY + ny + vyDisp;
+
+         if (j === 0) ctx.moveTo(px, py);
+         else ctx.lineTo(px, py);
+       }
+      ctx.stroke();
+    }
+
+    // Vertical lines
+   for (let j = 0; j <= nCols; j++) {
+      ctx.beginPath();
+      const baseX = j * cellSize;
+      for (let i = 0; i <= nRows; i++) {
+         const by = i * cellSize;
+         const dx = baseX - effectiveX;
+         const dy = by - effectiveY;
+         const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+
+         const proxWobble = Math.min(6 / (dist * 0.012), 4) * (gridLocked ? 0.15 : 1);
+
+         const nx = noise.noise2D(baseX * 0.018 + t * 0.25, by * 0.018) * proxWobble;
+         const ny = noise.noise2D(by * 0.018 + t * 0.2, baseX * 0.018) * proxWobble * 0.7;
+
+         const velInfluence = speed * 0.08 * Math.max(0, 1 - dist / 200);
+         const vxDisp = cursor.vx * velInfluence * 0.5;
+         const vyDisp = cursor.vy * velInfluence * 0.3;
+
+         const px = baseX + nx + vxDisp;
+         const py = by + ny + vyDisp;
+
+         if (i === 0) ctx.moveTo(px, py);
+         else ctx.lineTo(px, py);
+       }
+      ctx.stroke();
+    }
+
+     // Grain overlay (pre-rendered pattern, slight offset for parallax feel)
+   if (grainPattern) {
+      ctx.save();
+      const grainAlpha = 0.28 - exhaleProgress * 0.12;
+      ctx.globalAlpha = grainAlpha;
+      const grainOffX = (cursor.x * 0.08) % GRAIN_RES;
+      const grainOffY = (cursor.y * 0.08) % GRAIN_RES;
+      ctx.translate(grainOffX, grainOffY);
+      ctx.fillStyle = grainPattern;
+      ctx.fillRect(-GRAIN_RES, -GRAIN_RES, w + 2 * GRAIN_RES, h + 2 * GRAIN_RES);
+      ctx.restore();
+     }
+
+    // Snap phase visual overlays
+   if (isSnapping && snapPhase === 0) {
+        // Half-beat structural rest: subtle pulse
+      const pulse = 0.12 + Math.sin(ts * 0.025) * 0.03;
+      ctx.fillStyle = `rgba(12,12,12,${pulse})`;
+      ctx.fillRect(0, 0, w, h);
+    } else if (isSnapping && snapPhase === 2) {
+        // Exhale: dimming overlay
+      const exhaleAlpha = exhaleProgress * 0.2;
+      ctx.fillStyle = `rgba(20,20,20,${exhaleAlpha})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Compass needle at cursor (canvas-drawn)
+   const compR = 6;
+   const compAlpha = cursorOnScreen ? Math.min(0.4 + speed * 0.015, 0.9) : 0;
+
+   if (compAlpha > 0.05) {
+        // Outer ring
       ctx.strokeStyle = `rgba(58,122,255,${compAlpha})`;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(cursor.x, cursor.y, compR, 0, Math.PI * 2);
       ctx.stroke();
-      
-      // Direction indicator
+
+        // Direction indicator
       if (speed > 0.5) {
-         const angle = Math.atan2(cursor.vy, cursor.vx);
-         const dirLen = compR * 2.2;
-         
-         ctx.strokeStyle = `rgba(90,160,255,${compAlpha * 0.9})`;
-         ctx.lineWidth = 2;
-         ctx.beginPath();
-         ctx.moveTo(cursor.x, cursor.y);
-         ctx.lineTo(
-            cursor.x + Math.cos(angle) * dirLen,
-            cursor.y + Math.sin(angle) * dirLen
-         );
-         ctx.stroke();
-         
-         // Arrowhead
-         const headLen = 4;
-         const headAngle = 0.5;
-         const tipX = cursor.x + Math.cos(angle) * dirLen;
-         const tipY = cursor.y + Math.sin(angle) * dirLen;
-         ctx.beginPath();
-         ctx.moveTo(tipX, tipY);
-         ctx.lineTo(
-            tipX - Math.cos(angle - headAngle) * headLen,
-            tipY - Math.sin(angle - headAngle) * headLen
-         );
-         ctx.moveTo(tipX, tipY);
-         ctx.lineTo(
-            tipX - Math.cos(angle + headAngle) * headLen,
-            tipY - Math.sin(angle + headAngle) * headLen
-         );
-         ctx.stroke();
-      }
-      
-      // Center dot
+          const angle = Math.atan2(cursor.vy, cursor.vx);
+          const dirLen = compR * 2.2;
+
+          ctx.strokeStyle = `rgba(90,160,255,${compAlpha * 0.9})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cursor.x, cursor.y);
+          ctx.lineTo(
+             cursor.x + Math.cos(angle) * dirLen,
+             cursor.y + Math.sin(angle) * dirLen
+          );
+          ctx.stroke();
+
+           // Arrowhead
+          const tipX = cursor.x + Math.cos(angle) * dirLen;
+          const tipY = cursor.y + Math.sin(angle) * dirLen;
+          const headLen = 4;
+          const headAngle = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(
+             tipX - Math.cos(angle - headAngle) * headLen,
+             tipY - Math.sin(angle - headAngle) * headLen
+          );
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(
+             tipX - Math.cos(angle + headAngle) * headLen,
+             tipY - Math.sin(angle + headAngle) * headLen
+          );
+          ctx.stroke();
+        }
+
+        // Center dot
       ctx.fillStyle = `rgba(58,122,255,${compAlpha})`;
       ctx.beginPath();
       ctx.arc(cursor.x, cursor.y, 2, 0, Math.PI * 2);
       ctx.fill();
-   }
+    }
+}
+
+function render(ts) {
+   requestAnimationFrame(render);
+
+   if (lastFrameTime === 0) {
+      lastFrameTime = ts;
+      lastTickTime = ts;
+      return;
+    }
+
+    // Fixed timestep: accumulate real time, process at 60fps intervals
+   const delta = ts - lastFrameTime;
+   lastFrameTime = ts;
+   frameAccumulator += delta;
+
+    // Process at most 3 ticks to prevent spiral of death
+   let framesProcessed = 0;
+   while (frameAccumulator >= FRAME_DURATION && framesProcessed < 3) {
+      frameAccumulator -= FRAME_DURATION;
+      lastTickTime += FRAME_DURATION;
+      globalTick++;
+      framesProcessed++;
+      update();
+    }
+
+    // Draw once per rAF using the latest simulated state
+   draw(ts);
 }
 
 requestAnimationFrame(render);
