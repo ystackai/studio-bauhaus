@@ -190,7 +190,7 @@ function scheduleBeat(time, count) {
 
   // Loose spring wobble: ±40ms jitter on downbeat
   var jitter = downbeat ? (Math.random() - 0.5) * 0.080 : (Math.random() - 0.5) * 0.015;
-  var t = time + jitter;
+  var t = Math.max(audioCtx.currentTime + 0.005, time + jitter);
 
   // Downbeat: pitch-bent sine (drop 3 semitones, recover 150ms)
   if (downbeat) {

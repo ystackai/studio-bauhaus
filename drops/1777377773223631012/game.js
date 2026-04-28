@@ -41,14 +41,13 @@ function init() {
   canvas = document.getElementById("canvas");
   ctx = canvas.getContext("2d");
 
+  initLinenPattern();
   resize();
   window.addEventListener("resize", resize);
 
   node.x = W / 2;
   node.y = H / 2;
-
   initPrimitives();
-  initLinenPattern();
 
   canvas.addEventListener("mousedown", onPointerDown);
   canvas.addEventListener("touchstart", onPointerDown, { passive: false });

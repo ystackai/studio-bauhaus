@@ -11,7 +11,6 @@ function resize() {
    regenerateGrain();
 }
 window.addEventListener('resize', resize);
-resize();
 
 // Simplex noise
 class SimplexNoise {
@@ -85,6 +84,8 @@ function regenerateGrain() {
    grainCtx.putImageData(img, 0, 0);
    grainPattern = ctx.createPattern(grainCanvas, 'repeat');
 }
+
+resize();
 
 // Easing functions
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }

@@ -42,7 +42,10 @@
 
   // Smooth interpolation helper for audio params
   function lerpAudio(target, value, speed) {
-    target.setTargetAtTime(value, audioCtx.currentTime, speed);
+    const param = typeof target.setTargetAtTime === 'function' ? target : target && target.gain;
+    if (param && typeof param.setTargetAtTime === 'function') {
+      param.setTargetAtTime(value, audioCtx.currentTime, speed);
+    }
   }
 
   // ─── Linen Grain Texture ───────────────────────────────────
