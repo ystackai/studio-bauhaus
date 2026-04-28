@@ -162,61 +162,66 @@ function buildReverbImpulse() {
 }
 
 // ── Metronome Scheduling ──
+var scheduleRAF = null;
+
 function startMetronome() {
   if (metronomeRunning) return;
   metronomeRunning = true;
   nextBeatTime = audioCtx.currentTime + 0.02;
   currentBeatCount = 0;
-  scheduleTimer = setInterval(tickScheduler, 25);
+  scheduleTick();
 }
 
 function stopMetronome() {
   metronomeRunning = false;
-  if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; }
+  if (scheduleRAF) { cancelAnimationFrame(scheduleRAF); scheduleRAF = null; }
+}
+
+function scheduleTick() {
+  if (!metronomeRunning || !audioCtx) return;
+  tickScheduler();
+  scheduleRAF = requestAnimationFrame(scheduleTick);
 }
 
 function tickScheduler() {
   if (!metronomeRunning || !audioCtx) return;
-  while (nextBeatTime < audioCtx.currentTime + 0.15) {
+  while (nextBeatTime < audioCtx.currentTime + 0.12) {
     scheduleBeat(nextBeatTime, currentBeatCount);
     nextBeatTime += beatInterval;
     currentBeatCount++;
-  }
+     }
 }
 
 function scheduleBeat(time, count) {
-  var downbeat = (count % 2 === 0);
-  var offbeat = !downbeat;
-
-  // Loose spring wobble: ±40ms jitter on downbeat
-  var jitter = downbeat ? (Math.random() - 0.5) * 0.080 : (Math.random() - 0.5) * 0.015;
+  var beat = count % 4;
+    // Loose spring wobble: ±40ms jitter on main downbeat only
+  var jitter = (beat === 0) ? (Math.random() - 0.5) * 0.080 : 0;
   var t = time + jitter;
 
-  // Downbeat: pitch-bent sine (drop 3 semitones, recover 150ms)
-  if (downbeat) {
-    var osc = audioCtx.createOscillator();
-    var g = audioCtx.createGain();
-    osc.type = 'sine';
-    var f0 = 900;
-    var f1 = f0 / Math.pow(2, 3 / 12);
-    osc.frequency.setValueAtTime(f0, t);
-    osc.frequency.exponentialRampToValueAtTime(f1, t + 0.04);
-    osc.frequency.exponentialRampToValueAtTime(f0 * 0.98, t + 0.15);
-    g.gain.setValueAtTime(0.22, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    osc.connect(g);
-    g.connect(masterGain);
-    osc.start(t);
-    osc.stop(t + 0.20);
-  }
+  switch (beat) {
+    case 0: // Downbeat: kick + tick
+      playKick(t);
+      playMetronomeTick(t);
+      scheduleVisualPulse(t, 1);
+      break;
+    case 1: // Upbeat after 1
+      playSubTick(t);
+      scheduleVisualPulse(t, 0.25);
+      break;
+    case 2: // Off-beat: muted hi-hat
+      playHiHat(t);
+      scheduleVisualPulse(t, 0.5);
+      break;
+    case 3: // Upbeat after 2
+      playSubTick(t);
+      scheduleVisualPulse(t, 0.25);
+      break;
+    }
+}
 
-  // Off-beat: muted hi-hat
-  if (offbeat) {
-    playHiHat(t);
-  }
-
-  // Visual pulse trigger
-  metronomePhase = downbeat ? 1 : 0.5;
+var visualPulseQueue = [];
+function scheduleVisualPulse(audioTime, value) {
+  visualPulseQueue.push({ audioTime: audioTime, value: value });
 }
 
 function playHiHat(time) {
@@ -227,7 +232,7 @@ function playHiHat(time) {
   var d = buf.getChannelData(0);
   for (var i = 0; i < len; i++) {
     d[i] = (Math.random() * 2 - 1) * Math.exp(-i / len * 12);
-  }
+    }
   var src = audioCtx.createBufferSource();
   src.buffer = buf;
   var hp = audioCtx.createBiquadFilter();
@@ -239,6 +244,59 @@ function playHiHat(time) {
   hp.connect(g);
   g.connect(masterGain);
   src.start(time);
+}
+
+// Kick drum with low-pass filter (cutoff 120Hz)
+function playKick(time) {
+  var osc = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  var lp = audioCtx.createBiquadFilter();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(30, time + 0.12);
+  g.gain.setValueAtTime(0.6, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(120, time);
+  lp.frequency.exponentialRampToValueAtTime(40, time + 0.2);
+  lp.Q.value = 5;
+  osc.connect(lp);
+  lp.connect(g);
+  g.connect(masterGain);
+  osc.start(time);
+  osc.stop(time + 0.35);
+}
+
+// Pitch-bent metronome tick (drop 3 semitones, recover 150ms)
+function playMetronomeTick(time) {
+  var osc = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  osc.type = 'sine';
+  var f0 = 900;
+  var f1 = f0 / Math.pow(2, 3 / 12);
+  osc.frequency.setValueAtTime(f0, time);
+  osc.frequency.exponentialRampToValueAtTime(f1, time + 0.04);
+  osc.frequency.exponentialRampToValueAtTime(f0 * 0.98, time + 0.15);
+  g.gain.setValueAtTime(0.15, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+  osc.connect(g);
+  g.connect(masterGain);
+  osc.start(time);
+  osc.stop(time + 0.20);
+}
+
+// Subtle sub-tick for off-sub-beats
+function playSubTick(time) {
+  var osc = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = 600;
+  g.gain.setValueAtTime(0.04, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  osc.connect(g);
+  g.connect(masterGain);
+  osc.start(time);
+  osc.stop(time + 0.06);
 }
 
 // ── Granular Scrape (drag sound) ──
@@ -423,16 +481,19 @@ var lastTime = performance.now();
 
 function drawGrid() {
   ctx.strokeStyle = '#333333';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 2;
+  ctx.imageSmoothingEnabled = false;
   ctx.beginPath();
-  for (var x = 0; x <= W; x += GRID) {
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, H);
-  }
-  for (var y = 0; y <= H; y += GRID) {
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(W, y + 0.5);
-  }
+  var gx = GRID / 2;
+  var gy = GRID / 2;
+  for (var x = gx; x <= W; x += GRID) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+   }
+  for (var y = gy; y <= H; y += GRID) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+   }
   ctx.stroke();
 }
 
@@ -467,65 +528,133 @@ function drawMotif(t) {
 }
 
 var smoothOffsetX = 0, smoothOffsetY = 0;
+var audioClock = 0;
+var beatPhase = 0;
+var lastBeatPulse = 0;
+var pulseDecay = 0;
 
 function render() {
   var now = performance.now();
   var dt = Math.min((now - lastTime) / 1000, 0.033);
   lastTime = now;
 
-  // Smooth linen offset (half-pixel drift)
-  smoothOffsetX += (linenOffsetX - smoothOffsetX) * 0.12;
-  smoothOffsetY += (linenOffsetY - smoothOffsetY) * 0.12;
-
-  // Decay when dragging slows
-  if (isDragging && dragFrames > 30) {
-    if (velocity < 0.05) {
-      friction *= 0.99;
+    // Process visual pulse queue — sync to audio clock within 16ms
+  if (audioCtx) {
+    audioClock = audioCtx.currentTime;
+    var cutoff = audioClock - 0.016;
+    while (visualPulseQueue.length > 0 && visualPulseQueue[0].audioTime <= cutoff) {
+      var pulse = visualPulseQueue.shift();
+      lastBeatPulse = pulse.value;
+      pulseDecay = pulse.value;
+      beatPhase = pulse.value;
     }
   }
 
-  // Opacity responds to friction
+    // Pulse decay for visual feedback
+  pulseDecay *= 0.92;
+
+    // Smooth linen offset (half-pixel drift)
+  smoothOffsetX += (linenOffsetX - smoothOffsetX) * 0.12;
+  smoothOffsetY += (linenOffsetY - smoothOffsetY) * 0.12;
+
+    // Decay when dragging slows
+  if (isDragging && dragFrames > 30) {
+    if (velocity < 0.05) {
+      friction *= 0.99;
+      }
+    }
+
+    // Opacity responds to friction
   if (isDragging) {
     motifOpacity = 0.2 + friction * 0.8;
     motifScale = 1 + friction * 0.25;
-  } else if (!chordPlaying) {
+    } else if (!chordPlaying) {
     motifOpacity += (0.2 - motifOpacity) * dt * 2;
     motifScale += (1 - motifScale) * dt * 2;
-  }
+    }
 
-  // ── Layer 1: Base field ──
+    // ── Layer 1: Base field ──
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Layer 2: Grid spine ──
+    // ── Layer 2: Grid spine ──
   drawGrid();
 
-  // ── Layer 3: Linen overlay ──
+    // ── Layer 3: Linen overlay ──
   if (linenDirty) {
     linenW = Math.ceil(W / 4);
     linenH = Math.ceil(H / 4);
     if (!linenCanvas) {
       linenCanvas = document.createElement('canvas');
       linenCtx = linenCanvas.getContext('2d');
-    }
+      }
     linenCanvas.width = linenW;
     linenCanvas.height = linenH;
     bakeLinen();
     linenDirty = false;
-  }
+    }
 
   ctx.save();
   ctx.globalAlpha = LINEN_OPACITY;
-  // Scale up 1/4 res linen to full, offset by half-pixel drift
+    // Scale up 1/4 res linen to full, offset by half-pixel drift
   var s = 4;
   ctx.setTransform(s, 0, 0, s, smoothOffsetX, smoothOffsetY);
   ctx.drawImage(linenCanvas, 0, 0, linenW, linenH);
   ctx.restore();
 
-  // ── Layer 4: Central motif ──
-  drawMotif(performance.now() / 1000);
+    // ── Layer 3.5: Velocity/friction ring ──
+  drawVelocityRing(dt);
+
+    // ── Layer 4: Central motif ──
+  drawMotif(audioClock);
+
+    // ── Layer 5: Beat flash ring ──
+  if (pulseDecay > 0.02) {
+    drawBeatFlash(pulseDecay);
+  }
 
   requestAnimationFrame(render);
+}
+
+// Velocity ring around motif — scales with drag velocity
+function drawVelocityRing(dt) {
+  if (!isDragging && velocity < 0.01) return;
+  var cx = W / 2, cy = H / 2;
+  var ringRadius = 80 + velocity * 30;
+  var alpha = Math.max(0, velocity * 0.5);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = '#f0c040';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = alpha;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+    // Friction indicator — concentric arc
+  if (friction > 0.1) {
+    var arcLen = Math.PI * 2 * friction;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringRadius + 8, -Math.PI / 2, -Math.PI / 2 + arcLen);
+    ctx.strokeStyle = '#e0a020';
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = friction * 0.7;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    }
+}
+
+// Beat flash ring — fades out per beat
+function drawBeatFlash(decay) {
+  var cx = W / 2, cy = H / 2;
+  var radius = 65 + decay * 60;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = '#f0c040';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = decay * 0.3;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 // ── Boot ──
