@@ -112,9 +112,18 @@
   function resize() {
     W = canvas.width = window.innerWidth;
     H = canvas.height = window.innerHeight;
-  }
+    initGeometry();
+    }
   window.addEventListener('resize', resize);
   resize();
+
+    // Initialize geometry starting positions
+  function initGeometry() {
+    circleCX = W / 2 + circleDriftX;
+    circleCY = H / 2 + circleDriftY;
+    targetCircleCX = W / 2;
+    targetCircleCY = H / 2;
+   }
 
   // ================================================================
   //  AUDIO ENGINE
@@ -231,13 +240,6 @@
     lfo.start();
 
     droneGain.gain.setTargetAtTime(0.06, audioCtx.currentTime, 0.5);
-    droneOsc3.setTargetAtTime ? null : null; // osc3 stays at 0
-    // Mute osc3 by connecting through a silent gain
-    var osc3Gain = audioCtx.createGain();
-    osc3Gain.gain.value = 0.015;
-    droneOsc3.disconnect();
-    droneOsc3.connect(osc3Gain);
-    osc3Gain.connect(droneGain);
   }
 
   function setDroneDuck(amount) {
@@ -525,12 +527,13 @@
   function onPointerDown(e) {
     e.preventDefault();
     if (!started) {
-      started = true;
+       started = true;
       initAudio();
       startMetronome();
       overlay.classList.add('hidden');
-    }
+      }
     dragging = true;
+    dissonantPlayed = false;
     dragStartTime = performance.now();
     var pos = getPointerPos(e);
     prevX = cursorX = pos.x;
@@ -539,9 +542,9 @@
     friction = 0;
     velSamples = [];
 
-    // Linen rustle on drag start
+      // Linen rustle on drag start
     playLinenRustle(15);
-  }
+   }
 
   function onPointerMove(e) {
     e.preventDefault();
@@ -595,39 +598,48 @@
       }
     }
 
-    // Dissonant click if velocity suddenly exceeds 60px/s (just at cap)
-    if (dragSpeed >= VELOCITY_MAX) {
-      // Brief dissonant feedback
-    }
+      // Dissonant click if velocity hits the cap
+    if (dragSpeed >= VELOCITY_MAX && !dissonantPlayed) {
+      playDissonantClick();
+      dissonantPlayed = true;
+     }
+    if (dragSpeed < VELOCITY_MAX) {
+      dissonantPlayed = false;
+     }
   }
 
   function onPointerUp(e) {
     if (!dragging) return;
     dragging = false;
+    dissonantPlayed = false;
 
-    // 0.3s exhale window
+     // 0.3s exhale window: capture alignment state at release
     var now = performance.now();
-    var aligned = circleAligned && friction > 0.3;
+    var cxDist = Math.abs(circleCX - W / 2);
+    var cyDist = Math.abs(circleCY - H / 2);
+    var aligned = (cxDist < 2 && cyDist < 2 && friction > 0.3);
 
     setTimeout(function () {
       if (aligned) {
         playYellowChord(true);
         playAlignmentPing();
         circleAligned = true;
-      } else {
+       } else {
         playYellowChord(false);
         if (friction < 0.1) {
           playAlignmentThud();
-        }
+         } else {
+          playDissonantClick();
+         }
         circleAligned = false;
-      }
-    }, EXHALE_BUFFER * 1000);
+       }
+     }, EXHALE_BUFFER * 1000);
 
-    // Reset friction decay
+     // Friction decay after release
     setTimeout(function () {
       friction *= 0.5;
-    }, 500);
-  }
+     }, 500);
+    }
 
   canvas.addEventListener('mousedown', onPointerDown);
   canvas.addEventListener('mousemove', onPointerMove);
@@ -646,8 +658,10 @@
   var lastTime = performance.now();
   var DT_CAP = 0.034; // one frame over 30fps
   var halfPixelDrift = 0;
-  var circleCX = W / 2, circleCY = H / 2;
+  var dissonantPlayed = false; // guard to prevent spam
+    var circleCX = 0, circleCY = 0; // initialized in init()
   var targetCircleCX, targetCircleCY;
+  var initX = 0, initY = 0; // starting offsets for circle
 
   function smoothstep(edge0, edge1, x) {
     var t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -697,18 +711,18 @@
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, W, H);
 
-    // Grid spine: rigid 40px spacing, 1px strokes
+      // Grid spine: rigid 40px spacing, 1px strokes
     ctx.strokeStyle = GRID_STROKE;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    for (var gx = GRID_SPACING; gx <= W; gx += GRID_SPACING) {
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, H);
-    }
-    for (var gy = GRID_SPACING; gy <= H; gy += GRID_SPACING) {
-      ctx.moveTo(0, gy);
-      ctx.lineTo(W, gy);
-    }
+    for (var gx = GRID_SPACING; gx <= W - 1; gx += GRID_SPACING) {
+      ctx.moveTo(gx + 0.5, 0);
+      ctx.lineTo(gx + 0.5, H);
+       }
+    for (var gy = GRID_SPACING; gy <= H - 1; gy += GRID_SPACING) {
+      ctx.moveTo(0, gy + 0.5);
+      ctx.lineTo(W, gy + 0.5);
+       }
     ctx.stroke();
 
     // Linen weave overlay: noise-based half-pixel drift
@@ -785,26 +799,35 @@
     requestAnimationFrame(render);
   }
 
-  // Linen weave: procedural noise overlay
+    // Linen weave: procedural noise overlay (localized to drag area for perf)
   function drawLinenOverlay(drift, dt) {
     if (!dragging && !circleAligned) {
-      // Only render linen during active drag or alignment for perf
+       // Only render linen during active drag or alignment for perf
       return;
-    }
+      }
 
     var noiseScale = 0.06;
     var opacity = Math.min(dragSpeed / VELOCITY_MAX * 0.5, 0.5);
     if (opacity < 0.02) return;
 
-    // Draw as fine-line weave on canvas (optimized: only during drag)
+      // Localized rendering: circle around cursor or center (avoids full-screen loop)
+    var cx = dragging ? cursorX : W / 2;
+    var cy = dragging ? cursorY : H / 2;
+    var range = dragging ? 200 : 250;
+
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.strokeStyle = '#3a3a2a';
     ctx.lineWidth = 0.5;
 
-    var weaveStep = 8;
-    for (var wx = 0; wx < W; wx += weaveStep) {
-      for (var wy = 0; wy < H; wy += weaveStep) {
+    var weaveStep = 12;
+    var x0 = Math.max(0, Math.floor((cx - range) / weaveStep) * weaveStep);
+    var y0 = Math.max(0, Math.floor((cy - range) / weaveStep) * weaveStep);
+    var x1 = Math.min(W, x0 + range * 2);
+    var y1 = Math.min(H, y0 + range * 2);
+
+    for (var wx = x0; wx < x1; wx += weaveStep) {
+      for (var wy = y0; wy < y1; wy += weaveStep) {
         var nx = (wx + drift * 20) * noiseScale;
         var ny = (wy + drift * 15) * noiseScale;
         var v = noise2D(nx, ny);
@@ -813,11 +836,11 @@
           ctx.moveTo(wx, wy);
           ctx.lineTo(wx + weaveStep * v, wy + v * 0.3);
           ctx.stroke();
+          }
         }
-      }
-    }
+       }
     ctx.restore();
-  }
+   }
 
   // ── Boot ──
   requestAnimationFrame(render);
