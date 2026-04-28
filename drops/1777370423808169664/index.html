@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bauhaus — Grid, Friction, Pulse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="stage"></canvas>
+    <div id="overlay" aria-label="Click to start the experience">
+      <div class="overlay-inner">
+        <h1>Bauhaus</h1>
+        <p>Grid · Friction · Pulse</p>
+        <button id="start-btn">Begin</button>
+      </div>
+    </div>
+    <div id="mute-btn" aria-label="Toggle mute" title="Mute/Unmute">
+      <span id="mute-icon">🔊</span>
+    </div>
+  </div>
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
