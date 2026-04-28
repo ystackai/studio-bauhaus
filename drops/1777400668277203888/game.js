@@ -525,7 +525,11 @@
         state = "dragging";
         playDragRumble();
 
-        // Triangle aggression on engagement
+         // Re-init smooth position to anchor drag to pointer
+        smoothingGeometryX = geometryX;
+        smoothingGeometryY = geometryY;
+
+         // Triangle aggression on engagement
         geometryType = "triangle";
     }
 
@@ -536,51 +540,57 @@
         const dy = pt.y - dragStartY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Raised threshold: friction bite
+          // Raised threshold: friction bite
         if (!dragEngaged && dist >= DRAG_THRESHOLD) {
             dragEngaged = true;
-            playThresholdClick();
-        }
-
-        if (dragEngaged) {
-            // Drag vector for spatial panning
-            dragVectorX = pt.x - geometryX;
-            dragVectorY = pt.y - geometryY;
-
-            // Follow pointer while dragging, always snapped to grid on release later
             geometryX = pt.x;
             geometryY = pt.y;
-        }
-    }
+            playThresholdClick();
+          }
+
+        if (dragEngaged) {
+              // Drag vector for spatial panning
+            dragVectorX = pt.x - snappedX;
+            dragVectorY = pt.y - snappedY;
+
+              // Follow pointer while dragging, always snapped to grid on release later
+            geometryX = pt.x;
+            geometryY = pt.y;
+          }
+      }
 
     function onPointerUp(e) {
         if (!isDragging) return;
         isDragging = false;
         stopDragRumble();
 
-        // Snap to grid spine
-        const s = snapToGrid(geometryX, geometryY);
+          // Compute pre-snap position vs grid target for drift validation
+        const rawX = geometryX;
+        const rawY = geometryY;
+        const s = snapToGrid(rawX, rawY);
+
+          // Half-pixel drift: distance from release point to nearest grid intersection
+        const driftX = Math.abs(rawX - s.x);
+        const driftY = Math.abs(rawY - s.y);
+        const drift = Math.sqrt(driftX * driftX + driftY * driftY);
+
+          // Apply snap
         snappedX = s.x;
         snappedY = s.y;
         geometryX = snappedX;
         geometryY = snappedY;
-
-        // Half-pixel drift check
-        const driftX = Math.abs(geometryX - snappedX);
-        const driftY = Math.abs(geometryY - snappedY);
-        const drift = Math.sqrt(driftX * driftX + driftY * driftY);
 
         playSpringSnap();
 
         if (drift <= DRIFT_TOLERANCE) {
             playDriftPing();
             beginExhale();
-        } else {
-            // Reject: geometry unstable
+          } else {
+              // Reject: geometry too far from grid, unstable
             state = "idle";
             geometryType = "circle";
-        }
-    }
+          }
+     }
 
     function beginExhale() {
         state = "exhaling";
@@ -622,17 +632,21 @@
     }
 
     function updateSmoothPos() {
-        if (!isDragging) {
-            // Snap-toward with spring
+        if (state === "exhaling") {
+             // Hard-lock geometry to center, zero drift during exhale window
+            smoothingGeometryX = snappedX;
+            smoothingGeometryY = snappedY;
+        } else if (!isDragging) {
+             // Snap-toward with spring
             const snapTargetX = snappedX;
             const snapTargetY = snappedY;
             smoothingGeometryX += (snapTargetX - smoothingGeometryX) * 0.18;
             smoothingGeometryY += (snapTargetY - smoothingGeometryY) * 0.18;
-        } else {
+         } else {
             smoothingGeometryX = geometryX;
             smoothingGeometryY = geometryY;
-        }
-    }
+         }
+     }
 
     // ─── RENDER LOOP (60fps) ─────────────────────────────
     function renderLoop() {
@@ -659,19 +673,21 @@
         // 5. Chord bloom (yellow resonance)
         drawChordBloom(smoothingGeometryX, smoothingGeometryY);
 
-        // 6. Drag indicator when threshold not yet met
+         // 6. Drag indicator when threshold not yet met
         if (isDragging && !dragEngaged) {
-            const ptX = smoothingGeometryX;
-            const ptY = smoothingGeometryY;
+            const dx = dragStartX - geometryX;
+            const dy = dragStartY - geometryY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const progress = Math.min(dist / DRAG_THRESHOLD, 1);
             ctx.save();
             ctx.beginPath();
-            ctx.arc(ptX, ptY, GEO_RADIUS + 4, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(26, 26, 26, 0.2)";
-            ctx.lineWidth = 1.2;
+            ctx.arc(geometryX, geometryY, GEO_RADIUS + 4 + 6 * progress, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(26, 26, 26, ${0.15 + 0.2 * progress})`;
+            ctx.lineWidth = 1.2 + progress;
             ctx.setLineDash([4, 3]);
             ctx.stroke();
             ctx.restore();
-        }
+          }
 
         // 7. Half-pixel validation indicator
         if (state === "exhaling") {
