@@ -1,0 +1,32 @@
+:root {
+   --bg: #F5F2EB;
+   --grid: #1A1A1A;
+   --grid-light: rgba(26, 26, 26, 0.15);
+   --linen: rgba(245, 242, 235, 0.85);
+   --yellow: #FFD700;
+   --gray-transient: #9E9E9E;
+   --gray-anchor: #6E6E6E;
+}
+
+* {
+   margin: 0;
+   padding: 0;
+   box-sizing: border-box;
+}
+
+html, body {
+   width: 100%;
+   height: 100%;
+   overflow: hidden;
+   background: var(--bg);
+   cursor: crosshair;
+   user-select: none;
+   -webkit-user-select: none;
+}
+
+#spine {
+   display: block;
+   width: 100vw;
+   height: 100vh;
+   touch-action: none;
+}
