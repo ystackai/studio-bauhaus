@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bauhaus Geometric Composer — create and play geometric compositions with procedural audio. Art and technology are one.">
     <title>Bauhaus Composer — Art and Technology Are One</title>
     <style>
       :root {
@@ -1027,10 +1028,11 @@
        var selectedShape = 'circle';
        var audioCtx = null;
        var muted = false;
-       var placedCount = 0;
-       var isPlaying = false;
+        var placedCount = 0;
+        var isPlaying = false;
+        var STORAGE_KEY = 'bauhaus-composer-v1';
 
-        // Extended pentatonic/harmonic mapping — refined frequencies for better consonance
+          // Extended pentatonic/harmonic mapping — refined frequencies for better consonance
        var COLOR_NOTES = {
          red: 261.63,
          blue: 329.63,
@@ -1131,54 +1133,67 @@
          osc.stop(now + 0.025);
         }
 
-        function playCompletionFanfare() {
-          if (muted || !audioCtx) return;
-          var now = audioCtx.currentTime;
+         function playCompletionFanfare() {
+           if (muted || !audioCtx) return;
+           var now = audioCtx.currentTime;
 
-          // Ascending chord arpeggio
-          var chord = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
-          chord.forEach(function(freq, i) {
-            var osc = audioCtx.createOscillator();
-            var g = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now + i * 0.05);
-            g.gain.setValueAtTime(0, now + i * 0.05);
-            g.gain.linearRampToValueAtTime(0.032, now + i * 0.05 + 0.012);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 3);
-            osc.connect(g);
-            g.connect(audioCtx.destination);
-            osc.start(now + i * 0.05);
-            osc.stop(now + 3.1);
-            });
+           // Ascending C major arpeggio — main melody
+           var chord = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+           chord.forEach(function(freq, i) {
+             var osc = audioCtx.createOscillator();
+             var g = audioCtx.createGain();
+             osc.type = 'sine';
+             osc.frequency.setValueAtTime(freq, now + i * 0.06);
+             g.gain.setValueAtTime(0, now + i * 0.06);
+             g.gain.linearRampToValueAtTime(0.04, now + i * 0.06 + 0.015);
+             g.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+             osc.connect(g);
+             g.connect(audioCtx.destination);
+             osc.start(now + i * 0.06);
+             osc.stop(now + 3.6);
+              });
 
-          // Overtone layer for warmth
-          [523.25, 659.25].forEach(function(freq) {
-            var osc = audioCtx.createOscillator();
-            var g = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now);
-            g.gain.setValueAtTime(0, now + 0.3);
-            g.gain.linearRampToValueAtTime(0.02, now + 0.35);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
-            osc.connect(g);
-            g.connect(audioCtx.destination);
-            osc.start(now + 0.3);
-            osc.stop(now + 2.9);
-            });
+           // G major harmony layer (fifth)
+           [392.00, 493.88, 587.33].forEach(function(freq) {
+             var osc = audioCtx.createOscillator();
+             var g = audioCtx.createGain();
+             osc.type = 'triangle';
+             osc.frequency.setValueAtTime(freq, now);
+             g.gain.setValueAtTime(0, now + 0.2);
+             g.gain.linearRampToValueAtTime(0.025, now + 0.28);
+             g.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
+             osc.connect(g);
+             g.connect(audioCtx.destination);
+             osc.start(now + 0.2);
+             osc.stop(now + 3.3);
+              });
 
-          // Sub bass layer
-          var bass = audioCtx.createOscillator();
-          var bg = audioCtx.createGain();
-          bass.type = 'sine';
-          bass.frequency.setValueAtTime(65.41, now);
-          bg.gain.setValueAtTime(0, now);
-          bg.gain.linearRampToValueAtTime(0.05, now + 0.15);
-          bg.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
-          bass.connect(bg);
-          bg.connect(audioCtx.destination);
-          bass.start(now);
-          bass.stop(now + 2.6);
-          }
+           // Sub bass — C1
+           var bass = audioCtx.createOscillator();
+           var bg = audioCtx.createGain();
+           bass.type = 'sine';
+           bass.frequency.setValueAtTime(65.41, now);
+           bg.gain.setValueAtTime(0, now);
+           bg.gain.linearRampToValueAtTime(0.06, now + 0.1);
+           bg.gain.exponentialRampToValueAtTime(0.001, now + 3);
+           bass.connect(bg);
+           bg.connect(audioCtx.destination);
+           bass.start(now);
+           bass.stop(now + 3.1);
+
+           // Shimmer high E — sustained sparkle
+           var shimmer = audioCtx.createOscillator();
+           var sg = audioCtx.createGain();
+           shimmer.type = 'sine';
+           shimmer.frequency.setValueAtTime(1318.51, now);
+           sg.gain.setValueAtTime(0, now + 0.5);
+           sg.gain.linearRampToValueAtTime(0.008, now + 0.7);
+           sg.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+           shimmer.connect(sg);
+           sg.connect(audioCtx.destination);
+           shimmer.start(now + 0.5);
+           shimmer.stop(now + 2.6);
+            }
 
        function playResetTone() {
          if (muted || !audioCtx) return;
@@ -1381,9 +1396,10 @@
          cellData.el.appendChild(content);
          cellData.el.classList.add('filled');
 
-         playPlaceTone(color, shape);
-         recalcCount();
-         updateBgGlow();
+          playPlaceTone(color, shape);
+          recalcCount();
+          updateBgGlow();
+          saveComposition();
 
          if (placedCount === TOTAL_CELLS) {
            setTimeout(triggerCompletion, 400);
@@ -1400,9 +1416,10 @@
           }
          cellData.el.classList.remove('filled');
          cellData.data = null;
-         playRemoveTone();
-         recalcCount();
-         updateBgGlow();
+          playRemoveTone();
+          recalcCount();
+          updateBgGlow();
+          saveComposition();
          if (completionOverlay.classList.contains('visible')) {
            completionOverlay.classList.remove('visible');
           }
@@ -1415,10 +1432,43 @@
           }
          var pct = (placedCount / TOTAL_CELLS) * 100;
          progressFill.style.width = pct + '%';
-         counterEl.textContent = placedCount + ' / ' + TOTAL_CELLS;
+          counterEl.textContent = placedCount + ' / ' + TOTAL_CELLS;
+          }
+
+        function saveComposition() {
+          var data = [];
+          for (var i = 0; i < grid.length; i++) {
+            if (grid[i].data) {
+              data.push({ idx: i, color: grid[i].data.color, shape: grid[i].data.shape });
+              }
+            }
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { /* ignore */ }
         }
 
-       function createShapeElement(shape, color) {
+        function loadComposition() {
+          try {
+            var raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return false;
+            var data = JSON.parse(raw);
+            if (!Array.isArray(data)) return false;
+            for (var i = 0; i < data.length; i++) {
+              var entry = data[i];
+              if (entry && typeof entry.idx === 'number' && entry.idx >= 0 && entry.idx < TOTAL_CELLS) {
+                grid[entry.idx].data = { color: entry.color, shape: entry.shape, row: Math.floor(entry.idx / GRID_SIZE), col: entry.idx % GRID_SIZE };
+                var content = document.createElement('div');
+                content.className = 'cell-content';
+                content.appendChild(createShapeElement(entry.shape, entry.color));
+                grid[entry.idx].el.appendChild(content);
+                grid[entry.idx].el.classList.add('filled');
+              }
+            }
+            recalcCount();
+            updateBgGlow();
+            return true;
+          } catch(e) { return false; }
+        }
+
+        function createShapeElement(shape, color) {
          var el = document.createElement('div');
          var colorKey = color === 'black' ? 'black' : color;
          switch (shape) {
@@ -1465,7 +1515,10 @@
           }, 700);
         }
 
-        // --- Tool controls ---
+          // --- Auto-load last composition ---
+        loadComposition();
+
+          // --- Tool controls ---
        var swatches = document.querySelectorAll('.palette-swatch');
        swatches.forEach(function(sw) {
          sw.addEventListener('click', function() {
@@ -1672,119 +1725,150 @@
             }
           });
 
-          // --- Generate button: algorithmic Bauhaus patterns ---
-         var BauhausPatterns = {
-           stripeHorizontal: function() {
-             var cells = [];
-             var colors = [selectedColor, colorNames[Math.floor(Math.random() * colorNames.length)]];
-             while (colors[1] === colors[0]) colors[1] = colorNames[Math.floor(Math.random() * colorNames.length)];
-             for (var r = 0; r < GRID_SIZE; r++) {
-               var c = colors[r % 2];
-               var s = (r % 3 === 0) ? 'square' : ((r % 3 === 1) ? 'circle' : 'half');
-               for (var co = 0; co < GRID_SIZE; co++) {
-                 cells.push({ idx: r * GRID_SIZE + co, color: c, shape: s });
+            // --- Generate button: algorithmic Bauhaus patterns ---
+          var BauhausPatterns = {
+            stripeHorizontal: function() {
+              var cells = [];
+              var allShapes = ['circle', 'square', 'triangle', 'half', 'ring', 'arc', 'diagonal'];
+              for (var r = 0; r < GRID_SIZE; r++) {
+                var c = colorNames[r % colorNames.length];
+                var s = allShapes[r % allShapes.length];
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  cells.push({ idx: r * GRID_SIZE + co, color: c, shape: s });
                 }
               }
-             return cells;
-            },
+              return cells;
+              },
 
-           diamondSymmetry: function() {
-             var cells = [];
-             var cx = (GRID_SIZE - 1) / 2, cy = (GRID_SIZE - 1) / 2;
-             var colors = [selectedColor, 'blue', 'yellow'];
-             var shapes = ['circle', 'square', 'triangle', 'ring'];
-             for (var r = 0; r < GRID_SIZE; r++) {
-               for (var co = 0; co < GRID_SIZE; co++) {
-                 var dist = Math.abs(r - cx) + Math.abs(co - cy);
-                 var ring = Math.floor(dist / 1.2);
-                 if (ring < 4) {
-                   cells.push({
-                     idx: r * GRID_SIZE + co,
-                     color: colors[ring % colors.length],
-                     shape: shapes[ring % shapes.length]
-                    });
-                  }
-                }
-              }
-             return cells;
-            },
-
-           radialBurst: function() {
-             var cells = [];
-             var colors = [selectedColor, 'red', 'blue', 'yellow', 'cream'];
-             var shapes = ['circle', 'square', 'triangle', 'diagonal', 'arc'];
-             var cx = GRID_SIZE / 2, cy = GRID_SIZE / 2;
-             for (var r = 0; r < GRID_SIZE; r++) {
-               for (var co = 0; co < GRID_SIZE; co++) {
-                 var dx = co - cx + 0.5, dy = r - cy + 0.5;
-                 var angle = Math.atan2(dy, dx);
-                 var dist = Math.sqrt(dx * dx + dy * dy);
-                 var colorIdx = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * colors.length) % colors.length;
-                 var shapeIdx = Math.min(Math.floor(dist * 1.5), shapes.length - 1);
-                 cells.push({
-                   idx: r * GRID_SIZE + co,
-                   color: colors[colorIdx],
-                   shape: shapes[shapeIdx]
+            diamondSymmetry: function() {
+              var cells = [];
+              var cx = (GRID_SIZE - 1) / 2, cy = (GRID_SIZE - 1) / 2;
+              var colors = [selectedColor, 'blue', 'yellow', 'cream'];
+              var shapes = ['circle', 'square', 'triangle', 'ring', 'arc'];
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var dist = Math.abs(r - cx) + Math.abs(co - cy);
+                  var ring = Math.floor(dist / 1.1);
+                  var ci = ring % colors.length;
+                  var si = ring % shapes.length;
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[ci],
+                    shape: shapes[si]
                   });
                 }
               }
-             return cells;
-            },
+              return cells;
+              },
 
-           gridArt: function() {
-             var cells = [];
-             var colors = [selectedColor, 'yellow', 'cream'];
-             var shapes = ['circle', 'square', 'half', 'ring', 'arc'];
-             for (var r = 0; r < GRID_SIZE; r++) {
-               for (var co = 0; co < GRID_SIZE; co++) {
-                 var val = (r * 7 + co * 3) % 10;
-                 if (val < 7) {
-                   cells.push({
-                     idx: r * GRID_SIZE + co,
-                     color: colors[val % colors.length],
-                     shape: shapes[val % shapes.length]
-                    });
-                  }
-                }
-              }
-             return cells;
-            },
-
-           mirrorAxis: function() {
-             var cells = [];
-             var colors = [selectedColor, 'blue', 'cream'];
-             var shapes = ['circle', 'square', 'triangle'];
-             var axis = Math.random() > 0.5 ? 'v' : 'h';
-             for (var r = 0; r < GRID_SIZE; r++) {
-               for (var co = 0; co < GRID_SIZE; co++) {
-                 var ci = (r + co) % colors.length;
-                 var si = (r * co) % shapes.length;
-                 var mirror_r = axis === 'h' ? (GRID_SIZE - 1 - r) : r;
-                 cells.push({
-                   idx: r * GRID_SIZE + co,
-                   color: colors[ci],
-                   shape: shapes[si]
+            radialBurst: function() {
+              var cells = [];
+              var colors = [selectedColor, 'red', 'blue', 'yellow', 'cream', 'black'];
+              var shapes = ['circle', 'square', 'triangle', 'diagonal', 'ring', 'arc'];
+              var cx = GRID_SIZE / 2, cy = GRID_SIZE / 2;
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var dx = co - cx + 0.5, dy = r - cy + 0.5;
+                  var angle = Math.atan2(dy, dx);
+                  var dist = Math.sqrt(dx * dx + dy * dy);
+                  var colorIdx = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * colors.length) % colors.length;
+                  var shapeIdx = Math.min(Math.floor(dist * 1.3), shapes.length - 1);
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[colorIdx],
+                    shape: shapes[shapeIdx]
                   });
-                 if (mirror_r !== r) {
-                   cells.push({
-                     idx: mirror_r * GRID_SIZE + co,
-                     color: colors[ci],
-                     shape: shapes[si]
-                    });
-                  }
                 }
               }
-             return cells;
-            }
-          };
+              return cells;
+              },
 
-          var PATTERN_DISPLAY = {
-            stripeHorizontal: 'HORIZONTAL STRIPES',
-            diamondSymmetry: 'DIAMOND SYMMETRY',
-            radialBurst: 'RADIAL BURST',
-            gridArt: 'PROCEDURAL GRID',
-            mirrorAxis: 'MIRROR AXIS'
+            gridArt: function() {
+              var cells = [];
+              var colors = [selectedColor, 'yellow', 'cream', 'blue'];
+              var shapes = ['circle', 'square', 'half', 'ring', 'arc', 'triangle'];
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var val = (r * 7 + co * 3 + r * co) % 10;
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[val % colors.length],
+                    shape: shapes[val % shapes.length]
+                  });
+                }
+              }
+              return cells;
+              },
+
+            mirrorAxis: function() {
+              var cells = [];
+              var colors = [selectedColor, 'blue', 'cream', 'yellow'];
+              var shapes = ['circle', 'square', 'triangle', 'half'];
+              var axis = Math.random() > 0.5 ? 'v' : 'h';
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var ci = (r + co) % colors.length;
+                  var si = (r * co + 1) % shapes.length;
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[ci],
+                    shape: shapes[si]
+                  });
+                }
+              }
+              return cells;
+              },
+
+            primaryBlocks: function() {
+              var cells = [];
+              var blocks = [
+                { color: 'red', shape: 'square', rows: [0,1], cols: [0,1,2] },
+                { color: 'blue', shape: 'circle', rows: [0,1], cols: [3,4,5] },
+                { color: 'yellow', shape: 'triangle', rows: [2,3], cols: [0,1,2] },
+                { color: 'cream', shape: 'ring', rows: [2,3], cols: [3,4,5] },
+                { color: selectedColor, shape: 'half', rows: [4,5], cols: [0,1,2] },
+                { color: 'black', shape: 'arc', rows: [4,5], cols: [3,4,5] }
+              ];
+              blocks.forEach(function(b) {
+                b.rows.forEach(function(r) {
+                  b.cols.forEach(function(co) {
+                    cells.push({ idx: r * GRID_SIZE + co, color: b.color, shape: b.shape });
+                  });
+                });
+              });
+              return cells;
+              },
+
+            crossPattern: function() {
+              var cells = [];
+              var colors = [selectedColor, 'red', 'blue', 'yellow'];
+              var shapes = ['circle', 'square', 'diagonal', 'triangle'];
+              var mid = GRID_SIZE / 2;
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var d = Math.sqrt((r - mid + 0.5) ** 2 + (co - mid + 0.5) ** 2);
+                  var ring = Math.floor(d);
+                  var isCross = (Math.abs(r - mid + 0.5) < 1 || Math.abs(co - mid + 0.5) < 1);
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: isCross ? 'red' : colors[ring % colors.length],
+                    shape: isCross ? 'square' : shapes[(ring + 1) % shapes.length]
+                  });
+                }
+              }
+              return cells;
+              }
             };
+
+           var PATTERN_DISPLAY = {
+             stripeHorizontal: 'HORIZONTAL STRIPES',
+             diamondSymmetry: 'DIAMOND SYMMETRY',
+             radialBurst: 'RADIAL BURST',
+             gridArt: 'PROCEDURAL GRID',
+             mirrorAxis: 'MIRROR AXIS',
+             primaryBlocks: 'PRIMARY BLOCKS',
+             crossPattern: 'CROSS PATTERN'
+              };
           document.getElementById('btnGenerate').addEventListener('click', function() {
             initAudio();
             playResetTone();
