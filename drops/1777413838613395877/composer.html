@@ -185,17 +185,43 @@
        min-height: 0;
       }
 
-       .grid-wrapper {
+        .grid-wrapper {
         position: relative;
         padding: 8px;
         background: rgba(255,255,255,0.015);
         border: 1px solid rgba(255,255,255,0.06);
         border-radius: 2px;
         animation: gridBreathe 4s ease-in-out infinite;
+        transition: transform 0.15s ease, box-shadow 0.3s ease;
         }
         @keyframes gridBreathe {
         0%, 100% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.004); opacity: 0.96; }
+        }
+
+        /* Vibration during playback */
+        .grid-wrapper.vibrating {
+        animation: gridVibrate 0.08s linear infinite;
+        box-shadow: 0 0 20px rgba(232,184,40,0.06);
+        }
+        @keyframes gridVibrate {
+        0% { transform: translate(0, 0); }
+        25% { transform: translate(-0.5px, 0.5px); }
+        50% { transform: translate(0.5px, -0.3px); }
+        75% { transform: translate(-0.3px, -0.5px); }
+        100% { transform: translate(0.3px, 0.3px); }
+        }
+
+        /* Grid reveal after intro — gentle fade up */
+        .composition-area {
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .composition-area.revealed {
+        opacity: 1;
+        transform: translateY(0);
         }
 
       /* Decorative corner marks — Bauhaus style */
@@ -1089,11 +1115,12 @@
 
       <div class="divider-v"></div>
 
-      <button class="action-btn btn-generate" id="btnGenerate" tabindex="0">⟐ Generate</button>
-      <button class="action-btn btn-play" id="btnPlay" tabindex="0">▶ Play</button>
-      <button class="action-btn btn-clear" id="btnClear" tabindex="0">Reset</button>
-      <button class="action-btn btn-mute" id="btnMute" tabindex="0" title="Toggle sound">🔊</button>
-    </div>
+        <button class="action-btn btn-generate" id="btnGenerate" tabindex="0">⟐ Generate</button>
+        <button class="action-btn btn-play" id="btnPlay" tabindex="0">▶ Play</button>
+        <button class="action-btn btn-generate" id="btnRecompose" tabindex="0" style="background:var(--yellow);color:var(--black);">⟳ Recompose</button>
+        <button class="action-btn btn-clear" id="btnClear" tabindex="0">Reset</button>
+        <button class="action-btn btn-mute" id="btnMute" tabindex="0" title="Toggle sound">🔊</button>
+      </div>
 
     <div class="footer-credit">Form follows function</div>
 
@@ -1689,23 +1716,26 @@
             }
 
             // Wait for user interaction or 2.8s timeout
-            var dismissed = false;
-            function dismiss() {
-              if (dismissed) return;
-              dismissed = true;
-              intro.classList.add('fade-out');
-              setTimeout(function() { intro.style.display = 'none'; }, 900);
-            }
+             var dismissed = false;
+             var compArea = document.querySelector('.composition-area');
+             function dismiss() {
+               if (dismissed) return;
+               dismissed = true;
+               intro.classList.add('fade-out');
+               compArea.classList.add('revealed');
+               setTimeout(function() { intro.style.display = 'none'; }, 900);
+               }
 
             introChime();
 
-            intro.addEventListener('click', function introClick() {
-              // Re-trigger audio context, then dismiss
-              initAudio();
-              if (!muted && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-              intro.removeEventListener('click', introClick);
-              dismiss();
-            });
+             intro.addEventListener('click', function introClick() {
+                // Re-trigger audio context, then dismiss
+               initAudio();
+               if (!muted && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+               intro.removeEventListener('click', introClick);
+               startAmbientHum();
+               dismiss();
+              });
 
             intro.addEventListener('keydown', function introKey(e) {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -1786,9 +1816,54 @@
          setTimeout(playCompositionSequence, 350);
         });
 
-       document.getElementById('btnNew').addEventListener('click', function() {
-         completionOverlay.classList.remove('visible');
-         document.getElementById('btnClear').click();
+        document.getElementById('btnNew').addEventListener('click', function() {
+          completionOverlay.classList.remove('visible');
+          document.getElementById('btnClear').click();
+          });
+
+        document.getElementById('btnRecompose').addEventListener('click', function() {
+          initAudio();
+          var filledCells = [];
+          for (var i = 0; i < grid.length; i++) {
+            if (grid[i].data) filledCells.push(i);
+             }
+          if (filledCells.length === 0) return;
+
+           // Randomize colors and shapes of each filled cell
+          var colors = ['red', 'blue', 'yellow', 'cream', 'black'];
+          var shapes = ['circle', 'square', 'triangle', 'diagonal', 'half', 'ring', 'arc'];
+          var stagger = Math.max(20, 280 / filledCells.length);
+
+          filledCells.forEach(function(idx, order) {
+            setTimeout(function() {
+              var oldData = grid[idx].data;
+              var newColor = colors[Math.floor(Math.random() * colors.length)];
+              var newShape = shapes[Math.floor(Math.random() * shapes.length)];
+              grid[idx].data = { color: newColor, shape: newShape, row: oldData.row, col: oldData.col };
+
+               // Swap visual
+              var existing = grid[idx].el.querySelector('.cell-content');
+              if (existing) existing.remove();
+              var content = document.createElement('div');
+              content.className = 'cell-content';
+              content.appendChild(createShapeElement(newShape, newColor));
+              grid[idx].el.appendChild(content);
+
+              playTone(newColor, newShape, 0.15, 0);
+              grid[idx].el.classList.add('playing', 'playing-' + newColor);
+              var cl = setTimeout(function() {
+                grid[idx].el.classList.remove('playing', 'playing-' + newColor);
+                }, 180);
+              playingTimeouts.push(cl);
+
+              }, order * stagger);
+             });
+
+          setTimeout(function() {
+            recalcCount();
+            updateBgGlow();
+            saveComposition();
+             }, filledCells.length * stagger + 100);
         });
 
           // Play sequence: diagonal wave traversal with chord resolution and color-reactive glow
@@ -2122,6 +2197,47 @@
          });
       });
 
+          // --- Ambient hum during idle state ---
+          var ambientHumOsc = null;
+          var ambientHumGain = null;
+          function startAmbientHum() {
+            if (muted || !audioCtx) return;
+            if (ambientHumOsc) return; // already running
+            var now = audioCtx.currentTime;
+            ambientHumOsc = audioCtx.createOscillator();
+            ambientHumGain = audioCtx.createGain();
+            ambientHumOsc.type = 'sine';
+            ambientHumOsc.frequency.setValueAtTime(55, now);
+            ambientHumGain.gain.setValueAtTime(0, now);
+            ambientHumGain.gain.linearRampToValueAtTime(0.015, now + 0.8);
+            ambientHumOsc.connect(ambientHumGain);
+            ambientHumGain.connect(audioCtx.destination);
+            ambientHumOsc.start(now);
+
+            // Second voice a fifth above
+            var osc2 = audioCtx.createOscillator();
+            var g2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(82.5, now);
+            g2.gain.setValueAtTime(0, now);
+            g2.gain.linearRampToValueAtTime(0.008, now + 1.2);
+            osc2.connect(g2);
+            g2.connect(audioCtx.destination);
+            osc2.start(now);
+            ambientHumOsc._stop = function() {
+              var now2 = audioCtx.currentTime;
+              ambientHumGain.gain.linearRampToValueAtTime(0, now2 + 0.3);
+              ambientHumOsc.stop(now2 + 0.35);
+              g2.gain.linearRampToValueAtTime(0, now2 + 0.3);
+              osc2.stop(now2 + 0.35);
+              ambientHumOsc = null;
+              ambientHumGain = null;
+            };
+          }
+          function stopAmbientHum() {
+            if (ambientHumOsc && ambientHumOsc._stop) ambientHumOsc._stop();
+          }
+
           // --- Ambient drone during playback ---
          function startAmbientDrone(baseFreq) {
            if (muted || !audioCtx) return null;
@@ -2149,13 +2265,16 @@
               }
             if (filledCells.length === 0) return;
 
-            isPlaying = true;
-            filledCells.sort(function(a, b) {
-              var da = grid[a].data, db = grid[b].data;
-              var sumA = da.row + da.col, sumB = db.row + db.col;
-              if (sumA !== sumB) return sumA - sumB;
-              return da.row - db.row;
-              });
+             isPlaying = true;
+             var gridWrapper = document.querySelector('.grid-wrapper');
+             if (gridWrapper) gridWrapper.classList.add('vibrating');
+             stopAmbientHum();
+             filledCells.sort(function(a, b) {
+               var da = grid[a].data, db = grid[b].data;
+               var sumA = da.row + da.col, sumB = db.row + db.col;
+               if (sumA !== sumB) return sumA - sumB;
+               return da.row - db.row;
+                });
 
             var baseDelay = Math.max(35, 320 / filledCells.length);
             var drone = null;
@@ -2217,17 +2336,19 @@
                   gridPulse.classList.add('active');
                   }
 
-                 if (order === filledCells.length - 1) {
-                   var resolve = setTimeout(function() {
-                    isPlaying = false;
-                     sweepCursor.classList.remove('active');
-                    playResolutionChord();
-                        // Restore ambient glow state
-                    bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
-                    updateBgGlow();
-                      }, 250);
-                   playingTimeouts.push(resolve);
-                    }
+                  if (order === filledCells.length - 1) {
+                    var resolve = setTimeout(function() {
+                     isPlaying = false;
+                      sweepCursor.classList.remove('active');
+                     playResolutionChord();
+                          // Restore ambient glow state
+                     bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                     updateBgGlow();
+                     if (gridWrapper) gridWrapper.classList.remove('vibrating');
+                     startAmbientHum();
+                        }, 250);
+                    playingTimeouts.push(resolve);
+                      }
                 }, delay);
                playingTimeouts.push(t);
               });
