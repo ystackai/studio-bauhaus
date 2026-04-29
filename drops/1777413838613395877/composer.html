@@ -404,12 +404,21 @@
        border-color: transparent;
       }
 
-      .cell.filled:hover {
-       transform: scale(1.07);
-       z-index: 2;
-       filter: brightness(1.18);
-       box-shadow: 0 0 10px rgba(0,0,0,0.4);
-      }
+        .cell.filled:hover {
+        transform: scale(1.07);
+        z-index: 2;
+        filter: brightness(1.18);
+        box-shadow: 0 0 10px rgba(0,0,0,0.4);
+        }
+
+        /* Idle breathing on filled cells — makes compositions feel alive */
+        .cell.filled.idle-pulse {
+        animation: idleBreathe 3s ease-in-out infinite;
+        }
+        @keyframes idleBreathe {
+        0%, 100% { filter: brightness(1) saturate(1); }
+        50% { filter: brightness(1.08) saturate(1.1); }
+        }
 
       .cell.playing {
         animation: cellPulse 0.4s ease;
@@ -1203,18 +1212,18 @@
         <button class="shape-btn" data-shape="triangle" aria-label="Triangle" title="Triangle" tabindex="0">
           <svg viewBox="0 0 20 20"><polygon points="10,2 18,18 2,18"/></svg>
         </button>
-        <button class="shape-btn" data-shape="diagonal" aria-label="Diagonal" title="Diagonal Line" tabindex="0">
-          <svg viewBox="0 0 20 20"><line x1="2" y1="18" x2="18" y2="2" stroke="currentColor" stroke-width="2.5"/></svg>
-        </button>
-        <button class="shape-btn" data-shape="half" aria-label="Half" title="Half Fill" tabindex="0">
-          <svg viewBox="0 0 20 20"><rect x="2" y="2" width="8" height="16"/></svg>
-        </button>
-        <button class="shape-btn" data-shape="ring" aria-label="Ring" title="Ring" tabindex="0">
-          <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-        <button class="shape-btn" data-shape="arc" aria-label="Arc" title="Arc" tabindex="0">
-          <svg viewBox="0 0 20 20"><path d="M 3 17 A 8 8 0 1 1 17 3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
+          <button class="shape-btn" data-shape="diagonal" aria-label="Diagonal" title="Diagonal Line" tabindex="0">
+            <svg viewBox="0 0 20 20"><line x1="2" y1="18" x2="18" y2="2" stroke="currentColor" stroke-width="2.5"/></svg>
+          </button>
+          <button class="shape-btn" data-shape="half" aria-label="Half" title="Half Fill" tabindex="0">
+            <svg viewBox="0 0 20 20"><rect x="2" y="2" width="8" height="16"/></svg>
+          </button>
+          <button class="shape-btn" data-shape="ring" aria-label="Ring" title="Ring" tabindex="0">
+            <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <button class="shape-btn" data-shape="arc" aria-label="Arc" title="Arc" tabindex="0">
+            <svg viewBox="0 0 20 20"><path d="M 3 17 A 8 8 0 1 1 17 3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
       </div>
 
       <div class="divider-v"></div>
@@ -1771,18 +1780,24 @@
           }
         }
 
-        function recalcCount() {
-          placedCount = 0;
-          for (var i = 0; i < grid.length; i++) {
-            if (grid[i].data) placedCount++;
-            }
-          var pct = (placedCount / TOTAL_CELLS) * 100;
-          progressFill.style.width = pct + '%';
-           counterEl.textContent = placedCount + ' / ' + TOTAL_CELLS;
-           var btnPlay = document.getElementById('btnPlay');
-           if (placedCount > 0) btnPlay.classList.add('has-composition');
-           else btnPlay.classList.remove('has-composition');
-            }
+         function recalcCount() {
+           placedCount = 0;
+           for (var i = 0; i < grid.length; i++) {
+             if (grid[i].data) placedCount++;
+              }
+           var pct = (placedCount / TOTAL_CELLS) * 100;
+           progressFill.style.width = pct + '%';
+            counterEl.textContent = placedCount + ' / ' + TOTAL_CELLS;
+            var btnPlay = document.getElementById('btnPlay');
+            if (placedCount > 0) btnPlay.classList.add('has-composition');
+            else btnPlay.classList.remove('has-composition');
+
+           // Toggle idle breathing on filled cells
+           for (var j = 0; j < grid.length; j++) {
+             if (grid[j].data && !isPlaying) grid[j].el.classList.add('idle-pulse');
+             else grid[j].el.classList.remove('idle-pulse');
+              }
+              }
 
         function saveComposition() {
           var data = [];
@@ -2543,10 +2558,10 @@
 
                var t = setTimeout(function() {
                    // Clear previous playing states
-                  for (var ti = 0; ti < grid.length; ti++) {
-                    grid[ti].el.classList.remove('playing', 'playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
-                    grid[ti].el.classList.remove('trail');
-                    }
+                   for (var ti = 0; ti < grid.length; ti++) {
+                     grid[ti].el.classList.remove('playing', 'playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                     grid[ti].el.classList.remove('trail', 'idle-pulse');
+                      }
 
                  var cellEl = grid[idx].el;
                  var colorClass = 'playing-' + d.color;
@@ -2588,14 +2603,15 @@
 
                   if (order === filledCells.length - 1) {
                     var resolve = setTimeout(function() {
-                     isPlaying = false;
-                      sweepCursor.classList.remove('active');
-                     playResolutionChord();
-                          // Restore ambient glow state
-                     bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
-                     updateBgGlow();
-                     if (gridWrapper) gridWrapper.classList.remove('vibrating');
-                     startAmbientHum();
+                      isPlaying = false;
+                       sweepCursor.classList.remove('active');
+                      playResolutionChord();
+                            // Restore ambient glow state
+                      bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                      updateBgGlow();
+                      recalcCount();
+                      if (gridWrapper) gridWrapper.classList.remove('vibrating');
+                      startAmbientHum();
                         }, 250);
                     playingTimeouts.push(resolve);
                       }
