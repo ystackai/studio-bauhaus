@@ -1124,11 +1124,17 @@
        var grid = [];
        var selectedColor = 'red';
        var selectedShape = 'circle';
-       var audioCtx = null;
-       var muted = false;
+        var audioCtx = null;
+        var muted = false;
+        var masterGain = null;
+        var reverbGain = null;
+        var dryGain = null;
+        var convolver = null;
         var placedCount = 0;
-        var isPlaying = false;
-        var STORAGE_KEY = 'bauhaus-composer-v1';
+         var isPlaying = false;
+        var ambientDrone = null;
+        var ambientGain = null;
+         var STORAGE_KEY = 'bauhaus-composer-v1';
 
           // Extended pentatonic/harmonic mapping — refined frequencies for better consonance
        var COLOR_NOTES = {
@@ -1153,43 +1159,87 @@
         // bg-glow element ref
         var bgGlow = document.getElementById('bgGlow');
 
-        // --- Audio Engine ---
-       function initAudio() {
-         if (!audioCtx) {
-           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          // --- Audio Engine ---
+        function initAudio() {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.35;
+            masterGain.connect(audioCtx.destination);
+
+            // Simple convolution reverb
+            convolver = audioCtx.createConvolver();
+            var sr = audioCtx.sampleRate;
+            var len = Math.floor(sr * 1.2);
+            var impulse = audioCtx.createBuffer(2, len, sr);
+            for (var ch = 0; ch < 2; ch++) {
+              var data = impulse.getChannelData(ch);
+              for (var j = 0; j < len; j++) {
+                data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 2.8);
+               }
+             }
+            convolver.buffer = impulse;
+            reverbGain = audioCtx.createGain();
+            reverbGain.gain.value = 0.12;
+            dryGain = audioCtx.createGain();
+            dryGain.gain.value = 0.7;
+            masterGain.connect(dryGain);
+            masterGain.connect(convolver);
+            convolver.connect(reverbGain);
+            dryGain.connect(audioCtx.destination);
+            reverbGain.connect(audioCtx.destination);
+
+            // Ambient idle drone (very subtle)
+            ambientGain = audioCtx.createGain();
+            ambientGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            ambientGain.gain.linearRampToValueAtTime(0.008, audioCtx.currentTime + 3);
+            ambientDrone = audioCtx.createOscillator();
+            ambientDrone.type = 'sine';
+            ambientDrone.frequency.value = 65.41;
+            ambientDrone.connect(ambientGain);
+            ambientGain.connect(audioCtx.destination);
+            ambientDrone.start();
+            var drone2 = audioCtx.createOscillator();
+            var g2 = audioCtx.createGain();
+            g2.gain.value = 0.004;
+            drone2.type = 'sine';
+            drone2.frequency.value = 98;
+            drone2.connect(g2);
+            g2.connect(audioCtx.destination);
+            drone2.start();
+            }
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+            }
           }
-         if (audioCtx.state === 'suspended') {
-           audioCtx.resume();
-          }
-        }
 
-       function playTone(color, shape, duration, delay) {
-         if (muted || !audioCtx) return null;
-         var baseFreq = COLOR_NOTES[color] || 261.63;
-         var cfg = SHAPE_CONFIG[shape] || SHAPE_CONFIG.circle;
-         var freq = baseFreq * Math.pow(2, cfg.octave);
-         var now = audioCtx.currentTime + (delay || 0);
-         var dur = duration || 0.3;
+        function playTone(color, shape, duration, delay) {
+          if (muted || !audioCtx) return null;
+          var baseFreq = COLOR_NOTES[color] || 261.63;
+          var cfg = SHAPE_CONFIG[shape] || SHAPE_CONFIG.circle;
+          var freq = baseFreq * Math.pow(2, cfg.octave);
+          var now = audioCtx.currentTime + (delay || 0);
+          var dur = duration || 0.3;
 
-         var masterGain = audioCtx.createGain();
-         masterGain.gain.setValueAtTime(0, now);
-         masterGain.gain.linearRampToValueAtTime(0.07, now + 0.012);
-         masterGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-         masterGain.connect(audioCtx.destination);
+          var toneGain = audioCtx.createGain();
+          toneGain.gain.setValueAtTime(0, now);
+          toneGain.gain.linearRampToValueAtTime(0.07, now + 0.012);
+          toneGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          toneGain.connect(masterGain);
 
-         cfg.harmonics.forEach(function(harm, i) {
-           var osc = audioCtx.createOscillator();
-           var g = audioCtx.createGain();
-           osc.type = i === 0 ? cfg.wave : 'sine';
-           osc.frequency.setValueAtTime(freq * harm, now);
-           g.gain.setValueAtTime(i === 0 ? 0.6 : (0.25 / (i + 1)), now);
-           osc.connect(g);
-           g.connect(masterGain);
-           osc.start(now);
-           osc.stop(now + dur + 0.05);
-          });
+          cfg.harmonics.forEach(function(harm, i) {
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            osc.type = i === 0 ? cfg.wave : 'sine';
+            osc.frequency.setValueAtTime(freq * harm, now);
+            g.gain.setValueAtTime(i === 0 ? 0.6 : (0.25 / (i + 1)), now);
+            osc.connect(g);
+            g.connect(toneGain);
+            osc.start(now);
+            osc.stop(now + dur + 0.05);
+            });
 
-         return masterGain;
+          return toneGain;
         }
 
        function playPlaceTone(color, shape) {
@@ -1206,30 +1256,30 @@
          osc.frequency.exponentialRampToValueAtTime(90, now + 0.15);
          gain.gain.setValueAtTime(0.04, now);
          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-         osc.connect(gain);
-         gain.connect(audioCtx.destination);
-         osc.start(now);
-         osc.stop(now + 0.15);
-        }
+          osc.connect(gain);
+          gain.connect(masterGain);
+          osc.start(now);
+          osc.stop(now + 0.15);
+         }
 
-       function playSelectionTone(color) {
-         playTone(color, 'circle', 0.12, 0);
-        }
+        function playSelectionTone(color) {
+          playTone(color, 'circle', 0.12, 0);
+         }
 
-       function playHoverTone() {
-         if (muted || !audioCtx) return;
-         var now = audioCtx.currentTime;
-         var osc = audioCtx.createOscillator();
-         var gain = audioCtx.createGain();
-         osc.type = 'sine';
-         osc.frequency.setValueAtTime(900, now);
-         gain.gain.setValueAtTime(0.006, now);
-         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
-         osc.connect(gain);
-         gain.connect(audioCtx.destination);
-         osc.start(now);
-         osc.stop(now + 0.025);
-        }
+        function playHoverTone() {
+          if (muted || !audioCtx) return;
+          var now = audioCtx.currentTime;
+          var osc = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(900, now);
+          gain.gain.setValueAtTime(0.006, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+          osc.connect(gain);
+          gain.connect(masterGain);
+          osc.start(now);
+          osc.stop(now + 0.025);
+         }
 
          function playCompletionFanfare() {
            if (muted || !audioCtx) return;
