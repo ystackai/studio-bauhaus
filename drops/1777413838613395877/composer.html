@@ -205,20 +205,32 @@
        max-height: 500px;
       }
 
-      .cell {
-       background: rgba(255,255,255,0.012);
-       border: 1px solid rgba(255,255,255,0.035);
-       cursor: pointer;
-       transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-       position: relative;
-       overflow: hidden;
-      }
+        .cell {
+        background: rgba(255,255,255,0.012);
+        border: 1px solid rgba(255,255,255,0.035);
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+        overflow: hidden;
+        animation: cellBreathe 4s ease-in-out infinite;
+        animation-delay: calc(var(--cell-order, 0) * 0.15s);
+        }
 
-      .cell:hover:not(.filled) {
-       background: rgba(255,255,255,0.05);
-       border-color: rgba(255,255,255,0.1);
-       box-shadow: inset 0 0 8px rgba(255,255,255,0.03);
-      }
+        @keyframes cellBreathe {
+        0%, 100% { opacity: 0.85; }
+        50% { opacity: 1; }
+        }
+
+        .cell.filled {
+        animation: none;
+        }
+
+        .cell:hover:not(.filled),
+        .cell:active:not(.filled) {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(255,255,255,0.15);
+        box-shadow: inset 0 0 8px rgba(232,184,40,0.06);
+        }
 
       .cell.focus-ring,
       .cell:focus {
@@ -661,17 +673,35 @@
       }
 
       /* Footer credit */
-      .footer-credit {
-       text-align: center;
-       padding: 0.4rem;
-       font-size: 0.5rem;
-       color: var(--mid-gray);
-       letter-spacing: 2px;
-       text-transform: uppercase;
-       opacity: 0.4;
-       position: relative;
-       z-index: 1;
-      }
+       .footer-credit {
+        text-align: center;
+        padding: 0.4rem;
+        font-size: 0.5rem;
+        color: var(--mid-gray);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        opacity: 0.4;
+        position: relative;
+        z-index: 1;
+        }
+
+       .shortcuts-hint {
+         position: fixed;
+         bottom: 12px;
+         left: 50%;
+         transform: translateX(-50%);
+         font-size: 0.5rem;
+         color: var(--mid-gray);
+         letter-spacing: 1px;
+         opacity: 0.35;
+         z-index: 10;
+         transition: opacity 0.5s ease;
+         white-space: nowrap;
+         }
+
+        .shortcuts-hint:hover {
+         opacity: 0.7;
+         }
 
       /* Responsive */
       @media (max-width: 600px) {
@@ -774,7 +804,8 @@
       <button class="action-btn btn-mute" id="btnMute" tabindex="0" title="Toggle sound">🔊</button>
     </div>
 
-    <div class="footer-credit">Form follows function</div>
+      <div class="footer-credit">Form follows function</div>
+      <div class="shortcuts-hint" id="shortcutsHint">1-5 colors · 6-0 shapes · P play · G generate · M mute · Del clear</div>
 
     <div class="completion-overlay" id="completionOverlay">
       <div class="completion-card">
@@ -904,37 +935,52 @@
          osc.stop(now + 0.025);
         }
 
-       function playCompletionFanfare() {
-         if (muted || !audioCtx) return;
-         var now = audioCtx.currentTime;
-         var chord = [261.63, 329.63, 392.00, 523.25, 659.25];
-         chord.forEach(function(freq, i) {
-           var osc = audioCtx.createOscillator();
-           var g = audioCtx.createGain();
-           osc.type = 'sine';
-           osc.frequency.setValueAtTime(freq, now);
-           g.gain.setValueAtTime(0, now + i * 0.06);
-           g.gain.linearRampToValueAtTime(0.035, now + i * 0.06 + 0.015);
-           g.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
-           osc.connect(g);
-           g.connect(audioCtx.destination);
-           osc.start(now + i * 0.06);
-           osc.stop(now + 2.4);
-          });
+        function playCompletionFanfare() {
+          if (muted || !audioCtx) return;
+          var now = audioCtx.currentTime;
+         // Arpeggiated major chord
+          var chord = [261.63, 329.63, 392.00, 523.25, 659.25, 523.25, 659.25, 783.99];
+          chord.forEach(function(freq, i) {
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            osc.type = i % 3 === 0 ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.08);
+            g.gain.setValueAtTime(0, now + i * 0.08);
+            g.gain.linearRampToValueAtTime(0.04, now + i * 0.08 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 3);
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start(now + i * 0.08);
+            osc.stop(now + 3.2);
+            });
 
          // Sub bass layer
-         var bass = audioCtx.createOscillator();
-         var bg = audioCtx.createGain();
-         bass.type = 'sine';
-         bass.frequency.setValueAtTime(65.41, now);
-         bg.gain.setValueAtTime(0, now);
-         bg.gain.linearRampToValueAtTime(0.06, now + 0.1);
-         bg.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
-         bass.connect(bg);
-         bg.connect(audioCtx.destination);
-         bass.start(now);
-         bass.stop(now + 2.3);
-        }
+          var bass = audioCtx.createOscillator();
+          var bg = audioCtx.createGain();
+          bass.type = 'sine';
+          bass.frequency.setValueAtTime(65.41, now);
+          bg.gain.setValueAtTime(0, now);
+          bg.gain.linearRampToValueAtTime(0.07, now + 0.1);
+          bg.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
+          bass.connect(bg);
+          bg.connect(audioCtx.destination);
+          bass.start(now);
+          bass.stop(now + 2.9);
+
+         // High shimmer
+          var shim = audioCtx.createOscillator();
+          var sg = audioCtx.createGain();
+          shim.type = 'sine';
+          shim.frequency.setValueAtTime(1800, now);
+          shim.frequency.exponentialRampToValueAtTime(1200, now + 1.2);
+          sg.gain.setValueAtTime(0, now);
+          sg.gain.linearRampToValueAtTime(0.015, now + 0.05);
+          sg.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+          shim.connect(sg);
+          sg.connect(audioCtx.destination);
+          shim.start(now);
+          shim.stop(now + 1.3);
+          }
 
        function playResetTone() {
          if (muted || !audioCtx) return;
@@ -986,20 +1032,21 @@
        var completionOverlay = document.getElementById('completionOverlay');
 
         for (var i = 0; i < TOTAL_CELLS; i++) {
-         var cell = document.createElement('div');
-         cell.className = 'cell';
-         cell.dataset.index = i;
-         cell.setAttribute('role', 'gridcell');
-         cell.setAttribute('tabindex', '0');
-         cell.setAttribute('aria-label', 'Row ' + (Math.floor(i / GRID_SIZE) + 1) + ', Column ' + (i % GRID_SIZE + 1));
-         cell.addEventListener('click', onCellClick);
-         cell.addEventListener('mouseenter', throttle(onCellHover, 120));
-         cell.addEventListener('keydown', onCellKey);
-         cell.addEventListener('focus', function(e) { e.currentTarget.classList.add('focus-ring'); });
-         cell.addEventListener('blur', function(e) { e.currentTarget.classList.remove('focus-ring'); });
-         gridEl.appendChild(cell);
-         grid.push({ el: cell, data: null });
-        }
+          var cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.index = i;
+          cell.style.setProperty('--cell-order', i);
+          cell.setAttribute('role', 'gridcell');
+          cell.setAttribute('tabindex', '0');
+          cell.setAttribute('aria-label', 'Row ' + (Math.floor(i / GRID_SIZE) + 1) + ', Column ' + (i % GRID_SIZE + 1));
+          cell.addEventListener('click', onCellClick);
+          cell.addEventListener('mouseenter', throttle(onCellHover, 120));
+          cell.addEventListener('keydown', onCellKey);
+          cell.addEventListener('focus', function(e) { e.currentTarget.classList.add('focus-ring'); });
+          cell.addEventListener('blur', function(e) { e.currentTarget.classList.remove('focus-ring'); });
+          gridEl.appendChild(cell);
+          grid.push({ el: cell, data: null });
+          }
 
        function throttle(fn, ms) {
          var last = 0;
@@ -1036,31 +1083,33 @@
           }
         }
 
-       function placeShape(idx) {
-         var cellData = grid[idx];
-         var color = selectedColor;
-         var shape = selectedShape;
-         cellData.data = { color: color, shape: shape, row: Math.floor(idx / GRID_SIZE), col: idx % GRID_SIZE };
+         function placeShape(idx) {
+          var cellData = grid[idx];
+          var color = selectedColor;
+          var shape = selectedShape;
+          var data = { color: color, shape: shape, row: Math.floor(idx / GRID_SIZE), col: idx % GRID_SIZE };
+          cellData.data = data;
+          cellData.origData = data;
 
-         var content = document.createElement('div');
-         content.className = 'cell-content';
+          var content = document.createElement('div');
+          content.className = 'cell-content';
 
-         var shapeEl = createShapeElement(shape, color);
-         content.appendChild(shapeEl);
+          var shapeEl = createShapeElement(shape, color);
+          content.appendChild(shapeEl);
 
-         var existing = cellData.el.querySelector('.cell-content');
-         if (existing) existing.remove();
-         cellData.el.appendChild(content);
-         cellData.el.classList.add('filled');
+          var existing = cellData.el.querySelector('.cell-content');
+          if (existing) existing.remove();
+          cellData.el.appendChild(content);
+          cellData.el.classList.add('filled');
 
-         playPlaceTone(color, shape);
-         recalcCount();
-         updateBgGlow();
+          playPlaceTone(color, shape);
+          recalcCount();
+          updateBgGlow();
 
-         if (placedCount === TOTAL_CELLS) {
-           setTimeout(triggerCompletion, 400);
+          if (placedCount === TOTAL_CELLS) {
+            setTimeout(triggerCompletion, 400);
+             }
           }
-        }
 
        function removeShape(idx) {
          var cellData = grid[idx];
@@ -1183,11 +1232,11 @@
          isPlaying = false;
         });
 
-       document.getElementById('btnPlay').addEventListener('click', function() {
-         if (isPlaying) return;
-         initAudio();
-         playCompositionSequence();
-        });
+         document.getElementById('btnPlay').addEventListener('click', function() {
+          if (isPlaying) return;
+          initAudio();
+          beforePlayHook();
+           });
 
        document.getElementById('btnMute').addEventListener('click', function() {
          muted = !muted;
@@ -1195,10 +1244,10 @@
          this.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
         });
 
-        document.getElementById('btnReplay').addEventListener('click', function() {
-         completionOverlay.classList.remove('visible');
-         setTimeout(playCompositionSequence, 350);
-        });
+           document.getElementById('btnReplay').addEventListener('click', function() {
+          completionOverlay.classList.remove('visible');
+          setTimeout(beforePlayHook, 350);
+          });
 
        document.getElementById('btnNew').addEventListener('click', function() {
          completionOverlay.classList.remove('visible');
@@ -1298,13 +1347,23 @@
           }
         });
 
-          // Touch: prevent double-tap zoom
-         var lastTouch = 0;
-         gridEl.addEventListener('touchend', function(e) {
-           var now = Date.now();
-           if (now - lastTouch < 300) e.preventDefault();
-           lastTouch = now;
-          }, false);
+          // Touch: prevent double-tap zoom + hover sound on touch
+          var lastTouch = 0;
+          gridEl.addEventListener('touchend', function(e) {
+            var now = Date.now();
+            if (now - lastTouch < 300) e.preventDefault();
+            lastTouch = now;
+            }, false);
+
+          gridEl.addEventListener('touchstart', function(e) {
+            var touch = e.target.closest('.cell');
+            if (touch && !isPlaying) {
+              var idx = parseInt(touch.dataset.index);
+              if (idx !== undefined && !grid[idx].data) {
+                playHoverTone();
+              }
+            }
+          }, { passive: true });
 
           // --- Keyboard shortcuts ---
          var colorKeys = ['1', '2', '3', '4', '5'];
@@ -1422,33 +1481,91 @@
              return cells;
             },
 
-           mirrorAxis: function() {
-             var cells = [];
-             var colors = [selectedColor, 'blue', 'cream'];
-             var shapes = ['circle', 'square', 'triangle'];
-             var axis = Math.random() > 0.5 ? 'v' : 'h';
-             for (var r = 0; r < GRID_SIZE; r++) {
-               for (var co = 0; co < GRID_SIZE; co++) {
-                 var ci = (r + co) % colors.length;
-                 var si = (r * co) % shapes.length;
-                 var mirror_r = axis === 'h' ? (GRID_SIZE - 1 - r) : r;
-                 cells.push({
-                   idx: r * GRID_SIZE + co,
-                   color: colors[ci],
-                   shape: shapes[si]
-                  });
-                 if (mirror_r !== r) {
-                   cells.push({
-                     idx: mirror_r * GRID_SIZE + co,
-                     color: colors[ci],
-                     shape: shapes[si]
+            mirrorAxis: function() {
+              var cells = [];
+              var colors = [selectedColor, 'blue', 'cream'];
+              var shapes = ['circle', 'square', 'triangle'];
+              var axis = Math.random() > 0.5 ? 'v' : 'h';
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var ci = (r + co) % colors.length;
+                  var si = (r * co) % shapes.length;
+                  var mirror_r = axis === 'h' ? (GRID_SIZE - 1 - r) : r;
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[ci],
+                    shape: shapes[si]
+                    });
+                  if (mirror_r !== r) {
+                    cells.push({
+                      idx: mirror_r * GRID_SIZE + co,
+                      color: colors[ci],
+                      shape: shapes[si]
+                      });
+                    }
+                  }
+                }
+              return cells;
+              },
+
+            bauhausMosaic: function() {
+              var cells = [];
+              var colors = ['red', 'blue', 'yellow', 'cream', 'black'];
+              var shapes = ['circle', 'square', 'triangle', 'diagonal', 'half', 'ring', 'arc'];
+              var seed = Math.floor(Math.random() * 1000);
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var val = ((r * 7 + co * 13 + seed) % 37);
+                  var ci = val % colors.length;
+                  var si = (val * 3) % shapes.length;
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[ci],
+                    shape: shapes[si]
                     });
                   }
                 }
+              return cells;
+              },
+
+            colorBands: function() {
+              var cells = [];
+              var bandColors = ['red', 'blue', 'yellow'];
+              var bandShapes0 = ['circle', 'ring'];
+              var bandShapes1 = ['square', 'half'];
+              var bandShapes2 = ['triangle', 'arc', 'diagonal'];
+              for (var r = 0; r < GRID_SIZE; r++) {
+                var band = Math.floor(r / 2);
+                var c = bandColors[band];
+                var sArr = [bandShapes0, bandShapes1, bandShapes2][band];
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: c,
+                    shape: sArr[(r + co) % sArr.length]
+                    });
+                  }
+                }
+              return cells;
+              },
+
+            diagonalFlow: function() {
+              var cells = [];
+              var colors = [selectedColor, 'yellow', 'blue', 'cream'];
+              var shapes = ['diagonal', 'circle', 'square', 'ring', 'arc'];
+              for (var r = 0; r < GRID_SIZE; r++) {
+                for (var co = 0; co < GRID_SIZE; co++) {
+                  var d = (r + co) % 5;
+                  cells.push({
+                    idx: r * GRID_SIZE + co,
+                    color: colors[d % colors.length],
+                    shape: shapes[d]
+                    });
+                  }
+                }
+              return cells;
               }
-             return cells;
-            }
-          };
+            };
 
          document.getElementById('btnGenerate').addEventListener('click', function() {
            initAudio();
@@ -1476,10 +1593,12 @@
            recalcCount();
            completionOverlay.classList.remove('visible');
            var stagger = 22;
-           finalCells.forEach(function(tc, order) {
-             setTimeout(function() {
-               grid[tc.idx].data = { color: tc.color, shape: tc.shape, row: Math.floor(tc.idx / GRID_SIZE), col: tc.idx % GRID_SIZE };
-               var content = document.createElement('div');
+            finalCells.forEach(function(tc, order) {
+              setTimeout(function() {
+                var gd = { color: tc.color, shape: tc.shape, row: Math.floor(tc.idx / GRID_SIZE), col: tc.idx % GRID_SIZE };
+                grid[tc.idx].data = gd;
+                grid[tc.idx].origData = gd;
+                var content = document.createElement('div');
                content.className = 'cell-content';
                content.appendChild(createShapeElement(tc.shape, tc.color));
                var ex = grid[tc.idx].el.querySelector('.cell-content');
@@ -1515,69 +1634,140 @@
            return drone;
           }
 
-          // --- Play sequence with color-reactive bg-glow ---
-         function playCompositionSequence() {
-           clearPlayingTimeouts();
-           var filledCells = [];
-           for (var i = 0; i < grid.length; i++) {
-             if (grid[i].data) filledCells.push(i);
-            }
-           if (filledCells.length === 0) return;
-
-           isPlaying = true;
-           filledCells.sort(function(a, b) {
-             var da = grid[a].data, db = grid[b].data;
-             var sumA = da.row + da.col, sumB = db.row + db.col;
-             if (sumA !== sumB) return sumA - sumB;
-             return da.row - db.row;
-            });
-
-           var baseDelay = Math.max(35, 320 / filledCells.length);
-           var drone = null;
-
-           filledCells.forEach(function(idx, order) {
-             var d = grid[idx].data;
-             var diagSum = d.row + d.col;
-             var rhythmicModifier = (diagSum % 2 === 0) ? 0 : 10;
-             var delay = order * baseDelay + rhythmicModifier;
-
-             if (order === 0) {
-               drone = startAmbientDrone(COLOR_NOTES[d.color] || 261.63);
+            // --- Play sequence with color-reactive bg-glow ---
+          function playCompositionSequence() {
+            clearPlayingTimeouts();
+            var filledCells = [];
+            for (var i = 0; i < grid.length; i++) {
+              if (grid[i].data) filledCells.push(i);
               }
+            if (filledCells.length === 0) return;
 
-             var t = setTimeout(function() {
-               // Clear previous trail
-               for (var ti = 0; ti < grid.length; ti++) {
-                 grid[ti].el.classList.remove('trail');
+            isPlaying = true;
+            var prevHighlightCell = -1;
+            filledCells.sort(function(a, b) {
+              var da = grid[a].data, db = grid[b].data;
+              var sumA = da.row + da.col, sumB = db.row + db.col;
+              if (sumA !== sumB) return sumA - sumB;
+              return da.row - db.row;
+              });
+
+            var baseDelay = Math.max(35, 320 / filledCells.length);
+            var drone = null;
+            var colorOrder = ['red', 'blue', 'yellow', 'cream', 'black'];
+
+            // Reset all cells to empty state for playback
+            for (var ri = 0; ri < grid.length; ri++) {
+              var existing = grid[ri].el.querySelector('.cell-content');
+              if (existing) existing.remove();
+              grid[ri].el.classList.remove('filled', 'playing', 'trail');
+              grid[ri].data = null;
+              }
+            placedCount = 0;
+            recalcCount();
+            bgGlow.classList.remove('warm', 'cool', 'bright');
+
+            filledCells.forEach(function(idx, order) {
+              var originalData = grid[idx].origData;
+              if (!originalData) return;
+              var d = originalData;
+              var diagSum = d.row + d.col;
+              var rhythmicModifier = (diagSum % 2 === 0) ? 0 : 10;
+              var delay = order * baseDelay + rhythmicModifier;
+
+              if (order === 0) {
+                drone = startAmbientDrone(COLOR_NOTES[d.color] || 261.63);
                 }
-               var cellEl = grid[idx].el;
-               cellEl.classList.add('playing');
-               playTone(d.color, d.shape, 0.3, 0);
 
-               var cleanup = setTimeout(function() {
-                 cellEl.classList.remove('playing');
-                }, 160);
-               playingTimeouts.push(cleanup);
+              var t = setTimeout(function() {
+                 // Clear previous trail and highlight
+                for (var ti = 0; ti < grid.length; ti++) {
+                  grid[ti].el.classList.remove('trail');
+                  }
+                if (prevHighlightCell >= 0 && grid[prevHighlightCell].el) {
+                  grid[prevHighlightCell].el.classList.remove('playing');
+                  }
 
-                // Draw light trail
-               if (order > 0) {
-                 var trailIdx = filledCells[order - 1];
-                 grid[trailIdx].el.classList.add('trail');
-                 setTimeout(function() {
-                   grid[trailIdx].el.classList.remove('trail');
-                  }, 500);
-                }
+                var cellEl = grid[idx].el;
+                // Place shape visible during playback
+                var content = document.createElement('div');
+                content.className = 'cell-content';
+                content.appendChild(createShapeElement(d.shape, d.color));
+                cellEl.appendChild(content);
+                cellEl.classList.add('filled', 'playing');
 
-               if (order === filledCells.length - 1) {
-                 var resolve = setTimeout(function() {
-                   isPlaying = false;
-                   playResolutionChord();
-                  }, 200);
-                 playingTimeouts.push(resolve);
-                }
-              }, delay);
-             playingTimeouts.push(t);
-            });
+                playTone(d.color, d.shape, 0.3, 0);
+
+                var cleanup = setTimeout(function() {
+                  cellEl.classList.remove('playing');
+                  }, 160);
+                playingTimeouts.push(cleanup);
+
+                // Update bg-glow based on current color density
+                updateBgGlowByIndex(idx, filledCells, order);
+
+                prevHighlightCell = idx;
+                placedCount++;
+                recalcCount();
+
+                if (order === filledCells.length - 1) {
+                  var resolve = setTimeout(function() {
+                    isPlaying = false;
+                    playResolutionChord();
+                    // Restore all shapes permanently
+                    if (placedCount === TOTAL_CELLS) {
+                      setTimeout(triggerCompletion, 400);
+                    }
+                  }, 250);
+                  playingTimeouts.push(resolve);
+                  }
+                }, delay);
+              playingTimeouts.push(t);
+              });
+            }
+
+            // --- Store original data for playback ---
+          function storeOriginalData() {
+            for (var i = 0; i < grid.length; i++) {
+              if (grid[i].data) {
+                grid[i].origData = {
+                  color: grid[i].data.color,
+                  shape: grid[i].data.shape,
+                  row: grid[i].data.row,
+                  col: grid[i].data.col
+                };
+              }
+            }
+          }
+
+          function updateBgGlowByIndex(idx, filledCells, order) {
+            var redCount = 0, blueCount = 0, yellowCount = 0, creamCount = 0;
+            for (var i = 0; i <= order; i++) {
+              var d = grid[filledCells[i]].origData;
+              if (!d) continue;
+              var c = d.color;
+              if (c === 'red') redCount++;
+              else if (c === 'blue') blueCount++;
+              else if (c === 'yellow') yellowCount++;
+              else if (c === 'cream') creamCount++;
+            }
+            bgGlow.classList.remove('warm', 'cool', 'bright');
+            if (redCount >= blueCount && redCount >= creamCount) {
+              bgGlow.classList.add('warm');
+            } else if (blueCount > redCount) {
+              bgGlow.classList.add('cool');
+            } else if (yellowCount + creamCount > redCount + blueCount) {
+              bgGlow.classList.add('bright');
+            } else {
+              bgGlow.classList.add('warm');
+            }
+          }
+
+            // Call storeOriginalData before playback
+          // (hooked into onCellClick and generate)
+          function beforePlayHook() {
+            storeOriginalData();
+            playCompositionSequence();
           }
 
         })();
