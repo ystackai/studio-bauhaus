@@ -259,11 +259,12 @@
        overflow: hidden;
       }
 
-      .cell:hover:not(.filled) {
-       background: rgba(255,255,255,0.05);
-       border-color: rgba(255,255,255,0.1);
-       box-shadow: inset 0 0 8px rgba(255,255,255,0.03);
-      }
+        .cell:hover:not(.filled) {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(255,255,255,0.14);
+        box-shadow: inset 0 0 12px rgba(255,255,255,0.04), 0 0 8px rgba(232,184,40,0.08);
+        transform: scale(1.04);
+         }
 
       .cell.focus-ring,
       .cell:focus {
@@ -282,29 +283,107 @@
        box-shadow: 0 0 10px rgba(0,0,0,0.4);
       }
 
-         .cell.playing {
-        animation: cellPulse 0.35s ease;
-        box-shadow:
-         0 0 16px rgba(242,237,228,0.35),
-         0 0 0 2px rgba(232,184,40,0.5);
-         }
+      .cell.playing {
+        animation: cellPulse 0.4s ease;
+        z-index: 10;
+        }
 
-      .cell.trail {
-       animation: trailFade 0.6s ease;
-       box-shadow: 0 0 6px rgba(242,237,228,0.12);
-       border-color: rgba(255,255,255,0.1);
-      }
+        .cell.playing-red { box-shadow: 0 0 20px rgba(217,56,56,0.6), 0 0 0 2px rgba(217,56,56,0.4); }
+        .cell.playing-blue { box-shadow: 0 0 20px rgba(41,98,173,0.6), 0 0 0 2px rgba(41,98,173,0.4); }
+        .cell.playing-yellow { box-shadow: 0 0 20px rgba(232,184,40,0.6), 0 0 0 2px rgba(232,184,40,0.4); }
+        .cell.playing-cream { box-shadow: 0 0 20px rgba(242,237,228,0.5), 0 0 0 2px rgba(242,237,228,0.3); }
+        .cell.playing-black { box-shadow: 0 0 20px rgba(107,107,107,0.5), 0 0 0 2px rgba(107,107,107,0.3); }
 
-      @keyframes cellPulse {
-       0% { transform: scale(1); filter: brightness(1); }
-       40% { transform: scale(1.1); filter: brightness(1.35); }
-       100% { transform: scale(1); filter: brightness(1); }
-      }
+        .cell.trail {
+        animation: trailFade 0.8s ease;
+        box-shadow: 0 0 6px rgba(242,237,228,0.12);
+        border-color: rgba(255,255,255,0.1);
+        }
 
-      @keyframes trailFade {
-       0% { opacity: 1; box-shadow: 0 0 8px rgba(242,237,228,0.2); }
-       100% { opacity: 0.7; box-shadow: 0 0 2px rgba(242,237,228,0.05); }
-      }
+        @keyframes cellPulse {
+        0% { transform: scale(1); filter: brightness(1); }
+        30% { transform: scale(1.14); filter: brightness(1.45); }
+        70% { transform: scale(1.02); filter: brightness(1.15); }
+        100% { transform: scale(1); filter: brightness(1); }
+        }
+
+        @keyframes trailFade {
+        0% { opacity: 1; box-shadow: 0 0 8px rgba(242,237,228,0.2); }
+        100% { opacity: 0.65; box-shadow: 0 0 2px rgba(242,237,228,0.03); }
+        }
+
+        /* Sweep cursor — follows the playing cell */
+        .sweep-cursor {
+        position: fixed;
+        pointer-events: none;
+        z-index: 80;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+        }
+
+        .sweep-cursor.active {
+        opacity: 1;
+        }
+
+        .sweep-cursor::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 140%;
+        height: 140%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+        animation: sweepPulse 0.4s ease infinite alternate;
+        }
+
+        .sweep-cursor::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60%;
+        height: 60%;
+        border-radius: 50%;
+        border: 1.5px solid rgba(255,255,255,0.3);
+        animation: sweepRing 0.5s ease infinite alternate;
+        }
+
+        @keyframes sweepPulse {
+        0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+        100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.4; }
+        }
+
+        @keyframes sweepRing {
+        0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) scale(1.5) rotate(180deg); opacity: 0; }
+        }
+
+        /* Grid pulse overlay — subtle full-grid shimmer during play */
+        .grid-pulse-overlay {
+        position: absolute;
+        inset: 0;
+        border-radius: 2px;
+        pointer-events: none;
+        z-index: 5;
+        opacity: 0;
+        }
+
+        .grid-pulse-overlay.active {
+        animation: gridShimmer 0.6s ease;
+        }
+
+        @keyframes gridShimmer {
+        0% { opacity: 0; background: transparent; }
+        20% { opacity: 1; background: rgba(232,184,40,0.04); }
+        50% { opacity: 1; background: rgba(242,237,228,0.03); }
+        100% { opacity: 0; background: transparent; }
+        }
 
       .cell-content {
        position: absolute;
@@ -657,57 +736,125 @@
       }
 
       /* Completion overlay — full dramatic treatment */
-      .completion-overlay {
-       position: fixed;
-       inset: 0;
-       background: rgba(0,0,0,0.9);
-       display: flex;
-       align-items: center;
-       justify-content: center;
-       z-index: 200;
-       opacity: 0;
-       pointer-events: none;
-       transition: opacity 0.4s ease;
-      }
+        .completion-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+        }
 
-      .completion-overlay.visible {
-       opacity: 1;
-       pointer-events: auto;
-      }
+        .completion-overlay.visible {
+        opacity: 1;
+        pointer-events: auto;
+        }
 
-      .completion-card {
-       text-align: center;
-       padding: 2.2rem 2.8rem;
-       position: relative;
-       border: 1px solid rgba(255,255,255,0.08);
-       animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-      }
+        .completion-card {
+        text-align: center;
+        padding: 2.2rem 2.8rem;
+        position: relative;
+        border: 1px solid rgba(255,255,255,0.08);
+        animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
 
-      @keyframes cardIn {
-       0% { transform: scale(0.8); opacity: 0; }
-       100% { transform: scale(1); opacity: 1; }
-      }
+        @keyframes cardIn {
+        0% { transform: scale(0.8); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+        }
 
-      .completion-card::before {
-       content: '';
-       position: absolute;
-       top: -4px;
-       left: -4px;
-       right: -4px;
-       bottom: -4px;
-       border: 1px solid rgba(255,255,255,0.04);
-      }
+        .completion-card::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border: 1px solid rgba(255,255,255,0.04);
+        }
 
-      .completion-card::after {
-       content: '';
-       position: absolute;
-       top: -8px;
-       left: 50%;
-       transform: translateX(-50%);
-       width: 40px;
-       height: 2px;
-       background: linear-gradient(90deg, var(--red), var(--yellow), var(--blue));
-      }
+        .completion-card::after {
+        content: '';
+        position: absolute;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--red), var(--yellow), var(--blue));
+        }
+
+        /* Geometric decorations for completion overlay */
+        .geo-circle {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+        animation: geoFloat 3s ease-in-out infinite;
+        }
+
+        .geo-circle-red {
+        width: 60px; height: 60px;
+        border: 2px solid var(--red);
+        top: -30px; left: -40px;
+        animation-delay: 0s;
+        }
+
+        .geo-circle-blue {
+        width: 40px; height: 40px;
+        border: 2px solid var(--blue);
+        bottom: -20px; right: -30px;
+        animation-delay: 1s;
+        }
+
+        .geo-triangle {
+        position: absolute;
+        width: 0; height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        pointer-events: none;
+        animation: geoFloat 3s ease-in-out infinite reverse;
+        }
+
+        .geo-triangle-yellow {
+        border-bottom: 18px solid var(--yellow);
+        top: -15px; right: -35px;
+        animation-delay: 0.5s;
+        }
+
+        .geo-square {
+        position: absolute;
+        width: 20px; height: 20px;
+        background: var(--cream);
+        opacity: 0.3;
+        pointer-events: none;
+        animation: geoSpin 4s linear infinite;
+        }
+
+        .geo-square-1 {
+        bottom: -25px; left: -35px;
+        animation-delay: 0.2s;
+        }
+
+        .geo-square-2 {
+        top: 20px; right: -28px;
+        width: 12px; height: 12px;
+        background: var(--blue);
+        animation-delay: 1.5s;
+        }
+
+        @keyframes geoFloat {
+        0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+        50% { transform: translateY(-8px) scale(1.05); opacity: 1; }
+        }
+
+        @keyframes geoSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+        }
 
       .completion-card h2 {
        font-size: 1.4rem;
@@ -785,8 +932,10 @@
     <div class="bg-glow" id="bgGlow"></div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="counter" id="counter">0 / 36</div>
-     <div class="flash-overlay" id="flashOverlay"></div>
-     <div class="toast" id="toast"></div>
+      <div class="flash-overlay" id="flashOverlay"></div>
+       <div class="toast" id="toast"></div>
+       <div class="sweep-cursor" id="sweepCursor"></div>
+       <div class="grid-pulse-overlay" id="gridPulse"></div>
 
     <div class="header">
       <h1>
@@ -849,18 +998,23 @@
 
     <div class="footer-credit">Form follows function</div>
 
-    <div class="completion-overlay" id="completionOverlay">
-      <div class="completion-card">
+        <div class="completion-overlay" id="completionOverlay">
+        <div class="completion-card">
+        <div class="geo-circle geo-circle-red"></div>
+        <div class="geo-circle geo-circle-blue"></div>
+        <div class="geo-triangle geo-triangle-yellow"></div>
+        <div class="geo-square geo-square-1"></div>
+        <div class="geo-square geo-square-2"></div>
         <h2>
-          <span class="red">C</span><span class="blue">o</span><span class="yellow">m</span>plete
+        <span class="red">C</span><span class="blue">o</span><span class="yellow">m</span>plete
         </h2>
         <p>36 elements — the grid sings</p>
         <div>
-          <button class="action-btn btn-play" id="btnReplay">▶ Replay</button>
-          <button class="action-btn btn-clear" id="btnNew">New Canvas</button>
+        <button class="action-btn btn-play" id="btnReplay">▶ Replay</button>
+        <button class="action-btn btn-clear" id="btnNew">New Canvas</button>
         </div>
-      </div>
-    </div>
+        </div>
+        </div>
 
     <script>
       (function() {
@@ -977,37 +1131,54 @@
          osc.stop(now + 0.025);
         }
 
-       function playCompletionFanfare() {
-         if (muted || !audioCtx) return;
-         var now = audioCtx.currentTime;
-         var chord = [261.63, 329.63, 392.00, 523.25, 659.25];
-         chord.forEach(function(freq, i) {
-           var osc = audioCtx.createOscillator();
-           var g = audioCtx.createGain();
-           osc.type = 'sine';
-           osc.frequency.setValueAtTime(freq, now);
-           g.gain.setValueAtTime(0, now + i * 0.06);
-           g.gain.linearRampToValueAtTime(0.035, now + i * 0.06 + 0.015);
-           g.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
-           osc.connect(g);
-           g.connect(audioCtx.destination);
-           osc.start(now + i * 0.06);
-           osc.stop(now + 2.4);
-          });
+        function playCompletionFanfare() {
+          if (muted || !audioCtx) return;
+          var now = audioCtx.currentTime;
 
-         // Sub bass layer
-         var bass = audioCtx.createOscillator();
-         var bg = audioCtx.createGain();
-         bass.type = 'sine';
-         bass.frequency.setValueAtTime(65.41, now);
-         bg.gain.setValueAtTime(0, now);
-         bg.gain.linearRampToValueAtTime(0.06, now + 0.1);
-         bg.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
-         bass.connect(bg);
-         bg.connect(audioCtx.destination);
-         bass.start(now);
-         bass.stop(now + 2.3);
-        }
+          // Ascending chord arpeggio
+          var chord = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+          chord.forEach(function(freq, i) {
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.05);
+            g.gain.setValueAtTime(0, now + i * 0.05);
+            g.gain.linearRampToValueAtTime(0.032, now + i * 0.05 + 0.012);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 3);
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + 3.1);
+            });
+
+          // Overtone layer for warmth
+          [523.25, 659.25].forEach(function(freq) {
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            g.gain.setValueAtTime(0, now + 0.3);
+            g.gain.linearRampToValueAtTime(0.02, now + 0.35);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start(now + 0.3);
+            osc.stop(now + 2.9);
+            });
+
+          // Sub bass layer
+          var bass = audioCtx.createOscillator();
+          var bg = audioCtx.createGain();
+          bass.type = 'sine';
+          bass.frequency.setValueAtTime(65.41, now);
+          bg.gain.setValueAtTime(0, now);
+          bg.gain.linearRampToValueAtTime(0.05, now + 0.15);
+          bg.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+          bass.connect(bg);
+          bg.connect(audioCtx.destination);
+          bass.start(now);
+          bass.stop(now + 2.6);
+          }
 
        function playResetTone() {
          if (muted || !audioCtx) return;
@@ -1680,78 +1851,98 @@
            return drone;
           }
 
-          // --- Play sequence with color-reactive bg-glow ---
-         function playCompositionSequence() {
-           clearPlayingTimeouts();
-           var filledCells = [];
-           for (var i = 0; i < grid.length; i++) {
-             if (grid[i].data) filledCells.push(i);
-            }
-           if (filledCells.length === 0) return;
-
-           isPlaying = true;
-           filledCells.sort(function(a, b) {
-             var da = grid[a].data, db = grid[b].data;
-             var sumA = da.row + da.col, sumB = db.row + db.col;
-             if (sumA !== sumB) return sumA - sumB;
-             return da.row - db.row;
-            });
-
-           var baseDelay = Math.max(35, 320 / filledCells.length);
-           var drone = null;
-
-           filledCells.forEach(function(idx, order) {
-             var d = grid[idx].data;
-             var diagSum = d.row + d.col;
-             var rhythmicModifier = (diagSum % 2 === 0) ? 0 : 10;
-             var delay = order * baseDelay + rhythmicModifier;
-
-             if (order === 0) {
-               drone = startAmbientDrone(COLOR_NOTES[d.color] || 261.63);
+        // --- Play sequence with cinematic visual sweep and synchronized grid pulses ---
+          function playCompositionSequence() {
+            clearPlayingTimeouts();
+            var filledCells = [];
+            for (var i = 0; i < grid.length; i++) {
+              if (grid[i].data) filledCells.push(i);
               }
+            if (filledCells.length === 0) return;
 
-              var t = setTimeout(function() {
-                 // Clear previous trail
-                for (var ti = 0; ti < grid.length; ti++) {
-                  grid[ti].el.classList.remove('trail');
-                  }
-                var cellEl = grid[idx].el;
-                cellEl.classList.add('playing');
-                playTone(d.color, d.shape, 0.3, 0);
+            isPlaying = true;
+            filledCells.sort(function(a, b) {
+              var da = grid[a].data, db = grid[b].data;
+              var sumA = da.row + da.col, sumB = db.row + db.col;
+              if (sumA !== sumB) return sumA - sumB;
+              return da.row - db.row;
+              });
 
-                  // Reactive glow follows current playing cell color
-                var playingGlow = 'playing-' + d.color;
-                bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black', 'warm', 'cool', 'bright');
-                bgGlow.classList.add(playingGlow);
+            var baseDelay = Math.max(35, 320 / filledCells.length);
+            var drone = null;
+            var sweepCursor = document.getElementById('sweepCursor');
+            var gridPulse = document.getElementById('gridPulse');
 
-               var cleanup = setTimeout(function() {
-                 cellEl.classList.remove('playing');
-                }, 160);
-               playingTimeouts.push(cleanup);
+            filledCells.forEach(function(idx, order) {
+              var d = grid[idx].data;
+              var diagSum = d.row + d.col;
+              var rhythmicModifier = (diagSum % 2 === 0) ? 0 : 10;
+              var delay = order * baseDelay + rhythmicModifier;
 
-                // Draw light trail
-               if (order > 0) {
-                 var trailIdx = filledCells[order - 1];
-                 grid[trailIdx].el.classList.add('trail');
-                 setTimeout(function() {
-                   grid[trailIdx].el.classList.remove('trail');
-                  }, 500);
+              if (order === 0) {
+                drone = startAmbientDrone(COLOR_NOTES[d.color] || 261.63);
+                 sweepCursor.classList.add('active');
                 }
 
-                if (order === filledCells.length - 1) {
-                  var resolve = setTimeout(function() {
+               var t = setTimeout(function() {
+                   // Clear previous playing states
+                  for (var ti = 0; ti < grid.length; ti++) {
+                    grid[ti].el.classList.remove('playing', 'playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                    grid[ti].el.classList.remove('trail');
+                    }
+
+                 var cellEl = grid[idx].el;
+                 var colorClass = 'playing-' + d.color;
+                 cellEl.classList.add('playing', colorClass);
+
+                   // Position sweep cursor over active cell
+                 var rect = cellEl.getBoundingClientRect();
+                 var cursorSize = Math.max(rect.width, rect.height) * 2.5;
+                 sweepCursor.style.width = cursorSize + 'px';
+                 sweepCursor.style.height = cursorSize + 'px';
+                 sweepCursor.style.left = (rect.left + rect.width / 2 - cursorSize / 2) + 'px';
+                 sweepCursor.style.top = (rect.top + rect.height / 2 - cursorSize / 2) + 'px';
+
+                   // Play tone for cell
+                 playTone(d.color, d.shape, 0.3, 0);
+
+                    // Reactive glow follows current playing cell color
+                 bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black', 'warm', 'cool', 'bright');
+                 bgGlow.classList.add('playing-' + d.color);
+
+                var cleanup = setTimeout(function() {
+                  cellEl.classList.remove('playing', colorClass);
+                  }, 200);
+                playingTimeouts.push(cleanup);
+
+                  // Draw persistent trail from previous cell
+                if (order > 0) {
+                  var trailIdx = filledCells[order - 1];
+                  grid[trailIdx].el.classList.add('trail');
+                  }
+
+                   // Trigger grid pulse every 6 cells for dramatic rhythm
+                if (order % 6 === 0 && order > 0) {
+                  gridPulse.classList.remove('active');
+                  void gridPulse.offsetWidth;
+                  gridPulse.classList.add('active');
+                  }
+
+                 if (order === filledCells.length - 1) {
+                   var resolve = setTimeout(function() {
                     isPlaying = false;
+                     sweepCursor.classList.remove('active');
                     playResolutionChord();
-                      // Restore ambient glow state
+                        // Restore ambient glow state
                     bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
                     updateBgGlow();
-                    }, 200);
-                  playingTimeouts.push(resolve);
-                  }
-              }, delay);
-             playingTimeouts.push(t);
-            });
-          }
+                      }, 250);
+                   playingTimeouts.push(resolve);
+                    }
+                }, delay);
+               playingTimeouts.push(t);
+              });
+
 
         })();
     </script>
