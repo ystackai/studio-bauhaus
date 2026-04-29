@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bauhaus Digital — Art and Technology Are One</title>
+<style>
+  :root {
+    --red: #D83C3C;
+    --yellow: #F2C94C;
+    --blue: #2B6CB0;
+    --black: #1A1A1A;
+    --white: #F5F0EB;
+    --gray: #8A8A8A;
+    --grid-line: rgba(26, 26, 26, 0.12);
+    --bg: #F5F0EB;
+    --card-bg: #FFFFFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--black);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 640px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    width: 100%;
+  }
+
+  .header h1 {
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    font-weight: 900;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    margin-bottom: 0.3rem;
+  }
+
+  .header h1 span.accent { color: var(--red); }
+
+  .header .tagline {
+    font-size: 0.85rem;
+    color: var(--gray);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* Score & info bar */
+  .info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 1rem;
+    padding: 0.6rem 1rem;
+    background: var(--card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--grid-line);
+  }
+
+  .score-label, .level-label, .combo-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray);
+    font-weight: 700;
+  }
+
+  .score-value, .level-value, .combo-value {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--black);
+    letter-spacing: -0.5px;
+  }
+
+  /* Progress ring */
+  .progress-ring-wrap {
+    position: relative;
+    width: 48px;
+    height: 48px;
+  }
+
+  .progress-ring-wrap svg {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring-bg {
+    fill: none;
+    stroke: var(--grid-line);
+    stroke-width: 3;
+  }
+
+  .progress-ring-fill {
+    fill: none;
+    stroke: var(--blue);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Grid */
+  .grid-wrap {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    width: min(85vw, 400px);
+    aspect-ratio: 1;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 2px solid var(--grid-line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .cell:hover {
+    border-color: var(--blue);
+    transform: scale(1.04);
+  }
+
+  .cell:active {
+    transform: scale(0.96);
+  }
+
+  .cell.filled {
+    border-color: transparent;
+  }
+
+  .cell.filled:hover {
+    transform: scale(1.02);
+  }
+
+  .cell .shape {
+    width: 70%;
+    height: 70%;
+    transform: scale(0);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .cell.filled .shape {
+    transform: scale(1);
+  }
+
+  /* Shape types */
+  .shape-circle {
+    border-radius: 50%;
+  }
+
+  .shape-square {
+    border-radius: 4px;
+  }
+
+  .shape-triangle {
+    width: 0;
+    height: 0;
+    background: none !important;
+    border-left: 30px solid transparent;
+    border-right: 30px solid transparent;
+    border-bottom: 52px solid;
+  }
+
+  .shape-diamond {
+    transform: scale(0) rotate(45deg);
+  }
+
+  .cell.filled .shape-diamond {
+    transform: scale(1) rotate(45deg);
+  }
+
+  /* Color classes */
+  .color-red { background: var(--red) !important; }
+  .color-yellow { background: var(--yellow) !important; }
+  .color-blue { background: var(--blue) !important; }
+  .color-red.bb-red { border-bottom-color: var(--red) !important; }
+  .color-yellow.bb-yellow { border-bottom-color: var(--yellow) !important; }
+  .color-blue.bb-blue { border-bottom-color: var(--blue) !important; }
+
+  /* Target indicator */
+  .cell.target-next::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 2px dashed var(--blue);
+    border-radius: 6px;
+    opacity: 0.5;
+    animation: pulse-border 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+
+  /* Completion animation */
+  .cell.complete-flash {
+    animation: flash-cell 0.6s ease-in-out;
+  }
+
+  @keyframes flash-cell {
+    0% { box-shadow: none; }
+    30% { box-shadow: 0 0 20px rgba(43, 108, 176, 0.5); }
+    100% { box-shadow: none; }
+  }
+
+  /* Next shape indicator */
+  .shape-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--grid-line);
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .preview-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray);
+    font-weight: 700;
+  }
+
+  .preview-shape {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+  }
+
+  .preview-shape.is-circle { border-radius: 50%; }
+  .preview-shape.is-triangle {
+    width: 0; height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-bottom: 30px solid;
+    background: none !important;
+  }
+
+  .preview-shape.is-diamond { transform: rotate(45deg); border-radius: 2px; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: auto;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn-mute {
+    background: var(--card-bg);
+    color: var(--black);
+    border: 1px solid var(--grid-line);
+    flex: 0;
+    padding: 0.75rem 1rem;
+    min-width: 48px;
+  }
+
+  .btn-mute:hover {
+    border-color: var(--blue);
+  }
+
+  .btn-mute.muted {
+    background: var(--gray);
+    color: var(--white);
+  }
+
+  .btn-reset {
+    background: var(--black);
+    color: var(--white);
+  }
+
+  .btn-reset:hover {
+    background: #333;
+  }
+
+  /* Completion overlay */
+  .completion-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 26, 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.5s ease;
+  }
+
+  .completion-overlay.active {
+    background: rgba(26, 26, 26, 0.85);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .completion-content {
+    text-align: center;
+    transform: scale(0.8) translateY(20px);
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .completion-overlay.active .completion-content {
+    transform: scale(1) translateY(0);
+  }
+
+  .completion-content h2 {
+    font-size: clamp(2rem, 7vw, 3.5rem);
+    font-weight: 900;
+    color: var(--white);
+    letter-spacing: -2px;
+    margin-bottom: 0.3rem;
+  }
+
+  .completion-content h2 span {
+    color: var(--yellow);
+  }
+
+  .completion-stats {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin: 1rem 0 1.5rem;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--yellow);
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  .btn-play-again {
+    background: var(--red);
+    color: var(--white);
+    padding: 0.9rem 2.5rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-play-again:hover {
+    background: #c43232;
+    transform: scale(1.04);
+  }
+
+  .btn-play-again:active {
+    transform: scale(0.97);
+  }
+
+  /* Floating particles */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 50;
+    border-radius: 4px;
+    animation: float-away 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  @keyframes float-away {
+    0% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3) rotate(var(--rot)); }
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .container { padding: 1rem; }
+    .info-bar { padding: 0.5rem 0.75rem; gap: 0.5rem; }
+    .score-value, .level-value { font-size: 1.1rem; }
+    .progress-ring-wrap { width: 36px; height: 36px; }
+    .controls { flex-wrap: wrap; }
+    .btn { font-size: 0.75rem; padding: 0.65rem 0.75rem; }
+    .shape-preview { flex-direction: row; gap: 0.5rem; }
+  }
+
+  @media (min-height: 800px) {
+    .grid-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  /* Accessibility */
+  .cell:focus-visible, .btn:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 2px;
+  }
+
+  [aria-hidden="true"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header class="header">
+    <h1>BAUHAUS <span class="accent">DIGITAL</span></h1>
+    <p class="tagline">Art and Technology Are One</p>
+  </header>
+
+  <!-- Info bar -->
+  <div class="info-bar" role="status" aria-label="Score, level, and progress">
+    <div>
+      <div class="score-label">Score</div>
+      <div class="score-value" id="score-value">0</div>
+    </div>
+    <div>
+      <div class="level-label">Level</div>
+      <div class="level-value" id="level-value">1</div>
+    </div>
+    <div>
+      <div class="combo-label">Combo</div>
+      <div class="combo-value" id="combo-value" style="color:var(--gray)">×1</div>
+    </div>
+    <div class="progress-ring-wrap" aria-hidden="true">
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle class="progress-ring-bg" cx="24" cy="24" r="20"/>
+        <circle class="progress-ring-fill" id="progress-ring" cx="24" cy="24" r="20"
+          stroke-dasharray="125.66" stroke-dashoffset="125.66"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Next shape preview -->
+  <div class="shape-preview">
+    <span class="preview-label">Next:</span>
+    <div class="preview-shape" id="preview-shape"></div>
+    <span class="preview-label" id="preview-name" style="color:var(--black); font-weight:800;">—</span>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid-wrap">
+    <div class="grid" id="grid" role="grid" aria-label="Composition grid"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn btn-mute" id="btn-mute" aria-label="Toggle sound" title="Toggle sound">
+      <span id="mute-icon">🔊</span>
+    </button>
+    <button class="btn btn-reset" id="btn-reset" aria-label="Reset grid">
+      Reset
+    </button>
+  </div>
+</div>
+
+<!-- Completion overlay -->
+<div class="completion-overlay" id="completion-overlay" role="dialog" aria-modal="true" aria-label="Round complete">
+  <div class="completion-content">
+    <h2><span>COMPOSED</span></h2>
+    <div class="completion-stats">
+      <div class="stat">
+        <div class="stat-value" id="round-score">0</div>
+        <div class="stat-label">This Round</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="round-combo">0</div>
+        <div class="stat-label">Best Combo</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="round-level">0</div>
+        <div class="stat-label">Level</div>
+      </div>
+    </div>
+    <button class="btn-play-again" id="btn-play-again" aria-label="Play again">Play Again</button>
+  </div>
+</div>
+
+<!-- Audio feedback region (screen reader only) -->
+<div aria-live="polite" aria-atomic="true" id="audio-sr" aria-hidden="true"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ========================
+  // Audio Engine
+  // ========================
+  const AudioEngine = {
+    ctx: null,
+    muted: false,
+    initialized: false,
+
+    init() {
+      if (this.initialized) return;
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.initialized = true;
+      } catch (e) {
+        console.warn('Web Audio not supported, using silent mode');
+      }
+    },
+
+    toggleMute() {
+      this.muted = !this.muted;
+      return this.muted;
+    },
+
+    resume() {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
+    },
+
+    playTone(freq, duration, type, volume) {
+      if (!this.ctx || this.muted) return;
+      this.resume();
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(volume || 0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + duration);
+    },
+
+    // Shape placement sound
+    playPlace(shapeType) {
+      const baseNotes = {
+        circle: 392,
+        square: 330,
+        triangle: 440,
+        diamond: 523
+      };
+      const freq = baseNotes[shapeType] || 440;
+      this.playTone(freq, 0.2, 'triangle', 0.12);
+      this.playTone(freq * 2, 0.1, 'sine', 0.06);
+    },
+
+    // Transition sound
+    playTransition() {
+      if (!this.ctx || this.muted) return;
+      this.resume();
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.linearRampToValueAtTime(800, t + 0.15);
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    },
+
+    // Success chord
+    playSuccess() {
+      if (!this.ctx || this.muted) return;
+      this.resume();
+      const t = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, i) => {
+        this.playTone(freq, 0.8, 'sine', 0.08);
+        this.playTone(freq * 1.002, 0.8, 'triangle', 0.04);
+      });
+    },
+
+    // Failure sound
+    playFailure() {
+      if (!this.ctx || this.muted) return;
+      this.resume();
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.linearRampToValueAtTime(100, t + 0.3);
+      gain.gain.setValueAtTime(0.06, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.35);
+    },
+
+    // Reset sound
+    playReset() {
+      if (!this.ctx || this.muted) return;
+      this.resume();
+      const t = this.ctx.currentTime;
+      this.playTone(600, 0.1, 'sine', 0.08);
+      this.playTone(500, 0.1, 'sine', 0.06);
+      this.playTone(400, 0.15, 'sine', 0.04);
+    },
+
+    // Combo sound
+    playCombo(comboCount) {
+      if (!this.ctx || this.muted) return;
+      this.resume();
+      const base = 440 + (comboCount * 20);
+      this.playTone(base, 0.15, 'triangle', 0.1);
+      this.playTone(base * 1.5, 0.12, 'sine', 0.05);
+    },
+
+    // Input click sound
+    playClick() {
+      this.playTone(800, 0.05, 'square', 0.04);
+    }
+  };
+
+  // ========================
+  // Game State
+  // ========================
+  const COLS = 4;
+  const ROWS = 4;
+  const TOTAL_CELLS = COLS * ROWS;
+  const SHAPE_TYPES = ['circle', 'square', 'triangle', 'diamond'];
+  const COLORS = ['color-red', 'color-yellow', 'color-blue'];
+  const BB_COLORS = ['bb-red', 'bb-yellow', 'bb-blue'];
+
+  let state = {
+    cells: new Array(TOTAL_CELLS).fill(null),
+    score: 0,
+    level: 1,
+    combo: 0,
+    maxCombo: 0,
+    roundScore: 0,
+    placedCount: 0,
+    currentShape: null,
+    currentColor: null,
+    gameOver: false
+  };
+
+  // ========================
+  // DOM References
+  // ========================
+  const grid = document.getElementById('grid');
+  const scoreEl = document.getElementById('score-value');
+  const levelEl = document.getElementById('level-value');
+  const comboEl = document.getElementById('combo-value');
+  const progressRing = document.getElementById('progress-ring');
+  const previewShape = document.getElementById('preview-shape');
+  const previewName = document.getElementById('preview-name');
+  const completionOverlay = document.getElementById('completion-overlay');
+  const roundScoreEl = document.getElementById('round-score');
+  const roundComboEl = document.getElementById('round-combo');
+  const roundLevelEl = document.getElementById('round-level');
+  const btnMute = document.getElementById('btn-mute');
+  const muteIcon = document.getElementById('mute-icon');
+  const btnReset = document.getElementById('btn-reset');
+  const btnPlayAgain = document.getElementById('btn-play-again');
+  const audioSr = document.getElementById('audio-sr');
+
+  const CIRCUMFERENCE = 2 * Math.PI * 20; // r=20
+
+  // ========================
+  // Grid Rendering
+  // ========================
+  function buildGrid() {
+    grid.innerHTML = '';
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.index = i;
+      cell.setAttribute('role', 'gridcell');
+      cell.setAttribute('aria-label', `Cell ${i + 1}, empty`);
+      cell.setAttribute('tabindex', '0');
+      cell.addEventListener('click', onCellClick);
+      cell.addEventListener('keydown', onCellKeydown);
+      grid.appendChild(cell);
+    }
+  }
+
+  function onCellKeydown(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onCellClick(e);
+    }
+  }
+
+  function onCellClick(e) {
+    if (!AudioEngine.initialized) {
+      AudioEngine.init();
+    }
+    AudioEngine.init();
+
+    if (state.gameOver) return;
+
+    const cell = e.currentTarget;
+    const idx = parseInt(cell.dataset.index);
+
+    if (state.cells[idx] !== null) {
+      AudioEngine.playFailure();
+      return;
+    }
+
+    placeShape(idx, cell);
+  }
+
+  function getRandomShape() {
+    return SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)];
+  }
+
+  function getRandomColor() {
+    const idx = Math.floor(Math.random() * COLORS.length);
+    return { cls: COLORS[idx], bbCls: BB_COLORS[idx] };
+  }
+
+  function assignNextShape() {
+    state.currentShape = getRandomShape();
+    const colorInfo = getRandomColor();
+    state.currentColor = colorInfo.cls;
+    state.currentBbColor = colorInfo.bbCls;
+    updatePreview();
+  }
+
+  function updatePreview() {
+    previewShape.className = 'preview-shape ' + (state.currentShape === 'circle' ? 'is-circle'
+      : state.currentShape === 'triangle' ? 'is-triangle'
+      : state.currentShape === 'diamond' ? 'is-diamond'
+      : '');
+
+    if (state.currentShape === 'triangle') {
+      previewShape.style.background = 'none';
+      previewShape.classList.add('bb-' + state.currentColor.replace('color-', ''));
+    } else {
+      previewShape.style.background = '';
+      previewShape.className = 'preview-shape ' + state.currentColor +
+        (state.currentShape === 'circle' ? ' is-circle' : '') +
+        (state.currentShape === 'diamond' ? ' is-diamond' : '');
+    }
+
+    previewName.textContent = state.currentShape;
+  }
+
+  function placeShape(idx, cell) {
+    AudioEngine.playPlace(state.currentShape);
+
+    const shape = document.createElement('div');
+    shape.className = 'shape ' +
+      'shape-' + state.currentShape + ' ' +
+      state.currentColor;
+
+    if (state.currentShape === 'triangle') {
+      shape.classList.add(state.currentBbColor);
+    }
+
+    cell.appendChild(shape);
+    cell.classList.add('filled');
+    cell.setAttribute('aria-label', `Cell ${idx + 1}, ${state.currentShape}`);
+    state.cells[idx] = state.currentShape;
+    state.placedCount++;
+
+    // Score and combo
+    const comboBonus = Math.min(state.combo + 1, 10);
+    state.combo++;
+    state.score += 100 * comboBonus;
+    state.roundScore += 100 * comboBonus;
+
+    if (state.combo > state.maxCombo) {
+      state.maxCombo = state.combo;
+    }
+
+    // Combo sound
+    if (state.combo > 1) {
+      AudioEngine.playCombo(state.combo);
+    }
+
+    // Particles
+    spawnParticles(cell, state.currentColor);
+
+    // Update UI
+    updateUI();
+
+    // Check completion
+    if (state.placedCount >= TOTAL_CELLS) {
+      setTimeout(() => completeRound(), 400);
+    } else {
+      setTimeout(() => assignNextShape(), 200);
+    }
+  }
+
+  function updateUI() {
+    scoreEl.textContent = state.score;
+    levelEl.textContent = state.level;
+    comboEl.textContent = '×' + Math.min(state.combo, 99);
+    comboEl.style.color = state.combo > 2 ? '#F2C94C' : state.combo > 0 ? '#1A1A1A' : '#8A8A8A';
+
+    const progress = state.placedCount / TOTAL_CELLS;
+    const offset = CIRCUMFERENCE - (CIRCUMFERENCE * progress);
+    progressRing.style.strokeDashoffset = offset;
+  }
+
+  // ========================
+  // Particles
+  // ========================
+  function spawnParticles(originEl, colorClass) {
+    const rect = originEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    const colorMap = {
+       'color-red': '#D83C3C',
+       'color-yellow': '#F2C94C',
+       'color-blue': '#2B6CB0'
+     };
+
+    const fill = colorMap[colorClass] || '#2B6CB0';
+
+    for (let i = 0; i < 6; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = 6 + Math.random() * 10;
+      const dx = (Math.random() - 0.5) * 120;
+      const dy = -40 - Math.random() * 100;
+      const rot = (Math.random() - 0.5) * 360;
+
+      p.style.cssText = `
+        left: ${cx - size/2}px;
+        top: ${cy - size/2}px;
+        width: ${size}px;
+        height: ${size}px;
+        background: ${fill};
+        --dx: ${dx}px;
+        --dy: ${dy}px;
+        --rot: ${rot}deg;
+        border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+      `;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 1300);
+    }
+  }
+
+  // ========================
+  // Round Completion
+  // ========================
+  function completeRound() {
+    state.gameOver = true;
+    AudioEngine.playSuccess();
+
+    // Flash all cells
+    const cells = grid.querySelectorAll('.cell');
+    cells.forEach((cell, i) => {
+      setTimeout(() => {
+        cell.classList.add('complete-flash');
+        AudioEngine.playTone(523 + (i * 30), 0.3, 'sine', 0.06);
+      }, i * 60);
+    });
+
+    // Show overlay after flash
+    setTimeout(() => {
+      roundScoreEl.textContent = state.roundScore;
+      roundComboEl.textContent = state.maxCombo;
+      roundLevelEl.textContent = state.level;
+      completionOverlay.classList.add('active');
+      btnPlayAgain.focus();
+    }, TOTAL_CELLS * 60 + 400);
+  }
+
+  // ========================
+  // Reset
+  // ========================
+  function resetGame(fullReset) {
+    AudioEngine.playReset();
+
+    if (fullReset) {
+      state.score = 0;
+      state.level = 1;
+    }
+
+    state.combo = 0;
+    state.maxCombo = 0;
+    state.roundScore = 0;
+    state.placedCount = 0;
+    state.gameOver = false;
+    state.cells = new Array(TOTAL_CELLS).fill(null);
+
+    // Clear grid
+    const cells = grid.querySelectorAll('.cell');
+    cells.forEach(cell => {
+      cell.innerHTML = '';
+      cell.className = 'cell';
+      cell.setAttribute('aria-label', `Cell ${parseInt(cell.dataset.index) + 1}, empty`);
+    });
+
+    completionOverlay.classList.remove('active');
+    updateUI();
+    assignNextShape();
+  }
+
+  // ========================
+  // Mute Toggle
+  // ========================
+  function toggleMute() {
+    const isMuted = AudioEngine.toggleMute();
+    muteIcon.textContent = isMuted ? '🔇' : '🔊';
+    btnMute.classList.toggle('muted', isMuted);
+    btnMute.setAttribute('aria-label', isMuted ? 'Unmute sound' : 'Mute sound');
+    audioSr.textContent = isMuted ? 'Sound muted' : 'Sound enabled';
+    AudioEngine.playClick();
+  }
+
+  // ========================
+  // Init
+  // ========================
+  function init() {
+    buildGrid();
+    assignNextShape();
+    updateUI();
+
+    btnMute.addEventListener('click', toggleMute);
+    btnReset.addEventListener('click', () => resetGame(false));
+    btnPlayAgain.addEventListener('click', () => {
+      state.level++;
+      resetGame(false);
+    });
+
+    // Auto-init audio on first interaction
+    document.addEventListener('click', function firstClick() {
+      AudioEngine.init();
+      document.removeEventListener('click', firstClick);
+    }, { once: true });
+
+    document.addEventListener('touchstart', function firstTouch() {
+      AudioEngine.init();
+      document.removeEventListener('touchstart', firstTouch);
+    }, { once: true });
+  }
+
+  // Run
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
