@@ -778,12 +778,19 @@
        transition: all 0.15s ease;
       }
 
-      .btn-play {
-       background: var(--blue);
-       color: var(--cream);
-      }
-      .btn-play:hover { background: #1f5099; transform: translateY(-1px); }
-      .btn-play:active { transform: translateY(0); }
+        .btn-play {
+        background: var(--blue);
+        color: var(--cream);
+        }
+        .btn-play:hover { background: #1f5099; transform: translateY(-1px); }
+        .btn-play:active { transform: translateY(0); }
+        .btn-play.has-composition {
+        animation: playPulse 2s ease-in-out infinite;
+        }
+        @keyframes playPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(41,98,173,0); }
+        50% { box-shadow: 0 0 12px 3px rgba(41,98,173,0.15); }
+        }
 
       .btn-clear {
        background: transparent;
@@ -1764,15 +1771,18 @@
           }
         }
 
-       function recalcCount() {
-         placedCount = 0;
-         for (var i = 0; i < grid.length; i++) {
-           if (grid[i].data) placedCount++;
-          }
-         var pct = (placedCount / TOTAL_CELLS) * 100;
-         progressFill.style.width = pct + '%';
-          counterEl.textContent = placedCount + ' / ' + TOTAL_CELLS;
-          }
+        function recalcCount() {
+          placedCount = 0;
+          for (var i = 0; i < grid.length; i++) {
+            if (grid[i].data) placedCount++;
+            }
+          var pct = (placedCount / TOTAL_CELLS) * 100;
+          progressFill.style.width = pct + '%';
+           counterEl.textContent = placedCount + ' / ' + TOTAL_CELLS;
+           var btnPlay = document.getElementById('btnPlay');
+           if (placedCount > 0) btnPlay.classList.add('has-composition');
+           else btnPlay.classList.remove('has-composition');
+            }
 
         function saveComposition() {
           var data = [];
@@ -1928,9 +1938,14 @@
               }
             });
 
-            // Auto-dismiss after 2.8s
-            setTimeout(dismiss, 2800);
-          })();
+             // Auto-dismiss after 2.8s — no sound if audio was never started by user
+             setTimeout(function() {
+               dismiss();
+               if (audioCtx && audioCtx.state === 'running') {
+                 startAmbientHum();
+               }
+             }, 2800);
+            })();
 
           // --- Auto-load last composition ---
         loadComposition();
@@ -2412,27 +2427,24 @@
        placedCount = 0;
        recalcCount();
        completionOverlay.classList.remove('visible');
-       var stagger = 22;
-       finalCells.forEach(function(tc, order) {
-         setTimeout(function() {
-           grid[tc.idx].data = { color: tc.color, shape: tc.shape, row: Math.floor(tc.idx / GRID_SIZE), col: tc.idx % GRID_SIZE };
-           var content = document.createElement('div');
-           content.className = 'cell-content';
-           content.appendChild(createShapeElement(tc.shape, tc.color));
-           var ex = grid[tc.idx].el.querySelector('.cell-content');
-           if (ex) ex.remove();
-           grid[tc.idx].el.appendChild(content);
-           grid[tc.idx].el.classList.add('filled');
-           playTone(tc.color, tc.shape, 0.12, 0);
-           placedCount++;
-           recalcCount();
-           updateBgGlow();
-           if (order === finalCells.length - 1 && placedCount === TOTAL_CELLS) {
-             setTimeout(triggerCompletion, 350);
-             }
-           }, order * stagger);
-         });
-      });
+        var stagger = 22;
+        finalCells.forEach(function(tc, order) {
+          setTimeout(function() {
+            grid[tc.idx].data = { color: tc.color, shape: tc.shape, row: Math.floor(tc.idx / GRID_SIZE), col: tc.idx % GRID_SIZE };
+            var content = document.createElement('div');
+            content.className = 'cell-content';
+            content.appendChild(createShapeElement(tc.shape, tc.color));
+            grid[tc.idx].el.appendChild(content);
+            grid[tc.idx].el.classList.add('filled');
+            playTone(tc.color, tc.shape, 0.12, 0);
+            recalcCount();
+            updateBgGlow();
+            if (order === finalCells.length - 1 && placedCount === TOTAL_CELLS) {
+              setTimeout(triggerCompletion, 350);
+              }
+            }, order * stagger);
+          });
+        });
 
           // --- Ambient hum during idle state ---
           var ambientHumOsc = null;
