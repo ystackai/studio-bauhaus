@@ -92,12 +92,48 @@
        height: 70vw;
       }
 
-      .bg-glow.bright {
-       background: radial-gradient(circle, rgba(232,184,40,0.1) 0%, rgba(242,237,228,0.04) 40%, transparent 70%);
-       opacity: 1;
-       width: 80vw;
-       height: 80vw;
-      }
+        .bg-glow.bright {
+        background: radial-gradient(circle, rgba(232,184,40,0.1) 0%, rgba(242,237,228,0.04) 40%, transparent 70%);
+        opacity: 1;
+        width: 80vw;
+        height: 80vw;
+        }
+
+        .bg-glow.playing-red {
+        background: radial-gradient(circle, rgba(217,56,56,0.12) 0%, transparent 60%);
+        opacity: 1;
+        width: 65vw;
+        height: 65vw;
+        transition: all 0.15s ease;
+        }
+        .bg-glow.playing-blue {
+        background: radial-gradient(circle, rgba(41,98,173,0.12) 0%, transparent 60%);
+        opacity: 1;
+        width: 65vw;
+        height: 65vw;
+        transition: all 0.15s ease;
+        }
+        .bg-glow.playing-yellow {
+        background: radial-gradient(circle, rgba(232,184,40,0.12) 0%, transparent 60%);
+        opacity: 1;
+        width: 65vw;
+        height: 65vw;
+        transition: all 0.15s ease;
+        }
+        .bg-glow.playing-cream {
+        background: radial-gradient(circle, rgba(242,237,228,0.1) 0%, transparent 60%);
+        opacity: 1;
+        width: 65vw;
+        height: 65vw;
+        transition: all 0.15s ease;
+        }
+        .bg-glow.playing-black {
+        background: radial-gradient(circle, rgba(107,107,107,0.08) 0%, transparent 60%);
+        opacity: 1;
+        width: 65vw;
+        height: 65vw;
+        transition: all 0.15s ease;
+        }
 
       .header {
        text-align: center;
@@ -148,13 +184,18 @@
        min-height: 0;
       }
 
-      .grid-wrapper {
-       position: relative;
-       padding: 8px;
-       background: rgba(255,255,255,0.015);
-       border: 1px solid rgba(255,255,255,0.06);
-       border-radius: 2px;
-      }
+       .grid-wrapper {
+        position: relative;
+        padding: 8px;
+        background: rgba(255,255,255,0.015);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 2px;
+        animation: gridBreathe 4s ease-in-out infinite;
+        }
+        @keyframes gridBreathe {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.004); opacity: 0.96; }
+        }
 
       /* Decorative corner marks — Bauhaus style */
       .grid-wrapper::before,
@@ -195,15 +236,19 @@
        height: 2px;
       }
 
-      .grid-container {
-       display: grid;
-       grid-template-columns: repeat(6, 1fr);
-       gap: 1.5px;
-       width: min(82vw, 500px);
-       height: min(82vw, 500px);
-       max-width: 500px;
-       max-height: 500px;
-      }
+        .grid-container {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1.5px;
+        width: min(82vw, 500px);
+        height: min(82vw, 500px);
+        max-width: 500px;
+        max-height: 500px;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: none;
+         }
 
       .cell {
        background: rgba(255,255,255,0.012);
@@ -237,10 +282,12 @@
        box-shadow: 0 0 10px rgba(0,0,0,0.4);
       }
 
-      .cell.playing {
-       animation: cellPulse 0.35s ease;
-       box-shadow: 0 0 16px rgba(242,237,228,0.35);
-      }
+         .cell.playing {
+        animation: cellPulse 0.35s ease;
+        box-shadow:
+         0 0 16px rgba(242,237,228,0.35),
+         0 0 0 2px rgba(232,184,40,0.5);
+         }
 
       .cell.trail {
        animation: trailFade 0.6s ease;
@@ -563,14 +610,39 @@
        z-index: 50;
       }
 
-      /* Flash overlay — multi-color */
-      .flash-overlay {
-       position: fixed;
-       inset: 0;
-       pointer-events: none;
-       z-index: 100;
-       opacity: 0;
-      }
+        /* Toast notification */
+        .toast {
+        position: fixed;
+        bottom: 4.5rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: var(--cream);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        background: rgba(10,10,10,0.85);
+        border: 1px solid rgba(255,255,255,0.08);
+        padding: 0.45rem 1rem;
+        z-index: 150;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        backdrop-filter: blur(6px);
+         }
+        .toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+         }
+
+        /* Flash overlay — multi-color */
+        .flash-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 100;
+        opacity: 0;
+         }
 
       .flash-overlay.active {
        animation: flashPulse 1.5s ease forwards;
@@ -713,7 +785,8 @@
     <div class="bg-glow" id="bgGlow"></div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="counter" id="counter">0 / 36</div>
-    <div class="flash-overlay" id="flashOverlay"></div>
+     <div class="flash-overlay" id="flashOverlay"></div>
+     <div class="toast" id="toast"></div>
 
     <div class="header">
       <h1>
@@ -992,9 +1065,11 @@
          cell.setAttribute('role', 'gridcell');
          cell.setAttribute('tabindex', '0');
          cell.setAttribute('aria-label', 'Row ' + (Math.floor(i / GRID_SIZE) + 1) + ', Column ' + (i % GRID_SIZE + 1));
-         cell.addEventListener('click', onCellClick);
-         cell.addEventListener('mouseenter', throttle(onCellHover, 120));
-         cell.addEventListener('keydown', onCellKey);
+        cell.addEventListener('click', onCellClick);
+          cell.addEventListener('mouseenter', throttle(onCellHover, 120));
+          cell.addEventListener('keydown', onCellKey);
+          cell.addEventListener('mousedown', onCellMouseDown);
+          cell.addEventListener('touchstart', onCellTouchStart, { passive: false });
          cell.addEventListener('focus', function(e) { e.currentTarget.classList.add('focus-ring'); });
          cell.addEventListener('blur', function(e) { e.currentTarget.classList.remove('focus-ring'); });
          gridEl.appendChild(cell);
@@ -1024,17 +1099,99 @@
           }
         }
 
-       function onCellClick(e) {
-         if (isPlaying) return;
-         initAudio();
-         var idx = parseInt(e.currentTarget.dataset.index);
-         var cellData = grid[idx];
-         if (cellData.data) {
-           removeShape(idx);
-          } else {
-           placeShape(idx);
+        var isDragging = false;
+        var dragStartCell = -1;
+
+        function onCellMouseDown(e) {
+          if (isPlaying) return;
+          isDragging = true;
+          dragStartCell = parseInt(e.currentTarget.dataset.index);
+          document.addEventListener('mousemove', onMouseMoveDrag);
+          document.addEventListener('mouseup', onMouseUpDrag);
+          e.preventDefault();
           }
-        }
+
+        function onMouseMoveDrag(e) {
+          if (!isDragging) return;
+          var target = document.elementFromPoint(e.clientX, e.clientY);
+          if (!target || !target.classList.contains('cell')) return;
+          var idx = parseInt(target.dataset.index);
+          if (idx === -1) return;
+          var cellData = grid[idx];
+          if (!cellData.data) {
+            placeShape(idx);
+          }
+          }
+
+        function onMouseUpDrag(e) {
+          isDragging = false;
+          dragStartCell = -1;
+          document.removeEventListener('mousemove', onMouseMoveDrag);
+          document.removeEventListener('mouseup', onMouseUpDrag);
+          }
+
+        var touchDragActive = false;
+
+        function onCellTouchStart(e) {
+          if (isPlaying) return;
+          initAudio();
+          var touch = e.touches[0];
+          var target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (!target || !target.classList.contains('cell')) return;
+          var idx = parseInt(target.dataset.index);
+          var cellData = grid[idx];
+          if (cellData.data) {
+            removeShape(idx);
+          } else {
+            placeShape(idx);
+            touchDragActive = true;
+            var moveHandler = function(ev) {
+              if (!touchDragActive) return;
+              var t = ev.touches[0];
+              var tt = document.elementFromPoint(t.clientX, t.clientY);
+              if (!tt || !tt.classList.contains('cell')) return;
+              var ti = parseInt(tt.dataset.index);
+              if (ti === -1) return;
+              var td = grid[ti];
+              if (!td.data) placeShape(ti);
+              ev.preventDefault();
+              };
+            var endHandler = function() {
+              touchDragActive = false;
+              gridEl.removeEventListener('touchmove', moveHandler);
+              gridEl.removeEventListener('touchend', endHandler);
+              };
+            gridEl.addEventListener('touchmove', moveHandler, { passive: false });
+            gridEl.addEventListener('touchend', endHandler);
+          }
+          e.preventDefault();
+          }
+
+        function onCellClick(e) {
+          if (isPlaying || isDragging) return;
+          initAudio();
+          var idx = parseInt(e.currentTarget.dataset.index);
+          var cellData = grid[idx];
+          if (cellData.data) {
+            removeShape(idx);
+             } else {
+            placeShape(idx);
+             }
+           }
+
+           // --- Toast display ---
+        var toastEl = document.getElementById('toast');
+        var toastTimeout = null;
+        var toastQueue = [];
+        function showToast(message, duration) {
+          toastEl.textContent = message;
+          toastEl.classList.add('visible');
+          if (toastTimeout) clearTimeout(toastTimeout);
+          toastTimeout = setTimeout(function() {
+            toastEl.classList.remove('visible');
+            toastTimeout = null;
+            }, duration || 1800);
+          }
 
        function placeShape(idx) {
          var cellData = grid[idx];
@@ -1450,12 +1607,20 @@
             }
           };
 
-         document.getElementById('btnGenerate').addEventListener('click', function() {
-           initAudio();
-           playResetTone();
-           var patternNames = Object.keys(BauhausPatterns);
-           var chosen = patternNames[Math.floor(Math.random() * patternNames.length)];
-           var patternCells = BauhausPatterns[chosen]();
+          var PATTERN_DISPLAY = {
+            stripeHorizontal: 'HORIZONTAL STRIPES',
+            diamondSymmetry: 'DIAMOND SYMMETRY',
+            radialBurst: 'RADIAL BURST',
+            gridArt: 'PROCEDURAL GRID',
+            mirrorAxis: 'MIRROR AXIS'
+            };
+          document.getElementById('btnGenerate').addEventListener('click', function() {
+            initAudio();
+            playResetTone();
+            var patternNames = Object.keys(BauhausPatterns);
+            var chosen = patternNames[Math.floor(Math.random() * patternNames.length)];
+            showToast(PATTERN_DISPLAY[chosen] || chosen, 2000);
+            var patternCells = BauhausPatterns[chosen]();
            var placed = new Set();
            var finalCells = [];
            patternCells.forEach(function(tc) {
@@ -1545,14 +1710,19 @@
                drone = startAmbientDrone(COLOR_NOTES[d.color] || 261.63);
               }
 
-             var t = setTimeout(function() {
-               // Clear previous trail
-               for (var ti = 0; ti < grid.length; ti++) {
-                 grid[ti].el.classList.remove('trail');
-                }
-               var cellEl = grid[idx].el;
-               cellEl.classList.add('playing');
-               playTone(d.color, d.shape, 0.3, 0);
+              var t = setTimeout(function() {
+                 // Clear previous trail
+                for (var ti = 0; ti < grid.length; ti++) {
+                  grid[ti].el.classList.remove('trail');
+                  }
+                var cellEl = grid[idx].el;
+                cellEl.classList.add('playing');
+                playTone(d.color, d.shape, 0.3, 0);
+
+                  // Reactive glow follows current playing cell color
+                var playingGlow = 'playing-' + d.color;
+                bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black', 'warm', 'cool', 'bright');
+                bgGlow.classList.add(playingGlow);
 
                var cleanup = setTimeout(function() {
                  cellEl.classList.remove('playing');
@@ -1568,13 +1738,16 @@
                   }, 500);
                 }
 
-               if (order === filledCells.length - 1) {
-                 var resolve = setTimeout(function() {
-                   isPlaying = false;
-                   playResolutionChord();
-                  }, 200);
-                 playingTimeouts.push(resolve);
-                }
+                if (order === filledCells.length - 1) {
+                  var resolve = setTimeout(function() {
+                    isPlaying = false;
+                    playResolutionChord();
+                      // Restore ambient glow state
+                    bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                    updateBgGlow();
+                    }, 200);
+                  playingTimeouts.push(resolve);
+                  }
               }, delay);
              playingTimeouts.push(t);
             });
