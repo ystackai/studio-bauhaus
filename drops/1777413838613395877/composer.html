@@ -1375,13 +1375,10 @@
              sh.start(now); sh.stop(now + dur + 0.05);
            }
 
-           return toneGain;
-           }
+            return toneGain;
+        }
 
-           return toneGain;
-          }
-
-       function playPlaceTone(color, shape) {
+        function playPlaceTone(color, shape) {
          return playTone(color, shape, 0.28);
         }
 
@@ -2155,8 +2152,8 @@
           // --- Keyboard shortcuts ---
          var colorKeys = ['1', '2', '3', '4', '5'];
          var colorNames = ['red', 'blue', 'yellow', 'cream', 'black'];
-         var shapeKeys = ['6', '7', '8', '9', '0'];
-         var shapeNames = ['circle', 'square', 'triangle', 'ring', 'arc'];
+          var shapeKeys = ['6', '7', '8', '9', '0', '-', '='];
+          var shapeNames = ['circle', 'square', 'triangle', 'diagonal', 'half', 'ring', 'arc'];
 
          document.addEventListener('keydown', function(e) {
            if (isPlaying) return;
@@ -2343,27 +2340,71 @@
                return cells;
                 },
 
-             moltenGeometry: function() {
-               var cells = [];
-               var colors = ['red', 'blue', 'yellow'];
-               var shapes = ['circle', 'square', 'triangle', 'ring', 'half'];
-               var seed = Math.random() * 1000;
-               for (var r = 0; r < GRID_SIZE; r++) {
-                 for (var co = 0; co < GRID_SIZE; co++) {
-                   var v = Math.sin(r * 1.3 + seed) * Math.cos(co * 1.1 + seed * 0.7);
-                   var norm = (v + 1) / 2;
-                   var ci = Math.floor(norm * colors.length) % colors.length;
-                   var si = Math.floor(norm * 3) % shapes.length;
-                   cells.push({
-                     idx: r * GRID_SIZE + co,
-                     color: colors[ci],
-                     shape: shapes[si]
-                    });
+              moltenGeometry: function() {
+                var cells = [];
+                var colors = ['red', 'blue', 'yellow'];
+                var shapes = ['circle', 'square', 'triangle', 'ring', 'half'];
+                var seed = Math.random() * 1000;
+                for (var r = 0; r < GRID_SIZE; r++) {
+                  for (var co = 0; co < GRID_SIZE; co++) {
+                    var v = Math.sin(r * 1.3 + seed) * Math.cos(co * 1.1 + seed * 0.7);
+                    var norm = (v + 1) / 2;
+                    var ci = Math.floor(norm * colors.length) % colors.length;
+                    var si = Math.floor(norm * 3) % shapes.length;
+                    cells.push({
+                      idx: r * GRID_SIZE + co,
+                      color: colors[ci],
+                      shape: shapes[si]
+                      });
+                    }
                   }
-                }
-               return cells;
-                }
-              };
+                return cells;
+                  },
+
+              concentricRings: function() {
+                var cells = [];
+                var colors = ['red', 'blue', 'yellow', 'cream', 'black'];
+                var shapes = ['circle', 'ring', 'square', 'arc', 'triangle', 'half', 'diagonal'];
+                var cx = (GRID_SIZE - 1) / 2, cy = (GRID_SIZE - 1) / 2;
+                for (var r = 0; r < GRID_SIZE; r++) {
+                  for (var co = 0; co < GRID_SIZE; co++) {
+                    var d = Math.round(Math.sqrt((r - cx) * (r - cx) + (co - cy) * (co - cy)));
+                    var ci = d % colors.length;
+                    var si = d % shapes.length;
+                    cells.push({
+                      idx: r * GRID_SIZE + co,
+                      color: colors[ci],
+                      shape: shapes[si]
+                      });
+                    }
+                  }
+                return cells;
+                  },
+
+              bauhausPoster: function() {
+                var cells = [];
+                var palettes = [
+                  [{ color: 'red', shape: 'square' }, { color: 'red', shape: 'square' }, { color: 'red', shape: 'square' },
+                   { color: 'blue', shape: 'circle' }, { color: 'blue', shape: 'circle' }, { color: 'blue', shape: 'circle' }],
+                  [{ color: 'yellow', shape: 'triangle' }, { color: 'yellow', shape: 'triangle' }, { color: 'blue', shape: 'circle' },
+                   { color: 'blue', shape: 'circle' }, { color: 'cream', shape: 'ring' }, { color: 'cream', shape: 'ring' }],
+                  [{ color: 'red', shape: 'square' }, { color: 'yellow', shape: 'triangle' }, { color: 'blue', shape: 'half' },
+                   { color: 'cream', shape: 'diagonal' }, { color: 'black', shape: 'arc' }, { color: 'yellow', shape: 'circle' }],
+                  [{ color: 'blue', shape: 'ring' }, { color: 'blue', shape: 'ring' }, { color: 'red', shape: 'half' },
+                   { color: 'cream', shape: 'square' }, { color: 'cream', shape: 'square' }, { color: 'cream', shape: 'square' }],
+                  [{ color: 'yellow', shape: 'circle' }, { color: 'yellow', shape: 'circle' }, { color: 'black', shape: 'diagonal' },
+                   { color: 'black', shape: 'diagonal' }, { color: 'red', shape: 'triangle' }, { color: 'blue', shape: 'half' }],
+                  [{ color: 'cream', shape: 'square' }, { color: 'black', shape: 'arc' }, { color: 'red', shape: 'ring' },
+                   { color: 'yellow', shape: 'triangle' }, { color: 'blue', shape: 'circle' }, { color: 'cream', shape: 'half' }]
+                ];
+                palettes.forEach(function(row, r) {
+                  row.forEach(function(cell, co) {
+                    cells.push({ idx: r * GRID_SIZE + co, color: cell.color, shape: cell.shape });
+                  });
+                });
+                return cells;
+                  }
+                };
 
             var PATTERN_DISPLAY = {
               stripeHorizontal: 'HORIZONTAL STRIPES',
@@ -2374,7 +2415,9 @@
               primaryBlocks: 'PRIMARY BLOCKS',
               crossPattern: 'CROSS PATTERN',
               cascadeFlow: 'CASCADE FLOW',
-              moltenGeometry: 'MOLTEN GEOMETRY'
+              moltenGeometry: 'MOLTEN GEOMETRY',
+              concentricRings: 'CONCENTRIC RINGS',
+              bauhausPoster: 'BAUHAUS POSTER'
                 };
        document.getElementById('btnGenerate').addEventListener('click', function() {
         initAudio();
