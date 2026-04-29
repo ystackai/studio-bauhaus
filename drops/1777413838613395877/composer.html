@@ -249,9 +249,98 @@
         -webkit-user-select: none;
         user-select: none;
         touch-action: none;
-         }
+          }
 
-      .cell {
+        /* Intro overlay — cinematic opening */
+        .intro-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--black);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            opacity: 1;
+            transition: opacity 0.8s ease 1.6s;
+            pointer-events: auto;
+        }
+
+        .intro-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .intro-shapes {
+            display: flex;
+            gap: 2.5rem;
+            animation: shapesFloat 1.2s ease forwards;
+            opacity: 0;
+            transform: scale(0.6);
+        }
+
+        @keyframes shapesFloat {
+            0% { opacity: 0; transform: scale(0.6) rotate(-10deg); }
+            40% { opacity: 0.7; transform: scale(1.08) rotate(2deg); }
+            70% { opacity: 1; transform: scale(0.97) rotate(-1deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        .intro-circle {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: introPulse 1.2s ease infinite alternate;
+        }
+
+        .intro-square {
+            width: 44px; height: 44px;
+            background: var(--blue);
+            animation: introPulse 1.2s ease 0.2s infinite alternate;
+        }
+
+        .intro-triangle {
+            width: 0; height: 0;
+            border-left: 24px solid transparent;
+            border-right: 24px solid transparent;
+            border-bottom: 40px solid var(--yellow);
+            animation: introPulse 1.2s ease 0.4s infinite alternate;
+        }
+
+        @keyframes introPulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.12); filter: brightness(1.2); }
+        }
+
+        .intro-text {
+            margin-top: 2.5rem;
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            font-weight: 600;
+            color: var(--mid-gray);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            animation: textReveal 1s ease 0.5s forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes textReveal {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Title entrance animation */
+        #title {
+            opacity: 0;
+            animation: titleReveal 0.6s ease 0.2s forwards;
+        }
+
+        @keyframes titleReveal {
+            0% { opacity: 0; transform: translateY(-12px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .cell {
        background: rgba(255,255,255,0.012);
        border: 1px solid rgba(255,255,255,0.035);
        cursor: pointer;
@@ -935,24 +1024,33 @@
     <div class="counter" id="counter">0 / 36</div>
       <div class="flash-overlay" id="flashOverlay"></div>
        <div class="toast" id="toast"></div>
-       <div class="sweep-cursor" id="sweepCursor"></div>
-       <div class="grid-pulse-overlay" id="gridPulse"></div>
+        <div class="sweep-cursor" id="sweepCursor"></div>
 
-    <div class="header">
-      <h1>
-        <span class="red">B</span><span class="blue">a</span><span class="yellow">u</span>haus
-      </h1>
-      <div class="tagline">Geometric Composer</div>
-      <div class="subtitle">Art and technology are one</div>
-    </div>
-
-    <div class="composition-area">
-      <div class="grid-wrapper">
-        <div class="corner-bl"></div>
-        <div class="corner-tr"></div>
-        <div class="grid-container" id="grid" role="grid" aria-label="Composition grid"></div>
+      <div class="header">
+        <h1 id="title">
+          <span class="red">B</span><span class="blue">a</span><span class="yellow">u</span>haus
+        </h1>
+        <div class="tagline">Geometric Composer</div>
+        <div class="subtitle">Art and technology are one</div>
       </div>
-    </div>
+
+      <div class="intro-overlay" id="introOverlay">
+        <div class="intro-shapes">
+          <div class="intro-circle"></div>
+          <div class="intro-square"></div>
+          <div class="intro-triangle"></div>
+        </div>
+        <p class="intro-text">Art &amp; Technology Are One</p>
+      </div>
+
+      <div class="composition-area">
+        <div class="grid-wrapper">
+          <div class="corner-bl"></div>
+          <div class="corner-tr"></div>
+          <div class="grid-pulse-overlay" id="gridPulse"></div>
+          <div class="grid-container" id="grid" role="grid" aria-label="Composition grid"></div>
+        </div>
+      </div>
 
     <div class="controls" role="toolbar" aria-label="Composition tools">
       <div class="palette" aria-label="Color palette">
@@ -1514,6 +1612,63 @@
            completionOverlay.classList.add('visible');
           }, 700);
         }
+
+          // --- Intro overlay sequence ---
+          (function playIntro() {
+            var intro = document.getElementById('introOverlay');
+            if (!intro) return;
+
+            // Play subtle intro chime
+            function introChime() {
+              initAudio();
+              if (muted || !audioCtx) return;
+              var now = audioCtx.currentTime;
+              [261.63, 329.63, 440, 523.25].forEach(function(freq, i) {
+                var osc = audioCtx.createOscillator();
+                var g = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + i * 0.12);
+                g.gain.setValueAtTime(0, now + i * 0.12);
+                g.gain.linearRampToValueAtTime(0.03, now + i * 0.12 + 0.015);
+                g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 1.2);
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                osc.start(now + i * 0.12);
+                osc.stop(now + i * 0.12 + 1.3);
+              });
+            }
+
+            // Wait for user interaction or 2.8s timeout
+            var dismissed = false;
+            function dismiss() {
+              if (dismissed) return;
+              dismissed = true;
+              intro.classList.add('fade-out');
+              setTimeout(function() { intro.style.display = 'none'; }, 900);
+            }
+
+            introChime();
+
+            intro.addEventListener('click', function introClick() {
+              // Re-trigger audio context, then dismiss
+              initAudio();
+              if (!muted && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+              intro.removeEventListener('click', introClick);
+              dismiss();
+            });
+
+            intro.addEventListener('keydown', function introKey(e) {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                initAudio();
+                if (!muted && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                dismiss();
+              }
+            });
+
+            // Auto-dismiss after 2.8s
+            setTimeout(dismiss, 2800);
+          })();
 
           // --- Auto-load last composition ---
         loadComposition();
