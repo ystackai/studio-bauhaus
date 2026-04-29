@@ -1869,53 +1869,53 @@
              primaryBlocks: 'PRIMARY BLOCKS',
              crossPattern: 'CROSS PATTERN'
               };
-          document.getElementById('btnGenerate').addEventListener('click', function() {
-            initAudio();
-            playResetTone();
-            var patternNames = Object.keys(BauhausPatterns);
-            var chosen = patternNames[Math.floor(Math.random() * patternNames.length)];
-            showToast(PATTERN_DISPLAY[chosen] || chosen, 2000);
-            var patternCells = BauhausPatterns[chosen]();
-           var placed = new Set();
-           var finalCells = [];
-           patternCells.forEach(function(tc) {
-             if (!placed.has(tc.idx)) {
-               placed.add(tc.idx);
-               finalCells.push(tc);
-              }
-            });
-           for (var i = 0; i < grid.length; i++) {
-             var existing = grid[i].el.querySelector('.cell-content');
-             if (existing) existing.remove();
-             grid[i].el.classList.remove('filled');
-             grid[i].el.classList.remove('playing', 'trail');
-             grid[i].data = null;
-            }
-           bgGlow.classList.remove('warm', 'cool', 'bright');
-           placedCount = 0;
+       document.getElementById('btnGenerate').addEventListener('click', function() {
+        initAudio();
+        playResetTone();
+        var patternNames = Object.keys(BauhausPatterns);
+        var chosen = patternNames[Math.floor(Math.random() * patternNames.length)];
+        showToast(PATTERN_DISPLAY[chosen] || chosen, 2000);
+        var patternCells = BauhausPatterns[chosen]();
+       var placed = new Set();
+       var finalCells = [];
+       patternCells.forEach(function(tc) {
+         if (!placed.has(tc.idx)) {
+           placed.add(tc.idx);
+           finalCells.push(tc);
+           }
+         });
+       // Clear existing grid
+       for (var i = 0; i < grid.length; i++) {
+         var existing = grid[i].el.querySelector('.cell-content');
+         if (existing) existing.remove();
+         grid[i].el.classList.remove('filled', 'playing', 'trail');
+         grid[i].data = null;
+         }
+       bgGlow.classList.remove('warm', 'cool', 'bright');
+       placedCount = 0;
+       recalcCount();
+       completionOverlay.classList.remove('visible');
+       var stagger = 22;
+       finalCells.forEach(function(tc, order) {
+         setTimeout(function() {
+           grid[tc.idx].data = { color: tc.color, shape: tc.shape, row: Math.floor(tc.idx / GRID_SIZE), col: tc.idx % GRID_SIZE };
+           var content = document.createElement('div');
+           content.className = 'cell-content';
+           content.appendChild(createShapeElement(tc.shape, tc.color));
+           var ex = grid[tc.idx].el.querySelector('.cell-content');
+           if (ex) ex.remove();
+           grid[tc.idx].el.appendChild(content);
+           grid[tc.idx].el.classList.add('filled');
+           playTone(tc.color, tc.shape, 0.12, 0);
+           placedCount++;
            recalcCount();
-           completionOverlay.classList.remove('visible');
-           var stagger = 22;
-           finalCells.forEach(function(tc, order) {
-             setTimeout(function() {
-               grid[tc.idx].data = { color: tc.color, shape: tc.shape, row: Math.floor(tc.idx / GRID_SIZE), col: tc.idx % GRID_SIZE };
-               var content = document.createElement('div');
-               content.className = 'cell-content';
-               content.appendChild(createShapeElement(tc.shape, tc.color));
-               var ex = grid[tc.idx].el.querySelector('.cell-content');
-               if (ex) ex.remove();
-               grid[tc.idx].el.appendChild(content);
-               grid[tc.idx].el.classList.add('filled');
-               playTone(tc.color, tc.shape, 0.12, 0);
-               placedCount++;
-               recalcCount();
-               updateBgGlow();
-               if (order === finalCells.length - 1 && placedCount === TOTAL_CELLS) {
-                 setTimeout(triggerCompletion, 350);
-                }
-              }, order * stagger);
-            });
-          });
+           updateBgGlow();
+           if (order === finalCells.length - 1 && placedCount === TOTAL_CELLS) {
+             setTimeout(triggerCompletion, 350);
+             }
+           }, order * stagger);
+         });
+      });
 
           // --- Ambient drone during playback ---
          function startAmbientDrone(baseFreq) {
