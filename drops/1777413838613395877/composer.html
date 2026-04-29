@@ -1275,15 +1275,29 @@
         var ambientDrone = null;
         var ambientGain = null;
          var STORAGE_KEY = 'bauhaus-composer-v1';
+        var tempo = 120; // BPM for rhythmic sequencing
+        var beatDuration = 60 / tempo;
 
-          // Extended pentatonic/harmonic mapping — refined frequencies for better consonance
-       var COLOR_NOTES = {
-         red: 261.63,
-         blue: 329.63,
-         yellow: 392.00,
-         cream: 440.00,
-         black: 523.25
-        };
+            // C major pentatonic scale mapping for consonant harmony
+        var COLOR_NOTES = {
+          red: 261.63,
+          blue: 293.66,
+          yellow: 329.63,
+          cream: 392.00,
+          black: 523.25
+          };
+        // Scale degrees: C4(red) D4(blue) E4(yellow) G4(cream) C5(black)
+
+          // Shape config with distinct timbral signatures and envelope shaping
+        var SHAPE_CONFIG = {
+          circle:     { octave: 0, wave: 'sine', harmonics: [1, 2, 3], attack: 0.01, decay: 0.15, sustain: 0.3 },
+          square:     { octave: 0.5, wave: 'triangle', harmonics: [1, 1.5, 2], attack: 0.008, decay: 0.12, sustain: 0.4 },
+          triangle:   { octave: 0.25, wave: 'square', harmonics: [1, 2, 3, 4], attack: 0.005, decay: 0.1, sustain: 0.2 },
+          diagonal:   { octave: -0.5, wave: 'sawtooth', harmonics: [1, 2], attack: 0.02, decay: 0.2, sustain: 0.15 },
+          half:       { octave: 1, wave: 'triangle', harmonics: [1, 2, 3], attack: 0.006, decay: 0.18, sustain: 0.35 },
+          ring:       { octave: -0.25, wave: 'sine', harmonics: [1, 3, 5], attack: 0.015, decay: 0.25, sustain: 0.25 },
+          arc:        { octave: 1.25, wave: 'sine', harmonics: [1, 1.5, 2, 3], attack: 0.004, decay: 0.1, sustain: 0.5 }
+          };
 
         // Shape config with distinct timbral signatures
        var SHAPE_CONFIG = {
@@ -1300,58 +1314,86 @@
         var bgGlow = document.getElementById('bgGlow');
 
           // --- Audio Engine ---
-        function initAudio() {
-          if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioCtx.createGain();
-            masterGain.gain.value = 0.35;
-            masterGain.connect(audioCtx.destination);
+         function initAudio() {
+           if (!audioCtx) {
+             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+             masterGain = audioCtx.createGain();
+             masterGain.gain.value = 0.3;
+             masterGain.connect(audioCtx.destination);
 
-            // Simple convolution reverb
-            convolver = audioCtx.createConvolver();
-            var sr = audioCtx.sampleRate;
-            var len = Math.floor(sr * 1.2);
-            var impulse = audioCtx.createBuffer(2, len, sr);
-            for (var ch = 0; ch < 2; ch++) {
-              var data = impulse.getChannelData(ch);
-              for (var j = 0; j < len; j++) {
-                data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 2.8);
+              // Richer convolution reverb with two-stage impulse
+             convolver = audioCtx.createConvolver();
+             var sr = audioCtx.sampleRate;
+             var len = Math.floor(sr * 1.8);
+             var impulse = audioCtx.createBuffer(2, len, sr);
+             for (var ch = 0; ch < 2; ch++) {
+               var data = impulse.getChannelData(ch);
+               for (var j = 0; j < len; j++) {
+                 var t = j / len;
+                 data[j] = (Math.random() * 2 - 1) *
+                   Math.pow(1 - t, ch === 0 ? 2.2 : 3.5) *
+                   (1 + 0.3 * Math.sin(t * Math.PI * 6));
+                 }
                }
-             }
-            convolver.buffer = impulse;
-            reverbGain = audioCtx.createGain();
-            reverbGain.gain.value = 0.12;
-            dryGain = audioCtx.createGain();
-            dryGain.gain.value = 0.7;
-            masterGain.connect(dryGain);
-            masterGain.connect(convolver);
-            convolver.connect(reverbGain);
-            dryGain.connect(audioCtx.destination);
-            reverbGain.connect(audioCtx.destination);
+             convolver.buffer = impulse;
+             reverbGain = audioCtx.createGain();
+             reverbGain.gain.value = 0.18;
+             dryGain = audioCtx.createGain();
+             dryGain.gain.value = 0.65;
+             masterGain.connect(dryGain);
+             masterGain.connect(convolver);
+             convolver.connect(reverbGain);
+             dryGain.connect(audioCtx.destination);
+             reverbGain.connect(audioCtx.destination);
 
-            // Ambient idle drone (very subtle)
-            ambientGain = audioCtx.createGain();
-            ambientGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            ambientGain.gain.linearRampToValueAtTime(0.008, audioCtx.currentTime + 3);
-            ambientDrone = audioCtx.createOscillator();
-            ambientDrone.type = 'sine';
-            ambientDrone.frequency.value = 65.41;
-            ambientDrone.connect(ambientGain);
-            ambientGain.connect(audioCtx.destination);
-            ambientDrone.start();
-            var drone2 = audioCtx.createOscillator();
-            var g2 = audioCtx.createGain();
-            g2.gain.value = 0.004;
-            drone2.type = 'sine';
-            drone2.frequency.value = 98;
-            drone2.connect(g2);
-            g2.connect(audioCtx.destination);
-            drone2.start();
+             // Subtle compressor for consistent levels
+             var compressor = audioCtx.createDynamicsCompressor();
+             compressor.threshold.value = -20;
+             compressor.knee.value = 6;
+             compressor.ratio.value = 4;
+             compressor.attack.value = 0.003;
+             compressor.release.value = 0.15;
+             masterGain.disconnect();
+             masterGain.connect(compressor);
+             compressor.connect(dryGain);
+             compressor.connect(convolver);
+
+              // Ambient idle drone (very subtle, with LFO modulation)
+             ambientGain = audioCtx.createGain();
+             ambientGain.gain.setValueAtTime(0, audioCtx.currentTime);
+             ambientGain.gain.linearRampToValueAtTime(0.006, audioCtx.currentTime + 4);
+             ambientDrone = audioCtx.createOscillator();
+             ambientDrone.type = 'sine';
+             ambientDrone.frequency.value = 65.41;
+             ambientDrone.connect(ambientGain);
+             ambientGain.connect(audioCtx.destination);
+             ambientDrone.start();
+
+             // Second drone voice a fifth above
+             var drone2 = audioCtx.createOscillator();
+             var g2 = audioCtx.createGain();
+             g2.gain.value = 0.003;
+             drone2.type = 'sine';
+             drone2.frequency.value = 98;
+             drone2.connect(g2);
+             g2.connect(audioCtx.destination);
+             drone2.start();
+
+             // Sub bass layer for warmth
+             var subDrone = audioCtx.createOscillator();
+             var sg = audioCtx.createGain();
+             sg.gain.setValueAtTime(0, audioCtx.currentTime);
+             sg.gain.linearRampToValueAtTime(0.002, audioCtx.currentTime + 5);
+             subDrone.type = 'sine';
+             subDrone.frequency.value = 32.7;
+             subDrone.connect(sg);
+             sg.connect(audioCtx.destination);
+             subDrone.start();
+              }
+           if (audioCtx.state === 'suspended') {
+             audioCtx.resume();
+              }
             }
-          if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-            }
-          }
 
         function playTone(color, shape, duration, delay) {
           if (muted || !audioCtx) return null;
@@ -1360,10 +1402,15 @@
           var freq = baseFreq * Math.pow(2, cfg.octave);
           var now = audioCtx.currentTime + (delay || 0);
           var dur = duration || 0.3;
+          var atk = cfg.attack || 0.01;
+          var dec = cfg.decay || 0.15;
+          var susLevel = cfg.sustain || 0.3;
 
           var toneGain = audioCtx.createGain();
           toneGain.gain.setValueAtTime(0, now);
-          toneGain.gain.linearRampToValueAtTime(0.07, now + 0.012);
+          toneGain.gain.linearRampToValueAtTime(0.06, now + atk);
+          toneGain.gain.exponentialRampToValueAtTime(Math.max(susLevel * 0.06, 0.001), now + atk + dec);
+          toneGain.gain.setValueAtTime(Math.max(susLevel * 0.06, 0.001), now + dur * 0.7);
           toneGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
           toneGain.connect(masterGain);
 
@@ -1372,40 +1419,72 @@
              var g = audioCtx.createGain();
              osc.type = i === 0 ? cfg.wave : 'sine';
              osc.frequency.setValueAtTime(freq * harm, now);
-             g.gain.setValueAtTime(i === 0 ? 0.6 : (0.25 / (i + 1)), now);
+
+              // LFO modulation for living, organic quality
+             if (i === 0) {
+              var lfo = audioCtx.createOscillator();
+              var lfoGain = audioCtx.createGain();
+              lfo.type = 'sine';
+              lfo.frequency.value = 3 + Math.random() * 2;
+              lfoGain.gain.value = freq * 0.008;
+              lfo.connect(lfoGain);
+              lfoGain.connect(osc.frequency);
+              lfo.start(now);
+              lfo.stop(now + dur + 0.05);
+             }
+
+             var harmVol = i === 0 ? 0.5 : (0.22 / (i + 1));
+             g.gain.setValueAtTime(0, now);
+             g.gain.linearRampToValueAtTime(harmVol, now + atk * 0.5);
+             g.gain.exponentialRampToValueAtTime(0.001, now + dur);
              osc.connect(g);
              g.connect(toneGain);
              osc.start(now);
              osc.stop(now + dur + 0.05);
-               });
+                });
 
-           // Sub-octave warmth layer
-           {
+            // Sub-octave warmth layer with slow attack
+            {
              var sub = audioCtx.createOscillator();
              var g = audioCtx.createGain();
              sub.type = 'sine';
              sub.frequency.setValueAtTime(freq * 0.5, now);
-             g.gain.setValueAtTime(0.12, now);
-             g.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.8);
+             g.gain.setValueAtTime(0, now);
+             g.gain.linearRampToValueAtTime(0.08, now + atk * 2);
+             g.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.85);
              sub.connect(g); g.connect(toneGain);
              sub.start(now); sub.stop(now + dur + 0.05);
-           }
+            }
 
-           // Shimmer overtone
-           {
+            // Nasal formant filter for character
+            {
+             var formant = audioCtx.createBiquadFilter();
+             formant.type = 'bandpass';
+             formant.frequency.value = freq * 1.5;
+             formant.Q.value = 5;
+             var fg = audioCtx.createGain();
+             fg.gain.value = 0.04;
+             toneGain.connect(formant);
+             formant.connect(fg);
+             fg.connect(masterGain);
+            }
+
+            // Shimmer overtone with pitch sweep
+            {
              var sh = audioCtx.createOscillator();
              var g = audioCtx.createGain();
              sh.type = 'sine';
              sh.frequency.setValueAtTime(freq * 4, now);
+             sh.frequency.exponentialRampToValueAtTime(freq * 3.2, now + dur * 0.3);
              g.gain.setValueAtTime(0, now);
-             g.gain.linearRampToValueAtTime(0.02, now + 0.008);
+             g.gain.linearRampToValueAtTime(0.015, now + 0.006);
              g.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.35);
              sh.connect(g); g.connect(toneGain);
              sh.start(now); sh.stop(now + dur + 0.05);
-           }
+            }
 
             return toneGain;
-             }
+              }
 
        function playPlaceTone(color, shape) {
          return playTone(color, shape, 0.28);
@@ -2520,13 +2599,262 @@
            return drone;
           }
 
-        // --- Play sequence with cinematic visual sweep and synchronized grid pulses ---
-          function playCompositionSequence() {
-            clearPlayingTimeouts();
-            var filledCells = [];
-            for (var i = 0; i < grid.length; i++) {
-              if (grid[i].data) filledCells.push(i);
-              }
+          // --- Scheduling helpers for precise timing ---
+          function getBeatTime(beatNum) {
+            return audioCtx.currentTime + beatNum * beatDuration;
+          }
+
+          // --- Percussion synthesis ---
+          function playClick(startT, vol) {
+            if (muted || !audioCtx) return;
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 800 + Math.random() * 400;
+            g.gain.setValueAtTime(vol || 0.025, startT);
+            g.gain.exponentialRampToValueAtTime(0.001, startT + 0.025);
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start(startT);
+            osc.stop(startT + 0.03);
+          }
+
+          function playSnap(startT) {
+            if (muted || !audioCtx) return;
+            // White noise burst for snap sound
+            var len = Math.floor(audioCtx.sampleRate * 0.04);
+            var buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+            var data = buf.getChannelData(0);
+            for (var i = 0; i < len; i++) {
+              data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+            }
+            var src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            var g = audioCtx.createGain();
+            g.gain.value = 0.03;
+            src.connect(g);
+            g.connect(audioCtx.destination);
+            src.start(startT);
+          }
+
+          function playTock(startT) {
+            if (muted || !audioCtx) return;
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            var filt = audioCtx.createBiquadFilter();
+            osc.type = 'triangle';
+            osc.frequency.value = 200;
+            filt.type = 'lowpass';
+            filt.frequency.value = 800;
+            g.gain.setValueAtTime(0.05, startT);
+            g.gain.exponentialRampToValueAtTime(0.001, startT + 0.06);
+            osc.connect(filt);
+            filt.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start(startT);
+            osc.stop(startT + 0.07);
+          }
+
+          // --- Play sequence: tempo-aware diagonal traversal with percussion groove ---
+           function playCompositionSequence() {
+             if (!audioCtx) initAudio();
+             if (!audioCtx) return;
+             clearPlayingTimeouts();
+             var filledCells = [];
+             for (var i = 0; i < grid.length; i++) {
+               if (grid[i].data) filledCells.push(i);
+                }
+             if (filledCells.length === 0) return;
+
+              isPlaying = true;
+              var gridWrapper = document.querySelector('.grid-wrapper');
+              if (gridWrapper) gridWrapper.classList.add('vibrating');
+              stopAmbientHum();
+
+              // Sort by diagonal traversal order
+              filledCells.sort(function(a, b) {
+                var da = grid[a].data, db = grid[b].data;
+                var sumA = da.row + da.col, sumB = db.row + db.col;
+                if (sumA !== sumB) return sumA - sumB;
+                return da.row - db.row;
+                  });
+
+             // Compute beat-based timing
+             var totalBeats = Math.max(4, Math.ceil(filledCells.length * 0.5));
+             var beatsPerCell = totalBeats / filledCells.length;
+             var now = audioCtx.currentTime + 0.05; // small lookahead
+
+             var sweepCursor = document.getElementById('sweepCursor');
+             var gridPulse = document.getElementById('gridPulse');
+             sweepCursor.classList.add('active');
+
+             // Schedule a rhythmic drone that follows the harmony of first cell
+             var firstCell = filledCells[0];
+             var firstColor = grid[firstCell].data.color;
+             var droneFreq = (COLOR_NOTES[firstColor] || 261.63) / 4;
+             var drone = audioCtx.createOscillator();
+             var droneG = audioCtx.createGain();
+             drone.type = 'sine';
+             drone.frequency.value = droneFreq;
+             droneG.gain.setValueAtTime(0, now);
+             droneG.gain.linearRampToValueAtTime(0.025, now + 0.2);
+             droneG.gain.setValueAtTime(0.02, now + totalBeats * beatDuration);
+             droneG.gain.linearRampToValueAtTime(0, now + totalBeats * beatDuration + 0.5);
+             drone.connect(droneG);
+             droneG.connect(audioCtx.destination);
+             drone.start(now);
+             drone.stop(now + totalBeats * beatDuration + 0.6);
+
+             // Schedule a secondary drone a fifth above
+             var drone2 = audioCtx.createOscillator();
+             var droneG2 = audioCtx.createGain();
+             drone2.type = 'triangle';
+             drone2.frequency.value = droneFreq * 1.5;
+             droneG2.gain.setValueAtTime(0, now);
+             droneG2.gain.linearRampToValueAtTime(0.01, now + 0.3);
+             droneG2.gain.setValueAtTime(0.008, now + totalBeats * beatDuration);
+             droneG2.gain.linearRampToValueAtTime(0, now + totalBeats * beatDuration + 0.4);
+             drone2.connect(droneG2);
+             droneG2.connect(audioCtx.destination);
+             drone2.start(now);
+             drone2.stop(now + totalBeats * beatDuration + 0.5);
+
+             // Schedule percussion: a simple 4-beat groove that repeats
+             var beatsPerMeasure = 4;
+             for (var m = 0; m < Math.ceil(totalBeats / beatsPerMeasure); m++) {
+               var measureStart = now + m * beatsPerMeasure * beatDuration;
+               // Beat 1: snap (strong downbeat)
+               playSnap(measureStart);
+               // Beat 2: click
+               playClick(measureStart + beatDuration, 0.015);
+               // Beat 3: click (slightly louder)
+               playClick(measureStart + 2 * beatDuration, 0.02);
+               // Beat 4: tock
+               playTock(measureStart + 3 * beatDuration);
+               // Off-beat eighth notes: very soft clicks
+               playClick(measureStart + 0.5 * beatDuration, 0.008);
+               playClick(measureStart + 1.5 * beatDuration, 0.006);
+               playClick(measureStart + 2.5 * beatDuration, 0.008);
+               playClick(measureStart + 3.5 * beatDuration, 0.005);
+             }
+
+             // Schedule each cell's tone and visual updates
+             filledCells.forEach(function(idx, order) {
+               var d = grid[idx].data;
+               var beatNum = order * beatsPerCell;
+               var cellTime = getBeatTime(beatNum);
+
+               // Schedule the tone
+               var baseFreq = COLOR_NOTES[d.color] || 261.63;
+               var cfg = SHAPE_CONFIG[d.shape] || SHAPE_CONFIG.circle;
+               var freq = baseFreq * Math.pow(2, cfg.octave);
+               var dur = 0.25;
+               var startT = cellTime;
+
+               // Main tone
+               var toneG = audioCtx.createGain();
+               toneG.gain.setValueAtTime(0, startT);
+               toneG.gain.linearRampToValueAtTime(0.055, startT + 0.008);
+               toneG.gain.exponentialRampToValueAtTime(0.001, startT + dur);
+               toneG.connect(masterGain);
+
+               cfg.harmonics.forEach(function(harm, i) {
+                 var osc = audioCtx.createOscillator();
+                 var g = audioCtx.createGain();
+                 osc.type = i === 0 ? cfg.wave : 'sine';
+                 osc.frequency.setValueAtTime(freq * harm, startT);
+
+                 if (i === 0) {
+                   var lfo = audioCtx.createOscillator();
+                   var lfoG = audioCtx.createGain();
+                   lfo.type = 'sine';
+                   lfo.frequency.value = 4 + (order % 7);
+                   lfoG.gain.value = freq * 0.006;
+                   lfo.connect(lfoG);
+                   lfoG.connect(osc.frequency);
+                   lfo.start(startT);
+                   lfo.stop(startT + dur + 0.05);
+                 }
+
+                 var hVol = i === 0 ? 0.5 : (0.2 / (i + 1));
+                 g.gain.setValueAtTime(hVol, startT);
+                 g.gain.exponentialRampToValueAtTime(0.001, startT + dur);
+                 osc.connect(g);
+                 g.connect(toneG);
+                 osc.start(startT);
+                 osc.stop(startT + dur + 0.05);
+               });
+
+               // Sub bass
+               {
+                var sub = audioCtx.createOscillator();
+                var sg = audioCtx.createGain();
+                sub.type = 'sine';
+                sub.frequency.setValueAtTime(freq * 0.5, startT);
+                sg.gain.setValueAtTime(0, startT);
+                sg.gain.linearRampToValueAtTime(0.06, startT + 0.015);
+                sg.gain.exponentialRampToValueAtTime(0.001, startT + dur * 0.8);
+                sub.connect(sg); sg.connect(toneG);
+                sub.start(startT); sub.stop(startT + dur + 0.05);
+               }
+
+               // Visual sync: schedule DOM updates in sync with audio
+               var visualDelay = Math.max(0, (startT - audioCtx.currentTime) * 1000);
+               var t = setTimeout(function() {
+                 for (var vi = 0; vi < grid.length; vi++) {
+                   grid[vi].el.classList.remove('playing', 'playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                   grid[vi].el.classList.remove('idle-pulse');
+                 }
+                 var cellEl = grid[idx].el;
+                 var colorClass = 'playing-' + d.color;
+                 cellEl.classList.add('playing', colorClass);
+
+                 var rect = cellEl.getBoundingClientRect();
+                 var cursorSize = Math.max(rect.width, rect.height) * 2.5;
+                 sweepCursor.style.width = cursorSize + 'px';
+                 sweepCursor.style.height = cursorSize + 'px';
+                 sweepCursor.style.left = (rect.left + rect.width / 2 - cursorSize / 2) + 'px';
+                 sweepCursor.style.top = (rect.top + rect.height / 2 - cursorSize / 2) + 'px';
+
+                 spawnRipple(rect.left + rect.width / 2, rect.top + rect.height / 2, d.color);
+
+                 bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black', 'warm', 'cool', 'bright');
+                 bgGlow.classList.add('playing-' + d.color);
+
+                 var cleanup = setTimeout(function() {
+                   cellEl.classList.remove('playing', colorClass);
+                 }, dur * 1000);
+                 playingTimeouts.push(cleanup);
+
+                 if (order > 0) {
+                   var trailIdx = filledCells[order - 1];
+                   grid[trailIdx].el.classList.add('trail');
+                 }
+
+                 if (order % 6 === 0 && order > 0) {
+                   gridPulse.classList.remove('active');
+                   void gridPulse.offsetWidth;
+                   gridPulse.classList.add('active');
+                 }
+
+                 if (order === filledCells.length - 1) {
+                   var resolveDelay = (dur + beatDuration) * 1000;
+                   var resolve = setTimeout(function() {
+                     isPlaying = false;
+                     sweepCursor.classList.remove('active');
+                     playResolutionChord();
+                     bgGlow.classList.remove('playing-red', 'playing-blue', 'playing-yellow', 'playing-cream', 'playing-black');
+                     updateBgGlow();
+                     recalcCount();
+                     if (gridWrapper) gridWrapper.classList.remove('vibrating');
+                     startAmbientHum();
+                   }, resolveDelay);
+                   playingTimeouts.push(resolve);
+                 }
+               }, visualDelay);
+               playingTimeouts.push(t);
+             });
+             }
             if (filledCells.length === 0) return;
 
              isPlaying = true;
