@@ -36,43 +36,186 @@
        flex-direction: column;
       }
 
-        /* Bauhaus geometric background decorations */
-     body::before {
-       content: '';
-       position: fixed;
-       top: -40%;
-       right: -25%;
-       width: 70vw;
-       height: 70vw;
-       border-radius: 50%;
-       background: radial-gradient(circle at 30% 40%, rgba(217,56,56,0.06) 0%, transparent 65%);
-       pointer-events: none;
-       z-index: 0;
+          /* Bauhaus geometric background decorations — expanded with angular geometry */
+      body::before {
+        content: '';
+        position: fixed;
+        top: -40%;
+        right: -25%;
+        width: 70vw;
+        height: 70vw;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 40%, rgba(217,56,56,0.07) 0%, transparent 65%);
+        pointer-events: none;
+        z-index: 0;
+        }
+
+      body::after {
+        content: '';
+        position: fixed;
+        bottom: -35%;
+        left: -15%;
+        width: 65vw;
+        height: 65vw;
+        border-radius: 50%;
+        background: radial-gradient(circle at 60% 50%, rgba(41,98,173,0.06) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+        }
+
+      /* Horizontal decorative bar — top of page */
+      .deco-bar-top {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--red) 0%, var(--red) 33.33%, var(--yellow) 33.33%, var(--yellow) 66.66%, var(--blue) 66.66%, var(--blue) 100%);
+        z-index: 60;
+        opacity: 0.6;
       }
 
-     body::after {
-       content: '';
-       position: fixed;
-       bottom: -35%;
-       left: -15%;
-       width: 65vw;
-       height: 65vw;
-       border-radius: 50%;
-       background: radial-gradient(circle at 60% 50%, rgba(41,98,173,0.05) 0%, transparent 60%);
-       pointer-events: none;
-       z-index: 0;
+      /* Bauhaus geometric corner marks — four corner decorations */
+      .deco-corner {
+        position: fixed;
+        z-index: 60;
+        pointer-events: none;
+        opacity: 0.5;
       }
 
-        /* Subtle film grain overlay — Bauhaus material texture */
-        .grain-overlay {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          z-index: 999;
-          opacity: 0.035;
-          mix-blend-mode: overlay;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-          background-size: 128px 128px;
+      .deco-corner-tl {
+        top: 8px; left: 10px;
+        width: 24px; height: 2px;
+        background: var(--red);
+      }
+      .deco-corner-tl::after {
+        content: '';
+        position: absolute;
+        top: 4px; left: 0;
+        width: 2px; height: 18px;
+        background: var(--red);
+      }
+
+      .deco-corner-tr {
+        top: 8px; right: 10px;
+        width: 2px; height: 24px;
+        background: var(--yellow);
+      }
+      .deco-corner-tr::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 4px;
+        width: 18px; height: 2px;
+        background: var(--yellow);
+      }
+
+      .deco-corner-bl {
+        bottom: 3.5rem; left: 10px;
+        width: 2px; height: 18px;
+        background: var(--blue);
+      }
+      .deco-corner-bl::after {
+        content: '';
+        position: absolute;
+        top: 4px; left: 2px;
+        width: 18px; height: 2px;
+        background: var(--blue);
+      }
+
+      .deco-corner-br {
+        bottom: 3.5rem; right: 10px;
+        width: 20px; height: 2px;
+        background: var(--cream);
+        opacity: 0.3;
+      }
+       .deco-corner-br::after {
+        content: '';
+        position: absolute;
+        top: -16px; right: 0;
+        width: 2px; height: 16px;
+        background: var(--cream);
+       }
+
+       /* Background floating geometry — very subtle, always in back */
+       .bg-geo {
+        position: fixed;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        transition: opacity 2s ease;
+       }
+
+       .bg-geo.visible { opacity: 1; }
+
+       .bg-geo-circle {
+        top: 18%;
+        right: 8%;
+        width: 120px;
+        height: 120px;
+        border: 1.5px solid var(--red);
+        border-radius: 50%;
+        opacity: 0.04;
+        animation: bgGeoDrift 18s ease-in-out infinite;
+       }
+
+       .bg-geo-line-d {
+        bottom: 22%;
+        left: 4%;
+        width: 180px;
+        height: 0;
+        border-top: 1.5px solid var(--yellow);
+        opacity: 0.05;
+        transform: rotate(-35deg);
+        animation: bgGeoDrift 22s ease-in-out infinite reverse;
+       }
+
+       .bg-geo-square {
+        bottom: 12%;
+        right: 14%;
+        width: 50px;
+        height: 50px;
+        border: 1.5px solid var(--blue);
+        opacity: 0.04;
+        animation: bgGeoSpin 30s linear infinite;
+       }
+
+       @keyframes bgGeoDrift {
+        0%, 100% { transform: translate(0, 0); }
+        25% { transform: translate(8px, -12px); }
+        50% { transform: translate(-6px, 6px); }
+        75% { transform: translate(4px, -4px); }
+       }
+
+       @keyframes bgGeoSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+       }
+
+           /* Subtle film grain overlay — Bauhaus material texture */
+          .grain-overlay {
+           position: fixed;
+           inset: 0;
+           pointer-events: none;
+           z-index: 999;
+           opacity: 0.035;
+           mix-blend-mode: overlay;
+           background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+           background-size: 128px 128px;
+        }
+
+        /* Ultra-subtle scanlines — digital texture layer */
+         .scanline-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 998;
+        opacity: 0.018;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 1px,
+          rgba(0,0,0,0.3) 1px,
+          rgba(0,0,0,0.3) 2px
+        );
+        background-size: 100% 2px;
         }
 
           /* Yellow center glow that reacts to composition */
@@ -197,15 +340,22 @@
        min-height: 0;
       }
 
-        .grid-wrapper {
-        position: relative;
-        padding: 8px;
-        background: rgba(255,255,255,0.015);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 2px;
-        animation: gridBreathe 4s ease-in-out infinite;
-        transition: transform 0.15s ease, box-shadow 0.3s ease;
-        }
+          .grid-wrapper {
+         position: relative;
+         padding: 8px;
+         background: rgba(255,255,255,0.012);
+         border: 1px solid rgba(255,255,255,0.06);
+         border-radius: 2px;
+         animation: gridBreathe 4s ease-in-out infinite;
+         transition: transform 0.15s ease, box-shadow 0.3s ease, border-color 0.5s ease;
+          }
+
+          /* Active color indicator — frame edge glows with selected color */
+          .grid-wrapper.color-red { border-color: rgba(217,56,56,0.2); box-shadow: 0 0 0 1px rgba(217,56,56,0.05); }
+          .grid-wrapper.color-blue { border-color: rgba(41,98,173,0.2); box-shadow: 0 0 0 1px rgba(41,98,173,0.05); }
+          .grid-wrapper.color-yellow { border-color: rgba(232,184,40,0.2); box-shadow: 0 0 0 1px rgba(232,184,40,0.05); }
+          .grid-wrapper.color-cream { border-color: rgba(242,237,228,0.15); box-shadow: 0 0 0 1px rgba(242,237,228,0.04); }
+          .grid-wrapper.color-black { border-color: rgba(107,107,107,0.2); box-shadow: 0 0 0 1px rgba(107,107,107,0.05); }
         @keyframes gridBreathe {
         0%, 100% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.004); opacity: 0.96; }
@@ -388,11 +538,18 @@
       }
 
         .cell:hover:not(.filled) {
-        background: rgba(255,255,255,0.07);
-        border-color: rgba(255,255,255,0.14);
-        box-shadow: inset 0 0 12px rgba(255,255,255,0.04), 0 0 8px rgba(232,184,40,0.08);
-        transform: scale(1.04);
-         }
+         background: rgba(255,255,255,0.07);
+         border-color: rgba(255,255,255,0.14);
+         box-shadow: inset 0 0 12px rgba(255,255,255,0.04), 0 0 8px rgba(232,184,40,0.08);
+         transform: scale(1.04);
+           }
+
+        /* Color preview ghost on hover — shows active color tint */
+        .cell.preview-red:hover:not(.filled) { background: rgba(217,56,56,0.12); box-shadow: inset 0 0 16px rgba(217,56,56,0.08), 0 0 10px rgba(217,56,56,0.1); }
+        .cell.preview-blue:hover:not(.filled) { background: rgba(41,98,173,0.12); box-shadow: inset 0 0 16px rgba(41,98,173,0.08), 0 0 10px rgba(41,98,173,0.1); }
+        .cell.preview-yellow:hover:not(.filled) { background: rgba(232,184,40,0.12); box-shadow: inset 0 0 16px rgba(232,184,40,0.08), 0 0 10px rgba(232,184,40,0.1); }
+        .cell.preview-cream:hover:not(.filled) { background: rgba(242,237,228,0.08); box-shadow: inset 0 0 16px rgba(242,237,228,0.06), 0 0 10px rgba(242,237,228,0.06); }
+        .cell.preview-black:hover:not(.filled) { background: rgba(107,107,107,0.15); box-shadow: inset 0 0 16px rgba(107,107,107,0.1), 0 0 10px rgba(107,107,107,0.08); }
 
       .cell.focus-ring,
       .cell:focus {
@@ -1107,18 +1264,29 @@
        margin: 0 0.25rem;
       }
 
-      /* Footer credit */
-      .footer-credit {
-       text-align: center;
-       padding: 0.4rem;
-       font-size: 0.5rem;
-       color: var(--mid-gray);
-       letter-spacing: 2px;
-       text-transform: uppercase;
-       opacity: 0.4;
-       position: relative;
-       z-index: 1;
-      }
+       /* Footer credit */
+        .footer-credit {
+        text-align: center;
+        padding: 0.4rem;
+        font-size: 0.5rem;
+        color: var(--mid-gray);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        opacity: 0.4;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        }
+
+        .footer-line {
+        width: 30px;
+        height: 1px;
+        background: var(--mid-gray);
+        opacity: 0.6;
+        }
 
       /* Responsive */
       @media (max-width: 600px) {
@@ -1157,15 +1325,25 @@
     </style>
 </head>
 <body>
-     <div class="grain-overlay"></div>
-     <div class="bg-glow" id="bgGlow"></div>
-     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="counter" id="counter">0 / 36</div>
-      <div class="flash-overlay" id="flashOverlay"></div>
-       <div class="toast" id="toast"></div>
-        <div class="sweep-cursor" id="sweepCursor"></div>
+       <div class="grain-overlay"></div>
+       <div class="scanline-overlay"></div>
+       <div class="deco-bar-top"></div>
+      <div class="deco-corner deco-corner-tl"></div>
+      <div class="deco-corner deco-corner-tr"></div>
+      <div class="deco-corner deco-corner-bl"></div>
+      <div class="deco-corner deco-corner-br"></div>
+      <div class="bg-glow" id="bgGlow"></div>
+      <!-- Background geometric accents — subtle SVG shapes -->
+      <div class="bg-geo bg-geo-circle" aria-hidden="true"></div>
+      <div class="bg-geo bg-geo-line-d" aria-hidden="true"></div>
+      <div class="bg-geo bg-geo-square" aria-hidden="true"></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+     <div class="counter" id="counter">0 / 36</div>
+       <div class="flash-overlay" id="flashOverlay"></div>
+        <div class="toast" id="toast"></div>
+         <div class="sweep-cursor" id="sweepCursor"></div>
 
-      <div class="header">
+       <div class="header">
         <h1 id="title">
           <span class="red">B</span><span class="blue">a</span><span class="yellow">u</span>haus
         </h1>
@@ -1235,7 +1413,11 @@
         <button class="action-btn btn-mute" id="btnMute" tabindex="0" title="Toggle sound">🔊</button>
       </div>
 
-    <div class="footer-credit">Form follows function</div>
+      <div class="footer-credit">
+        <span class="footer-line"></span>
+        Form follows function
+        <span class="footer-line"></span>
+      </div>
 
           <div class="completion-overlay" id="completionOverlay">
           <div class="completion-card">
@@ -1274,7 +1456,8 @@
          var isPlaying = false;
         var ambientDrone = null;
         var ambientGain = null;
-         var STORAGE_KEY = 'bauhaus-composer-v1';
+           var STORAGE_KEY = 'bauhaus-composer-v1';
+         var compositionNumber = 0;
 
           // Extended pentatonic/harmonic mapping — refined frequencies for better consonance
        var COLOR_NOTES = {
@@ -1524,8 +1707,27 @@
          osc.stop(now + 0.22);
         }
 
-        // --- Background glow state machine ---
-       function updateBgGlow() {
+          // --- Grid frame color follows selected color ---
+        function updateGridFrameColor() {
+          var colorFrameClasses = ['color-red', 'color-blue', 'color-yellow', 'color-cream', 'color-black'];
+          if (!gridWrapper) return;
+          colorFrameClasses.forEach(function(cls) {
+            gridWrapper.classList.remove(cls);
+             });
+          gridWrapper.classList.add('color-' + selectedColor);
+
+          // Update cell preview classes to reflect active color
+          var previewClasses = ['preview-red', 'preview-blue', 'preview-yellow', 'preview-cream', 'preview-black'];
+          for (var pi = 0; pi < grid.length; pi++) {
+            if (!grid[pi].data) {
+              previewClasses.forEach(function(pc) { grid[pi].el.classList.remove(pc); });
+              grid[pi].el.classList.add('preview-' + selectedColor);
+               }
+             }
+           }
+
+         // --- Background glow state machine ---
+        function updateBgGlow() {
          var redCount = 0, blueCount = 0;
          var yellowCount = 0, creamCount = 0;
          for (var i = 0; i < grid.length; i++) {
@@ -1551,11 +1753,12 @@
         }
 
         // --- Grid initialization ---
-       var gridEl = document.getElementById('grid');
-       var progressFill = document.getElementById('progressFill');
-       var counterEl = document.getElementById('counter');
-       var flashOverlay = document.getElementById('flashOverlay');
-       var completionOverlay = document.getElementById('completionOverlay');
+      var gridEl = document.getElementById('grid');
+      var gridWrapper = document.querySelector('.grid-wrapper');
+      var progressFill = document.getElementById('progressFill');
+      var counterEl = document.getElementById('counter');
+      var flashOverlay = document.getElementById('flashOverlay');
+      var completionOverlay = document.getElementById('completionOverlay');
 
         for (var i = 0; i < TOTAL_CELLS; i++) {
          var cell = document.createElement('div');
@@ -1962,19 +2165,36 @@
              }, 2800);
             })();
 
-          // --- Auto-load last composition ---
-        loadComposition();
+            // --- Fade in background geometry after intro ---
+            (function showBgGeo() {
+              var geos = document.querySelectorAll('.bg-geo');
+              setTimeout(function() { geos.forEach(function(g) { g.classList.add('visible'); }); }, 3200);
+              var origDismiss = null;
+              // Hook into intro dismissal
+              var intro = document.getElementById('introOverlay');
+              if (intro) {
+                var onFade = function() {
+                  geos.forEach(function(g) { g.classList.add('visible'); });
+                };
+                intro.addEventListener('transitionend', onFade, { once: true });
+              }
+            })();
+
+             // --- Auto-load last composition ---
+         loadComposition();
+         updateGridFrameColor();
 
           // --- Tool controls ---
-       var swatches = document.querySelectorAll('.palette-swatch');
-       swatches.forEach(function(sw) {
-         sw.addEventListener('click', function() {
-           swatches.forEach(function(s) { s.classList.remove('active'); });
-           sw.classList.add('active');
-           selectedColor = sw.dataset.color;
-           initAudio();
-           playSelectionTone(selectedColor);
-          });
+        var swatches = document.querySelectorAll('.palette-swatch');
+        swatches.forEach(function(sw) {
+          sw.addEventListener('click', function() {
+            swatches.forEach(function(s) { s.classList.remove('active'); });
+            sw.classList.add('active');
+            selectedColor = sw.dataset.color;
+            initAudio();
+            playSelectionTone(selectedColor);
+            updateGridFrameColor();
+            });
          sw.addEventListener('keydown', function(e) {
            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sw.click(); }
           });
@@ -2421,7 +2641,8 @@
         playResetTone();
         var patternNames = Object.keys(BauhausPatterns);
         var chosen = patternNames[Math.floor(Math.random() * patternNames.length)];
-        showToast(PATTERN_DISPLAY[chosen] || chosen, 2000);
+         compositionNumber++;
+         showToast(PATTERN_DISPLAY[chosen] || chosen + ' — No.' + compositionNumber, 2000);
         var patternCells = BauhausPatterns[chosen]();
        var placed = new Set();
        var finalCells = [];
@@ -2527,10 +2748,9 @@
             for (var i = 0; i < grid.length; i++) {
               if (grid[i].data) filledCells.push(i);
               }
-            if (filledCells.length === 0) return;
+             if (filledCells.length === 0) return;
 
              isPlaying = true;
-             var gridWrapper = document.querySelector('.grid-wrapper');
              if (gridWrapper) gridWrapper.classList.add('vibrating');
              stopAmbientHum();
              filledCells.sort(function(a, b) {
