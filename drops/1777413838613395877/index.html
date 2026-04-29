@@ -4,38 +4,57 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Bauhaus Digital — click to compose geometric forms with procedural sound. Art and technology are one.">
-<title>Bauhaus Digital — Click to Compose</title>
+<title>Bauhaus Digital — Compose</title>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-    --red: #D9381E;
-    --yellow: #F6C42E;
-    --blue: #1E50D9;
-    --black: #1A1A1A;
-    --white: #FAFAF7;
-    --grey: #E8E6E1;
-    --canvas-bg: #222222;
+  --red: #D9381E;
+  --yellow: #F6C42E;
+  --blue: #1E50D9;
+  --black: #1A1A1A;
+  --white: #FAFAF7;
+  --grey: #E8E6E1;
+  --canvas-bg: #181818;
+  --canvas-grid: rgba(255,255,255,0.018);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulseHint {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.7; }
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.65; }
 }
 
 @keyframes ringExpand {
-  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.8; }
-  100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
 }
 
 @keyframes shimmerSweep {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+@keyframes completionPulse {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes bannerSlide {
+  from { transform: translateX(-50%) translateY(12px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes shapePlace {
+  0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+  55% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
 html, body {
@@ -57,18 +76,19 @@ html, body {
   animation: fadeIn 0.8s ease forwards;
 }
 
+/* ── Header ── */
 header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 14px 20px 10px;
+  padding: 14px 20px 8px;
   flex-shrink: 0;
 }
 
 header h1 {
   font-size: clamp(13px, 2.5vw, 16px);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--white);
 }
@@ -78,21 +98,24 @@ header h1 span.h-y { color: var(--yellow); }
 header h1 span.h-b { color: var(--blue); }
 
 header .tagline {
-  font-size: clamp(10px, 1.8vw, 12px);
+  font-size: clamp(9px, 1.6vw, 11px);
   font-weight: 400;
-  letter-spacing: 0.06em;
-  color: #666;
+  letter-spacing: 0.08em;
+  color: #555;
+  text-transform: uppercase;
 }
 
+/* ── Canvas Area ── */
 #canvas-wrap {
   flex: 1;
   position: relative;
   margin: 0 20px;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
   min-height: 0;
   cursor: crosshair;
   background: var(--canvas-bg);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.4);
 }
 
 #canvas {
@@ -101,6 +124,7 @@ header .tagline {
   display: block;
 }
 
+/* ── Hint Overlay ── */
 #hint-overlay {
   position: absolute;
   inset: 0;
@@ -113,72 +137,71 @@ header .tagline {
   transition: opacity 0.6s ease;
 }
 
-#hint-overlay.fade-out {
-  opacity: 0;
-}
+#hint-overlay.fade-out { opacity: 0; }
 
 #hint-overlay .hint-main {
-  font-size: clamp(14px, 3vw, 18px);
+  font-size: clamp(13px, 2.8vw, 17px);
   font-weight: 600;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--white);
-  animation: pulseHint 2s ease-in-out infinite;
+  animation: pulseHint 2.2s ease-in-out infinite;
 }
 
 #hint-overlay .hint-sub {
-  font-size: clamp(9px, 1.6vw, 11px);
-  color: #555;
-  letter-spacing: 0.08em;
+  font-size: clamp(8px, 1.4vw, 10px);
+  color: #444;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   margin-top: 6px;
 }
 
+/* ── Shockwave ── */
 .shockwave {
   position: absolute;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 2px solid;
   pointer-events: none;
-  animation: ringExpand 0.5s ease-out forwards;
+  animation: ringExpand 0.55s ease-out forwards;
   z-index: 3;
   transform: translate(-50%, -50%);
 }
 
+/* ── Completion Flash ── */
 #completion-flash {
   position: absolute;
   inset: 0;
-  background: rgba(250, 250, 247, 0.15);
   pointer-events: none;
   z-index: 10;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  animation: none;
 }
 
 #completion-flash.active {
-  opacity: 1;
-  transition: opacity 0.08s ease;
+  animation: completionPulse 1.6s ease forwards;
+  background: var(--white);
 }
 
-/* Mini completion banner */
+/* ── Completion Banner ── */
 #completion-banner {
   position: absolute;
-  bottom: 18px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%) translateY(10px);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--white);
-  background: rgba(217, 56, 30, 0.85);
-  padding: 7px 18px;
-  border-radius: 3px;
+  background: var(--red);
+  padding: 7px 20px;
+  border-radius: 2px;
   pointer-events: none;
   z-index: 8;
   opacity: 0;
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 #completion-banner.visible {
@@ -186,27 +209,41 @@ header .tagline {
   transform: translateX(-50%) translateY(0);
 }
 
+/* ── Shape Count ── */
+#shape-count {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #3a3a3a;
+  letter-spacing: 0.04em;
+  z-index: 2;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Footer ── */
 footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px 14px;
+  padding: 9px 20px 13px;
   flex-shrink: 0;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .btn {
   font-family: inherit;
-  font-size: clamp(11px, 2vw, 13px);
+  font-size: clamp(10px, 1.8vw, 12px);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   border: none;
-  border-radius: 3px;
-  padding: 10px 18px;
+  border-radius: 2px;
+  padding: 9px 16px;
   cursor: pointer;
-  transition: transform 0.12s ease, filter 0.12s ease, background 0.15s ease;
+  transition: transform 0.1s ease, filter 0.1s ease, background 0.15s ease;
   outline: none;
 }
 
@@ -218,135 +255,137 @@ footer {
 .btn-blue { background: var(--blue); color: var(--white); }
 .btn-outline {
   background: transparent;
-  color: #888;
-  border: 1.5px solid #444;
+  color: #777;
+  border: 1.5px solid #3a3a3a;
 }
-.btn-outline:hover { border-color: #777; color: #aaa; }
+.btn-outline:hover { border-color: #555; color: #aaa; }
+.btn-outline:disabled { opacity: 0.3; cursor: default; }
 .btn-composer {
   background: transparent;
-  color: #555;
-  border: 1.5px solid #333;
-  font-size: clamp(10px, 1.6vw, 11px);
+  color: #4a4a4a;
+  border: 1.5px solid #2a2a2a;
+  font-size: clamp(9px, 1.5vw, 10px);
 }
-.btn-composer:hover { color: #999; border-color: #555; }
+.btn-composer:hover { color: #888; border-color: #444; }
 
+/* ── Shape Indicator ── */
 #shape-indicator {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 #shape-indicator .dot {
-  width: 10px; height: 10px;
+  width: 11px; height: 11px;
   border-radius: 50%;
-  transition: background 0.2s, border-radius 0.2s;
+  transition: background 0.2s, border-radius 0.3s;
 }
 
 #shape-indicator .label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #666;
+  color: #555;
 }
 
+/* ── Color Row ── */
 #color-row {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
 }
 
 .swatch {
-  width: 22px; height: 22px;
-  border-radius: 3px;
+  width: 21px; height: 21px;
+  border-radius: 2px;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: border-color 0.15s, transform 0.15s;
+  transition: border-color 0.12s, transform 0.12s;
   outline: none;
 }
-.swatch.active { border-color: var(--white); transform: scale(1.15); }
+.swatch:hover { transform: scale(1.1); }
+.swatch.active { border-color: var(--white); transform: scale(1.12); }
 .swatch:focus-visible { box-shadow: 0 0 0 2px var(--white); }
 .swatch-red { background: var(--red); }
 .swatch-yellow { background: var(--yellow); }
 .swatch-blue { background: var(--blue); }
 .swatch-white { background: var(--white); }
-.swatch-black { background: var(--black); border: 2px solid #444; }
+.swatch-black { background: var(--black); border: 2px solid #3a3a3a; }
 .swatch-black.active { border-color: var(--white); }
 
+/* ── Mute Button ── */
 #mute-btn {
   background: none;
   border: none;
-  color: #666;
-  font-size: 16px;
+  color: #555;
+  font-size: 15px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 3px;
+  padding: 4px 7px;
+  border-radius: 2px;
   transition: color 0.15s;
   outline: none;
 }
-#mute-btn:hover { color: #aaa; }
+#mute-btn:hover { color: #999; }
 #mute-btn:focus-visible { box-shadow: 0 0 0 2px var(--white); }
 
-#shape-count {
-  position: absolute;
-  top: 10px;
-  right: 14px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #444;
-  letter-spacing: 0.04em;
-  z-index: 2;
+/* ── Mobile Responsive ── */
+@media (max-width: 480px) {
+  header { padding: 10px 12px 6px; }
+  #canvas-wrap { margin: 0 10px; }
+  footer { padding: 7px 12px 10px; gap: 5px; }
+  .btn { padding: 7px 11px; }
+  .swatch { width: 18px; height: 18px; }
+  .btn-composer { display: none; }
 }
 
-@media (max-width: 480px) {
-  header { padding: 10px 14px 8px; }
-  #canvas-wrap { margin: 0 12px; }
-  footer { padding: 8px 14px 12px; gap: 6px; }
-  .btn { padding: 8px 12px; }
+@media (max-width: 360px) {
+  #color-row { gap: 3px; }
+  .swatch { width: 16px; height: 16px; }
 }
 </style>
 </head>
 <body>
 <div id="app">
-   <header>
-      <h1><span class="h-r">B</span><span class="h-y">a</span><span class="h-b">u</span>haus Digital</h1>
-      <span class="tagline">Art & technology are one</span>
-    </header>
-    <div id="canvas-wrap">
-      <canvas id="canvas"></canvas>
-      <div id="shape-count">0 / 24</div>
-      <div id="hint-overlay">
-        <div class="hint-main">Click anywhere to compose</div>
-        <div class="hint-sub">Each shape has a voice</div>
-      </div>
-      <div id="completion-flash"></div>
-      <div id="completion-banner">Composition complete</div>
+  <header>
+    <h1><span class="h-r">B</span><span class="h-y">a</span><span class="h-b">u</span>haus Digital</h1>
+    <span class="tagline">Art &amp; technology are one</span>
+  </header>
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="shape-count">0 / 24</div>
+    <div id="hint-overlay">
+      <div class="hint-main">Click anywhere to compose</div>
+      <div class="hint-sub">Each shape has a voice</div>
     </div>
-    <footer>
-      <div id="shape-indicator">
-        <div class="dot" id="current-shape-dot"></div>
-        <span class="label" id="current-shape-label">circle</span>
-      </div>
-      <div id="color-row">
-        <button class="swatch swatch-red active" data-color="#D9381E" aria-label="Red"></button>
-        <button class="swatch swatch-yellow" data-color="#F6C42E" aria-label="Yellow"></button>
-        <button class="swatch swatch-blue" data-color="#1E50D9" aria-label="Blue"></button>
-        <button class="swatch swatch-white" data-color="#FAFAF7" aria-label="White"></button>
-        <button class="swatch swatch-black" data-color="#1A1A1A" aria-label="Black"></button>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <a href="composer.html" class="btn btn-composer" aria-label="Grid Composer">Grid</a>
-        <button class="btn btn-outline" id="play-btn" aria-label="Play composition" disabled>Play</button>
-        <button class="btn btn-outline" id="randomize-btn" aria-label="Random composition">Rand</button>
-        <button class="btn btn-red" id="reset-btn" aria-label="Reset canvas">Reset</button>
-        <button id="mute-btn" aria-label="Toggle sound">&#9838;</button>
-      </div>
-    </footer>
+    <div id="completion-flash"></div>
+    <div id="completion-banner">Composition complete</div>
+  </div>
+  <footer>
+    <div id="shape-indicator">
+      <div class="dot" id="current-shape-dot"></div>
+      <span class="label" id="current-shape-label">circle</span>
+    </div>
+    <div id="color-row">
+      <button class="swatch swatch-red active" data-color="#D9381E" aria-label="Red"></button>
+      <button class="swatch swatch-yellow" data-color="#F6C42E" aria-label="Yellow"></button>
+      <button class="swatch swatch-blue" data-color="#1E50D9" aria-label="Blue"></button>
+      <button class="swatch swatch-white" data-color="#FAFAF7" aria-label="White"></button>
+      <button class="swatch swatch-black" data-color="#1A1A1A" aria-label="Black"></button>
+    </div>
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+      <a href="composer.html" class="btn btn-composer" aria-label="Grid Composer">Grid</a>
+      <button class="btn btn-outline" id="play-btn" aria-label="Play composition" disabled>Play</button>
+      <button class="btn btn-outline" id="randomize-btn" aria-label="Random composition">Rand</button>
+      <button class="btn btn-red" id="reset-btn" aria-label="Reset canvas">Reset</button>
+      <button id="mute-btn" aria-label="Toggle sound">&#9838;</button>
+    </div>
+  </footer>
 </div>
 
 <script>
 (() => {
-   "use strict";
+  "use strict";
 
   const MAX_SHAPES = 24;
   const COLOR_FREQ = {
@@ -357,99 +396,200 @@ footer {
     "#1A1A1A": 523.25
   };
 
-   /* ── Audio Engine ────────────────────────────────────── */
+  /* ── Audio Engine ───────────────────────────────────── */
   let audioCtx = null;
   let muted = false;
   let masterGain = null;
 
   function initAudio() {
-    if (audioCtx) return;
+    if (audioCtx) {
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      return;
+    }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.25;
+    masterGain.gain.value = 0.22;
     masterGain.connect(audioCtx.destination);
   }
 
+  // Rich tone with fundamentals + harmonics + subtle noise
   function playNote(freq, type, duration, delay, vol) {
     if (!audioCtx || muted) return;
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
     const t = audioCtx.currentTime + (delay || 0);
     const v = vol || 0.5;
+
+    // Fundamental
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(v, t + 0.008);
+    g.gain.linearRampToValueAtTime(v, t + 0.006);
     g.gain.exponentialRampToValueAtTime(0.001, t + duration);
     osc.connect(g);
     g.connect(masterGain);
     osc.start(t);
     osc.stop(t + duration + 0.02);
+
+    // Sub-octave layer for warmth
+    const osc2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(freq * 0.5, t);
+    g2.gain.setValueAtTime(0, t);
+    g2.gain.linearRampToValueAtTime(v * 0.15, t + 0.01);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.9);
+    osc2.connect(g2);
+    g2.connect(masterGain);
+    osc2.start(t);
+    osc2.stop(t + duration + 0.02);
   }
 
+  // Placement sound: layered based on shape and vertical position
   function playPlaceSound(shape, color, yRatio) {
     if (!audioCtx || muted) return;
     if (audioCtx.state === "suspended") audioCtx.resume();
     const base = COLOR_FREQ[color] || 261.63;
-    const pitchShift = 1 - yRatio;
-    const freq = base + pitchShift * 200;
+
+    // Position-aware pitch: higher on canvas = lower pitch (inverted y)
+    const pitchMod = 1 + (1 - yRatio) * 0.3;
+    const freq = base * pitchMod;
+
     const cfg = {
-      circle: { wave: "sine", harm: 0.5, dur: 0.45 },
-      square: { wave: "triangle", harm: 0.35, dur: 0.35 },
-      triangle: { wave: "sawtooth", harm: 0.2, dur: 0.4 }
-    }[shape] || { wave: "sine", harm: 0.4, dur: 0.4 };
-    playNote(freq, cfg.wave, cfg.dur, 0, 0.5);
-    playNote(freq * 1.5, "sine", cfg.dur * 0.7, 0.01, cfg.harm);
+      circle:   { wave: "sine",      harmRatio: 2, harmVol: 0.18, dur: 0.55 },
+      square:   { wave: "triangle",   harmRatio: 3, harmVol: 0.12, dur: 0.42 },
+      triangle: { wave: "sawtooth",   harmRatio: 1.5, harmVol: 0.1,  dur: 0.5 }
+    }[shape] || { wave: "sine", harmRatio: 2, harmVol: 0.15, dur: 0.5 };
+
+    // Fundamental
+    playNote(freq, cfg.wave, cfg.dur, 0, 0.45);
+    // Fifth harmonic
+    playNote(freq * 1.498, "sine", cfg.dur * 0.8, 0.005, 0.12);
+    // Octave shimmer
+    playNote(freq * 2, "sine", cfg.dur * 0.6, 0.015, cfg.harmVol);
+
+    // Transient click — subtle percussive texture
+    const now = audioCtx.currentTime;
+    const bufLen = Math.floor(audioCtx.sampleRate * 0.02);
+    const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.15));
+    }
+    const noise = audioCtx.createBufferSource();
+    const ng = audioCtx.createGain();
+    noise.buffer = buf;
+    ng.gain.setValueAtTime(0.06, now);
+    ng.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    noise.connect(ng);
+    ng.connect(masterGain);
+    noise.start(now);
   }
 
   function playResetSound() {
     if (!audioCtx || muted) return;
     const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(400, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.25);
-    g.gain.setValueAtTime(0.08, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    osc.connect(g); g.connect(masterGain);
-    osc.start(now); osc.stop(now + 0.27);
+    [392, 293.66, 220].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+      g.gain.setValueAtTime(0, now + i * 0.08);
+      g.gain.linearRampToValueAtTime(0.06, now + i * 0.08 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
+      osc.connect(g); g.connect(masterGain);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.22);
+    });
   }
 
   function playCompletionFanfare() {
     if (!audioCtx || muted) return;
+    const now = audioCtx.currentTime;
+
+    // Ascending chord — C major with color mapping
     const chord = [261.63, 329.63, 392, 523.25, 659.25, 783.99];
     chord.forEach((freq, i) => {
-      playNote(freq, "sine", 1.5, i * 0.05, 0.12);
-      playNote(freq * 1.5, "triangle", 1.2, i * 0.05 + 0.02, 0.05);
+      const t = now + i * 0.06;
+      // Main voice
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.08, t + 0.012);
+      g.gain.setValueAtTime(0.08, t + 0.8);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 2.8);
+      osc.connect(g); g.connect(masterGain);
+      osc.start(t); osc.stop(t + 2.9);
+
+      // Fifth harmony
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.type = "triangle";
+      osc2.frequency.setValueAtTime(freq * 1.5, t + 0.02);
+      g2.gain.setValueAtTime(0, t + 0.02);
+      g2.gain.linearRampToValueAtTime(0.035, t + 0.04);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+      osc2.connect(g2); g2.connect(masterGain);
+      osc2.start(t + 0.02); osc2.stop(t + 2.3);
     });
+
+    // Sub bass
     const bass = audioCtx.createOscillator();
     const bg = audioCtx.createGain();
     bass.type = "sine";
-    bass.frequency.setValueAtTime(65.41, audioCtx.currentTime);
-    bg.gain.setValueAtTime(0, audioCtx.currentTime);
-    bg.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.08);
-    bg.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.5);
+    bass.frequency.setValueAtTime(65.41, now);
+    bg.gain.setValueAtTime(0, now);
+    bg.gain.linearRampToValueAtTime(0.1, now + 0.1);
+    bg.gain.setValueAtTime(0.1, now + 1.5);
+    bg.gain.exponentialRampToValueAtTime(0.001, now + 3);
     bass.connect(bg); bg.connect(masterGain);
-    bass.start(); bass.stop(audioCtx.currentTime + 2.5);
+    bass.start(now); bass.stop(now + 3.1);
+
+    // High shimmer
+    const shimmer = audioCtx.createOscillator();
+    const sg = audioCtx.createGain();
+    shimmer.type = "sine";
+    shimmer.frequency.setValueAtTime(1568, now + 0.4);
+    sg.gain.setValueAtTime(0, now + 0.4);
+    sg.gain.linearRampToValueAtTime(0.02, now + 0.6);
+    sg.gain.exponentialRampToValueAtTime(0.001, now + 2);
+    shimmer.connect(sg); sg.connect(masterGain);
+    shimmer.start(now + 0.4); shimmer.stop(now + 2.1);
   }
 
   function playPlaySequenceSound(shape, color, yRatio) {
     if (!audioCtx || muted) return;
     const base = COLOR_FREQ[color] || 261.63;
-    const freq = base + (1 - yRatio) * 150;
+    const freq = base + (1 - yRatio) * 120;
     const wave = shape === "circle" ? "sine" : shape === "square" ? "triangle" : "sawtooth";
-    playNote(freq, wave, 0.3, 0, 0.35);
-    playNote(freq * 2, "sine", 0.2, 0.005, 0.1);
+
+    playNote(freq, wave, 0.25, 0, 0.35);
+    playNote(freq * 2, "sine", 0.18, 0.005, 0.08);
   }
 
   function playRandomNote() {
     if (!audioCtx || muted) return;
     const pent = [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
-    playNote(pent[Math.floor(Math.random() * pent.length)], "triangle", 0.25, 0, 0.3);
+    playNote(pent[Math.floor(Math.random() * pent.length)], "triangle", 0.3, 0, 0.25);
   }
 
-   /* ── Canvas Setup ────────────────────────────────────── */
+  function playSwatchClick() {
+    if (!audioCtx || muted) return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, now);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.04, now + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(now); osc.stop(now + 0.1);
+  }
+
+  /* ── Canvas Setup ─────────────────────────────────── */
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
   const wrap = document.getElementById("canvas-wrap");
@@ -468,7 +608,7 @@ footer {
 
   window.addEventListener("resize", () => { resize(); draw(); });
 
-   /* ── Shockwave Effect ───────────────────────────────── */
+  /* ── Shockwave Effect ─────────────────────────────── */
   function spawnShockwave(x, y, color) {
     const ring = document.createElement("div");
     ring.className = "shockwave";
@@ -479,7 +619,7 @@ footer {
     ring.addEventListener("animationend", () => ring.remove());
   }
 
-   /* ── Hint Overlay ───────────────────────────────────── */
+  /* ── Hint Overlay ─────────────────────────────────── */
   const hintOverlay = document.getElementById("hint-overlay");
   function dismissHint() {
     if (hintOverlay) {
@@ -488,7 +628,7 @@ footer {
     }
   }
 
-   /* ── Shapes & State ──────────────────────────────────── */
+  /* ── Shapes & State ───────────────────────────────── */
   const SHAPES = ["circle", "square", "triangle"];
   let shapeIndex = 0;
   let activeColor = "#D9381E";
@@ -497,7 +637,7 @@ footer {
   let completed = false;
 
   function addShape(cx, cy, type, color, size, instant) {
-    if (shapes.length >= MAX_SHAPES && !instant) {
+    if (shapes.length >= MAX_SHAPES && instant !== true) {
       showCompletionBanner();
       return null;
     }
@@ -521,19 +661,19 @@ footer {
     return s;
   }
 
-  function isComplete() { return shapes.length >= MAX_SHAPES; }
-
   function showCompletionBanner() {
     if (completed) return;
     completed = true;
     playCompletionFanfare();
+
     const flash = document.getElementById("completion-flash");
     flash.classList.add("active");
-    setTimeout(() => flash.classList.remove("active"), 300);
+    setTimeout(() => flash.classList.remove("active"), 1800);
+
     const banner = document.getElementById("completion-banner");
-    setTimeout(() => banner.classList.add("visible"), 200);
+    setTimeout(() => banner.classList.add("visible"), 400);
     setTimeout(() => banner.classList.remove("visible"), 3500);
-    setTimeout(() => { completed = false; }, 4000);
+    setTimeout(() => { completed = false; }, 4200);
   }
 
   function updateCount() {
@@ -543,12 +683,19 @@ footer {
     if (playBtn) playBtn.disabled = shapes.length === 0;
   }
 
-   /* ── Drawing ──────────────────────────────────────────── */
+  /* ── Drawing ──────────────────────────────────────── */
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
-    // subtle grid
-    ctx.strokeStyle = "rgba(255,255,255,0.02)";
+    // Background gradient — subtle radial from center
+    const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+    grad.addColorStop(0, "rgba(30,30,30,1)");
+    grad.addColorStop(1, "rgba(20,20,20,1)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid — slightly warmer and more visible
+    ctx.strokeStyle = "rgba(255,255,255,0.025)";
     ctx.lineWidth = 0.5;
     const step = 40;
     for (let x = step; x < W; x += step) {
@@ -558,6 +705,16 @@ footer {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
+    // Intersection dots
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    for (let x = 0; x < W; x += step) {
+      for (let y = 0; y < H; y += step) {
+        ctx.beginPath();
+        ctx.arc(x, y, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     for (const s of shapes) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, s.opacity));
@@ -565,11 +722,11 @@ footer {
       ctx.rotate(s.angle);
       ctx.scale(s.scale, s.scale);
 
-      // shadow
-      ctx.shadowColor = "rgba(0,0,0,0.35)";
-      ctx.shadowBlur = 14;
-      ctx.shadowOffsetX = 3;
-      ctx.shadowOffsetY = 4;
+      // Soft shadow
+      ctx.shadowColor = "rgba(0,0,0,0.3)";
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 3;
 
       ctx.fillStyle = s.color;
       ctx.beginPath();
@@ -577,19 +734,29 @@ footer {
       if (s.type === "circle") {
         ctx.arc(0, 0, s.size, 0, Math.PI * 2);
         ctx.fill();
+        // Inner ring
         ctx.shadowColor = "transparent";
-        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.strokeStyle = "rgba(0,0,0,0.08)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(0, 0, s.size * 0.6, 0, Math.PI * 2);
+        ctx.arc(0, 0, s.size * 0.55, 0, Math.PI * 2);
         ctx.stroke();
+        // Highlight
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        ctx.beginPath();
+        ctx.arc(-s.size * 0.2, -s.size * 0.2, s.size * 0.18, 0, Math.PI * 2);
+        ctx.fill();
       } else if (s.type === "square") {
         const hs = s.size * 0.82;
         ctx.fillRect(-hs, -hs, hs * 2, hs * 2);
+        // Inner square
         ctx.shadowColor = "transparent";
-        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.strokeStyle = "rgba(0,0,0,0.08)";
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(-hs * 0.6, -hs * 0.6, hs * 1.2, hs * 1.2);
+        ctx.strokeRect(-hs * 0.55, -hs * 0.55, hs * 1.1, hs * 1.1);
+        // Highlight
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillRect(-hs + 2, -hs + 2, hs * 0.5, hs * 0.5);
       } else if (s.type === "triangle") {
         const r = s.size * 1.05;
         ctx.moveTo(0, -r);
@@ -597,11 +764,12 @@ footer {
         ctx.lineTo(r * 0.866, r * 0.5);
         ctx.closePath();
         ctx.fill();
+        // Inner triangle
         ctx.shadowColor = "transparent";
-        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.strokeStyle = "rgba(0,0,0,0.08)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        const r2 = r * 0.5;
+        const r2 = r * 0.45;
         ctx.moveTo(0, -r2);
         ctx.lineTo(-r2 * 0.866, r2 * 0.5);
         ctx.lineTo(r2 * 0.866, r2 * 0.5);
@@ -612,21 +780,21 @@ footer {
       ctx.restore();
     }
 
-    // draw highlight ring for playing shape
+    // Highlight ring for playing shape
     if (highlightShape) {
       const hs = highlightShape;
       ctx.save();
       ctx.strokeStyle = hs.color;
-      ctx.globalAlpha = 0.35;
+      ctx.globalAlpha = 0.3;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(hs.cx, hs.cy, hs.size * 1.4, 0, Math.PI * 2);
+      ctx.arc(hs.cx, hs.cy, hs.size * 1.5, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
   }
 
-   /* ── Physics / Animation ─────────────────────────────── */
+  /* ── Physics / Animation ──────────────────────────── */
   const SPRING_K = 0.14;
   const SPRING_DAMP = 0.82;
 
@@ -665,7 +833,7 @@ footer {
     rafId = requestAnimationFrame(loop);
   }
 
-   /* ── Collapse Animation (Reset) ──────────────────────── */
+  /* ── Collapse Animation (Reset) ───────────────────── */
   let collapsing = false;
 
   function collapseShapes() {
@@ -680,7 +848,7 @@ footer {
       s.settling = false;
       s.targetScale = 0;
       s.targetOpacity = 0;
-      s.angle = (Math.random() - 0.5) * 0.4;
+      s.angle = (Math.random() - 0.5) * 0.5;
       s.vy = -2.5 - Math.random() * 3;
       s.vx = (Math.random() - 0.5) * 5;
       s._cvScale = 0;
@@ -717,7 +885,7 @@ footer {
     requestAnimationFrame(fallFrame);
   }
 
-   /* ── Play Sequence ───────────────────────────────────── */
+  /* ── Play Sequence ────────────────────────────────── */
   let isPlaying = false;
   let highlightShape = null;
 
@@ -735,13 +903,13 @@ footer {
       return diff !== 0 ? diff : a.birthOrder - b.birthOrder;
     });
 
-    const baseDelay = Math.max(80, Math.min(180, 2400 / shapes.length));
+    const baseDelay = Math.max(70, Math.min(160, 2200 / shapes.length));
 
     sorted.forEach(({ s: shape, birthOrder }, order) => {
       setTimeout(() => {
-        // Temporarily hide then show
+        // Fade out then pop back in
         shape.opacity = 0;
-        shape.scale = 0.3;
+        shape.scale = 0.25;
         shape.settling = true;
         shape.targetScale = 1;
         shape.targetOpacity = 1;
@@ -755,16 +923,17 @@ footer {
         const hideHighlight = setTimeout(() => {
           highlightShape = null;
           draw();
-        }, 180);
+        }, 160);
 
         if (order === sorted.length - 1) {
           setTimeout(() => {
             isPlaying = false;
             if (playBtn) playBtn.disabled = false;
-            // Small resolution chord
+            // Resolution chord
             if (audioCtx && !muted) {
-              const freqs = [261.63, 329.63, 392, 523.25];
-              freqs.forEach((f, i) => playNote(f, "sine", 0.8, i * 0.04, 0.08));
+              [261.63, 329.63, 392, 523.25].forEach((f, fi) => {
+                playNote(f, "sine", 0.9, fi * 0.06, 0.07);
+              });
             }
           }, baseDelay);
         }
@@ -772,45 +941,53 @@ footer {
     });
   }
 
-   /* ── Random Composition ───────────────────────────────── */
+  /* ── Random Composition ───────────────────────────── */
   let randomizing = false;
 
   function randomComposition() {
     if (randomizing) return;
     randomizing = true;
     initAudio();
-    collapseShapes();
+    if (shapes.length) {
+      collapseShapes();
+    } else {
+      doRandomPlacement();
+    }
 
-    const check = setInterval(() => {
-      if (!collapsing) {
-        clearInterval(check);
-        const count = 6 + Math.floor(Math.random() * (MAX_SHAPES - 5));
-        const colors = ["#D9381E", "#F6C42E", "#1E50D9", "#FAFAF7", "#1A1A1A"];
-        const pad = 30;
-
-        for (let i = 0; i < count; i++) {
-          const x = pad + Math.random() * (W - pad * 2);
-          const y = pad + Math.random() * (H - pad * 2);
-          const size = 18 + Math.random() * 42;
-          const type = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-          const color = colors[Math.floor(Math.random() * colors.length)];
-          setTimeout(() => {
-            addShape(x, y, type, color, size);
-            playRandomNote();
-            const rect = wrap.getBoundingClientRect();
-            spawnShockwave(x, y, color);
-          }, i * 80);
+    if (shapes.length > 0) {
+      const check = setInterval(() => {
+        if (!collapsing) {
+          clearInterval(check);
+          doRandomPlacement();
         }
-        if (count >= MAX_SHAPES) {
-          setTimeout(showCompletionBanner, count * 80 + 400);
-        }
-        randomizing = false;
-        updateCount();
-      }
-    }, 60);
+      }, 60);
+    }
   }
 
-   /* ── Input Handling ────────────────────────────────────── */
+  function doRandomPlacement() {
+    const count = 6 + Math.floor(Math.random() * (MAX_SHAPES - 5));
+    const colors = ["#D9381E", "#F6C42E", "#1E50D9", "#FAFAF7", "#1A1A1A"];
+    const pad = 30;
+
+    for (let i = 0; i < count; i++) {
+      const x = pad + Math.random() * (W - pad * 2);
+      const y = pad + Math.random() * (H - pad * 2);
+      const size = 18 + Math.random() * 42;
+      const type = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      setTimeout(() => {
+        addShape(x, y, type, color, size, true);
+        playRandomNote();
+        spawnShockwave(x, y, color);
+      }, i * 75);
+    }
+    setTimeout(() => {
+      if (shapes.length >= MAX_SHAPES) showCompletionBanner();
+      randomizing = false;
+    }, count * 75 + 400);
+  }
+
+  /* ── Input Handling ───────────────────────────────── */
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -828,7 +1005,7 @@ footer {
     const { x, y } = getCanvasPos(e);
     const type = SHAPES[shapeIndex];
     const size = 22 + Math.random() * 28;
-    const s = addShape(x, y, type, activeColor, size);
+    const s = addShape(x, y, type, activeColor, size, false);
     if (s) {
       playPlaceSound(type, activeColor, y / H);
       spawnShockwave(x, y, activeColor);
@@ -838,33 +1015,45 @@ footer {
     updateShapeIndicator();
   });
 
-  canvas.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-  });
+  canvas.addEventListener("contextmenu", (e) => { e.preventDefault(); });
 
-   /* ── UI Bindings ─────────────────────────────────────── */
+  /* ── UI Bindings ──────────────────────────────────── */
   function updateShapeIndicator() {
     const dot = document.getElementById("current-shape-dot");
     const label = document.getElementById("current-shape-label");
     const type = SHAPES[shapeIndex];
     label.textContent = type;
-    dot.style.borderRadius = type === "circle" ? "50%" : type === "square" ? "3px" : "2px";
+    dot.style.borderRadius = type === "circle" ? "50%" : type === "square" ? "2px" : "2px";
     dot.style.background = activeColor;
+    if (type === "triangle") {
+      dot.style.width = "0";
+      dot.style.height = "0";
+      dot.style.background = "none";
+      dot.style.borderLeft = "5.5px solid transparent";
+      dot.style.borderRight = "5.5px solid transparent";
+      dot.style.borderBottom = "11px solid " + activeColor;
+    } else {
+      dot.style.borderLeft = "";
+      dot.style.borderRight = "";
+      dot.style.borderBottom = "";
+      dot.style.width = "11px";
+      dot.style.height = "11px";
+    }
   }
 
   document.querySelectorAll(".swatch").forEach(el => {
     el.addEventListener("click", () => {
-      document.querySelector(".swatch.active").classList.remove("active");
+      document.querySelector(".swatch.active")?.classList.remove("active");
       el.classList.add("active");
       activeColor = el.dataset.color;
       updateShapeIndicator();
       initAudio();
-      playRandomNote();
+      playSwatchClick();
     });
   });
 
-  document.getElementById("reset-btn").addEventListener("click", collapseShapes);
-  document.getElementById("randomize-btn").addEventListener("click", () => { initAudio(); randomComposition(); });
+  document.getElementById("reset-btn").addEventListener("click", () => { initAudio(); collapseShapes(); });
+  document.getElementById("randomize-btn").addEventListener("click", randomComposition);
   document.getElementById("play-btn").addEventListener("click", () => { initAudio(); playSequence(); });
 
   const muteBtn = document.getElementById("mute-btn");
@@ -874,21 +1063,55 @@ footer {
     muteBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
   });
 
-   /* ── Keyboard Accessibility ──────────────────────────── */
+  /* ── Keyboard Accessibility ──────────────────────── */
   document.addEventListener("keydown", (e) => {
     if (e.key === "r" || e.key === "R") { initAudio(); collapseShapes(); }
     if (e.key === " ") { e.preventDefault(); initAudio(); randomComposition(); }
     if (e.key === "m" || e.key === "M") muteBtn.click();
     if (e.key === "p" || e.key === "P") { initAudio(); playSequence(); }
+    // Tab through shapes with 1, 2, 3
+    if (e.key === "1") { shapeIndex = 0; updateShapeIndicator(); }
+    if (e.key === "2") { shapeIndex = 1; updateShapeIndicator(); }
+    if (e.key === "3") { shapeIndex = 2; updateShapeIndicator(); }
   });
 
-   /* ── Init ────────────────────────────────────────────── */
+  /* ── Cursor preview ──────────────────────────────── */
+  // Draw shape preview under cursor while on canvas
+  canvas.addEventListener("pointermove", (e) => {
+    if (collapsing || randomizing || isPlaying) { draw(); return; }
+    const { x, y } = getCanvasPos(e);
+    draw();
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.translate(x, y);
+    const type = SHAPES[shapeIndex];
+    const previewSize = 26;
+    ctx.fillStyle = activeColor;
+    ctx.beginPath();
+    if (type === "circle") {
+      ctx.arc(0, 0, previewSize, 0, Math.PI * 2);
+    } else if (type === "square") {
+      const hs = previewSize * 0.82;
+      ctx.rect(-hs, -hs, hs * 2, hs * 2);
+    } else if (type === "triangle") {
+      const r = previewSize * 1.05;
+      ctx.moveTo(0, -r);
+      ctx.lineTo(-r * 0.866, r * 0.5);
+      ctx.lineTo(r * 0.866, r * 0.5);
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.restore();
+  });
+
+  canvas.addEventListener("pointerleave", () => { draw(); });
+
+  /* ── Init ────────────────────────────────────────── */
   resize();
   updateShapeIndicator();
   updateCount();
   draw();
   loop();
-
 })();
 </script>
 </body>
