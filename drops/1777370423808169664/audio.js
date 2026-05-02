@@ -42,6 +42,10 @@ const AudioEngine = (function () {
     isMuted,
     schedule,
     getCtx,
+    cueInput,
+    cueSuccess,
+    cueReset,
+    cueFail,
   };
 
   // == Context activation (user-triggered to avoid autoplay block) ==
