@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bauhaus Kinetic Weave</title>
+    <link rel="stylesheet" href="https://ystackai.com/shared/studio-theme.css?v=20260327-avatarfix1">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            overflow: hidden;
+            touch-action: none;
+            font-family: 'Inter','Segoe UI',sans-serif;
+        }
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        #controls {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 14px 24px;
+            border-radius: 60px;
+            border: 1px solid rgba(255,255,255,0.08);
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #controls label {
+            color: #ccc;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        #controls input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 80px;
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #e02a2a 0%, #2a6be0 50%, #e0d52a 100%);
+            outline: none;
+        }
+        #controls input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #222;
+            cursor: pointer;
+        }
+        #controls input[type=range]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #222;
+            cursor: pointer;
+        }
+        #controls button {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #eee;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #controls button:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.3);
+        }
+        #controls button.active {
+            background: rgba(224, 42, 42, 0.4);
+            border-color: #e02a2a;
+        }
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            font-weight: 400;
+            font-family: monospace;
+            z-index: 10;
+            line-height: 1.6;
+        }
+        #info strong { color: rgba(255,255,255,0.7); }
+        #toggle-fullscreen {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(20,20,20,0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.5);
+            padding: 8px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #toggle-fullscreen:hover { background: rgba(255,255,255,0.1); }
+        @media (max-width: 600px) {
+            #controls { padding: 10px 16px; gap: 10px; border-radius: 40px; }
+            #controls input[type=range] { width: 60px; }
+        }
+    </style>
+</head>
+<body>
+<div id="info">
+<span id="fps">—</span> fps &nbsp;·&nbsp; <strong id="row">0</strong> rows · <strong id="col">0</strong> cols · <span id="note">—</span>
+</div>
+<div id="toggle-fullscreen">⛶</div>
+<div id="controls">
+    <label>Warp</label>
+    <input type="range" id="warpHue" min="0" max="360" value="200" step="1">
+    <label>Weft</label>
+    <input type="range" id="weftHue" min="0" max="360" value="30" step="1">
+    <label>Density</label>
+    <input type="range" id="density" min="2" max="64" value="16" step="1">
+    <label>Speed</label>
+    <input type="range" id="speed" min="0" max="100" value="40" step="1">
+    <button id="patternBtn">Pattern</button>
+    <button id="toggleAudio">♪ Audio</button>
+</div>
+<script>
+(function(){
+    const canvas = document.createElement('canvas');
+    document.body.prepend(canvas);
+    const ctx = canvas.getContext('2d');
+
+    let W, H;
+    function resize() {
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W * devicePixelRatio;
+        canvas.height = H * devicePixelRatio;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // --- Controls ---
+    const warpSlider = document.getElementById('warpHue');
+    const weftSlider = document.getElementById('weftHue');
+    const densitySlider = document.getElementById('density');
+    const speedSlider = document.getElementById('speed');
+    const patternBtn = document.getElementById('patternBtn');
+    const toggleAudioBtn = document.getElementById('toggleAudio');
+    const fpsEl = document.getElementById('fps');
+    const rowEl = document.getElementById('row');
+    const colEl = document.getElementById('col');
+    const noteEl = document.getElementById('note');
+
+    let warpHue = 200;
+    let weftHue = 30;
+    let density = 16;
+    let speed = 0.4;
+    let audioEnabled = false;
+    let audioCtx = null;
+    let gainNode = null;
+
+    // Pattern types: Bauhaus weave patterns
+    const PATTERNS = [
+        'plain',       // plain weave — over/under
+        'twill',       // diagonal step
+        'herringbone', // V-shaped zigzag
+        'satin',       // floating threads at intervals
+        'basket',      // paired threads
+        'honeycomb',   // hexagonal cells
+    ];
+    let patternIdx = 0;
+    let currentPattern = PATTERNS[0];
+
+    // --- Audio setup (Web Audio Tone Generator) ---
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 0.06;
+        gainNode.connect(audioCtx.destination);
+    }
+
+    function playWeaveNote(row, col, totalRows, totalCols) {
+        if (!audioEnabled || !audioCtx) return;
+        // Map row+col to a pentatonic scale note
+        const pentatonic = [0, 2, 4, 7, 9]; // major pentatonic
+        const idx1 = (row + col) % pentatonic.length;
+        const idx2 = (row * 7 + col * 13) % pentatonic.length;
+        const baseNote = pentatonic[idx1] + pentatonic[idx2] * 12;
+        const freq = 55 * Math.pow(2, (baseNote % 48) / 12);
+        const osc = audioCtx.createOscillator();
+        const vol = audioCtx.createGain();
+        osc.type = ['sine','triangle','sawtooth'][Math.floor(row) % 3];
+        osc.frequency.value = freq;
+        vol.gain.setValueAtTime(0, audioCtx.currentTime);
+        vol.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.01);
+        vol.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1 + (col/totalCols)*0.2);
+        osc.connect(vol);
+        vol.connect(gainNode);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15 + (col/totalCols)*0.2);
+        osc.onended = () => osc.disconnect();
+    }
+
+    // --- Weave state ---
+    let phase = 0;
+    let lastFrame = 0;
+    let frameCount = 0;
+    let fpsCounter = 0;
+    let fpsTime = 0;
+
+    // Mouse interaction
+    let mouseX = -1, mouseY = -1, mouseDown = false;
+    let touchX = -1, touchY = -1;
+
+    function getPatternOffset(row, col, totalRows, totalCols) {
+        const c = currentPattern;
+        if (c === 'plain') {
+            return ((row + col) % 2 === 0) ? 1 : 0;
+        }
+        if (c === 'twill') {
+            return ((row + col * 2) % 3 === 0) ? 1 : 0;
+        }
+        if (c === 'herringbone') {
+            const half = Math.floor(totalCols / 2);
+            const flip = col < half ? 1 : -1;
+            return ((row * flip + col) % 3 === 0) ? 1 : 0;
+        }
+        if (c === 'satin') {
+            return ((row * 3 + col * 5) % 7 < 3) ? 1 : 0;
+        }
+        if (c === 'basket') {
+            const pairRow = Math.floor(row / 2);
+            const pairCol = Math.floor(col / 2);
+            return ((pairRow + pairCol) % 2 === 0) ? 1 : 0;
+        }
+        if (c === 'honeycomb') {
+            // hexagonal offset
+            const offset = Math.floor(col / 2) % 2 === 0 ? 0 : 1;
+            return ((row + offset) % 3 === 0 && col % 2 === 0) ? 1 : 0;
+        }
+        return ((row + col) % 2 === 0) ? 1 : 0;
+    }
+
+    // --- Main render ---
+    function draw(t) {
+        const w = W, h = H;
+        const dpr = devicePixelRatio || 1;
+        ctx.clearRect(0, 0, w * dpr, h * dpr);
+
+        // Read controls
+        warpHue = parseFloat(warpSlider.value);
+        weftHue = parseFloat(weftSlider.value);
+        density = parseInt(densitySlider.value, 10);
+        speed = parseFloat(speedSlider.value) / 100;
+
+        // Determine grid size from density
+        const cols = density;
+        const rows = density;
+        const cellW = w / cols;
+        const cellH = h / rows;
+
+        // Phase shift for motion (speed-based wave)
+        phase += speed * 0.04;
+        const waveInfluence = Math.sin(phase);
+
+        rowEl.textContent = rows;
+        colEl.textContent = cols;
+
+        // Mouse / touch influence: weft pull
+        const mx = mouseX > 0 ? mouseX / w : (touchX > 0 ? touchX / w : -1);
+        const my = mouseY > 0 ? mouseY / h : (touchY > 0 ? touchY / h : -1);
+
+        // Weave loop
+        let noteTimer = 0;
+        const noteInterval = Math.max(1, Math.floor(rows * cols / 80));
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = c * cellW;
+                const y = r * cellH;
+
+                // Pattern base
+                const weaveBit = getPatternOffset(r, c, rows, cols);
+
+                // Motion wave: add organic drift to the weave
+                const driftX = Math.sin(phase * 1.3 + r * 0.5 + c * 0.3) * 0.15;
+                const driftY = Math.cos(phase * 1.1 + r * 0.7 + c * 0.2) * 0.15;
+                const motion = Math.sin(phase * 0.8 + r * 0.4 + c * 0.6) * 0.3 + 0.3;
+
+                // Mouse influence: pull weft towards cursor
+                let mousePull = 0;
+                if (mx > 0 && my > 0) {
+                    const dx = (c / cols) - mx;
+                    const dy = (r / rows) - my;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 0.3) {
+                        mousePull = (1 - dist / 0.3) * 0.5;
+                    }
+                }
+
+                // Combine weave + motion + mouse
+                const combined = weaveBit + driftX + driftY + motion + mousePull;
+                const fill = Math.max(0, Math.min(1, combined));
+
+                // Color mixing: warp hue + weft hue based on fill
+                const mix = fill;
+                const hue = warpHue * (1 - mix) + weftHue * mix;
+                const sat = 70 + 20 * (1 - Math.abs(mix - 0.5));
+                const light = 30 + 40 * fill;
+
+                // Draw cell with Bauhaus geometric detail
+                const cellCenterX = x + cellW / 2;
+                const cellCenterY = y + cellH / 2;
+                const shrink = 0.85 + 0.1 * Math.sin(phase + r * 0.2 + c * 0.3);
+
+                ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
+                ctx.fillRect(x, y, cellW, cellH);
+
+                // Thread-line overlays (Bauhaus weave detail)
+                if (weaveBit > 0.5) {
+                    // Warp thread (vertical lines)
+                    ctx.strokeStyle = `hsl(${warpHue}, 80%, ${50 + 20 * motion}%)`;
+                    ctx.lineWidth = 1.5 * dpr;
+                    ctx.beginPath();
+                    ctx.moveTo(x + cellW/2, y);
+                    ctx.lineTo(x + cellW/2, y + cellH);
+                    ctx.stroke();
+                } else {
+                    // Weft thread (horizontal lines)
+                    ctx.strokeStyle = `hsl(${weftHue}, 80%, ${50 + 20 * motion}%)`;
+                    ctx.lineWidth = 1.5 * dpr;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y + cellH/2);
+                    ctx.lineTo(x + cellW, y + cellH/2);
+                    ctx.stroke();
+                }
+
+                // Bauhaus dot motif at intersections
+                const dotSize = 2 * dpr + 1 * motion * dpr;
+                ctx.beginPath();
+                ctx.arc(cellCenterX, cellCenterY, dotSize, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${hue + 60}, 60%, 70%, ${0.3 + 0.3 * motion})`;
+                ctx.fill();
+
+                // Audio trigger
+                if (audioEnabled) {
+                    noteTimer++;
+                    if (noteTimer % noteInterval === 0) {
+                        playWeaveNote(r, c, rows, cols);
+                    }
+                }
+            }
+        }
+
+        // --- Overlay Bauhaus border geometry ---
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 2 * dpr;
+        ctx.strokeRect(20 * dpr, 20 * dpr, (w - 40) * dpr, (h - 40) * dpr);
+
+        // Corner circles (Bauhaus signature)
+        const cornerR = 12 * dpr;
+        const corners = [
+            [20, 20], [w - 20, 20], [20, h - 20], [w - 20, h - 20]
+        ];
+        corners.forEach(([cx, cy]) => {
+            ctx.beginPath();
+            ctx.arc(cx * dpr, cy * dpr, cornerR, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${warpHue}, 60%, 60%, 0.15)`;
+            ctx.fill();
+        });
+
+        // FPS
+        frameCount++;
+        const now = performance.now();
+        if (now - fpsTime >= 1000) {
+            fpsEl.textContent = frameCount;
+            frameCount = 0;
+            fpsTime = now;
+        }
+    }
+
+    // --- Animation loop ---
+    function loop(ts) {
+        draw(ts);
+        requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // --- Mouse / Touch ---
+    function handleMove(x, y, pressed) {
+        mouseX = x; mouseY = y; mouseDown = pressed;
+        touchX = -1; touchY = -1;
+    }
+    function handleTouch(x, y) {
+        touchX = x; touchY = y;
+        mouseX = -1; mouseY = -1;
+    }
+
+    document.addEventListener('mousedown', e => handleMove(e.clientX, e.clientY, true));
+    document.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, mouseDown));
+    document.addEventListener('mouseup', () => handleMove(mouseX, mouseY, false));
+    document.addEventListener('touchstart', e => {
+        const t = e.touches[0];
+        handleTouch(t.clientX, t.clientY);
+        e.preventDefault();
+    }, {passive: false});
+    document.addEventListener('touchmove', e => {
+        const t = e.touches[0];
+        handleTouch(t.clientX, t.clientY);
+        e.preventDefault();
+    }, {passive: false});
+    document.addEventListener('touchend', () => {
+        touchX = -1; touchY = -1;
+    });
+
+    // --- Pattern cycling ---
+    patternBtn.addEventListener('click', () => {
+        patternIdx = (patternIdx + 1) % PATTERNS.length;
+        currentPattern = PATTERNS[patternIdx];
+        patternBtn.textContent = PATTERNS[patternIdx];
+    });
+
+    // --- Audio toggle ---
+    toggleAudioBtn.addEventListener('click', () => {
+        if (!audioEnabled) {
+            initAudio();
+            audioEnabled = true;
+            toggleAudioBtn.classList.add('active');
+            toggleAudioBtn.textContent = '♪ On';
+        } else {
+            audioEnabled = false;
+            toggleAudioBtn.classList.remove('active');
+            toggleAudioBtn.textContent = '♪ Audio';
+        }
+    });
+
+    // --- Fullscreen ---
+    document.getElementById('toggle-fullscreen').addEventListener('click', () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            document.body.requestFullscreen();
+        }
+    });
+
+    // --- Note display ---
+    setInterval(() => {
+        const pentatonic = ['C','D','E','G','A'];
+        const idx = Math.floor(Math.random() * pentatonic.length);
+        noteEl.textContent = pentatonic[idx] + Math.floor(Math.random() * 3 + 3);
+    }, 500);
+
+    // Set initial pattern label
+    patternBtn.textContent = currentPattern;
+
+    console.log('Bauhaus Kinetic Weave — warp/weft loom instrument');
+})();
+</script>
+</body>
+</html>

@@ -54,7 +54,21 @@
     "last_reset_at": ""
   },
   "games": {
-    "shipped": [],
+    "shipped": [
+      {
+        "title": "Kinetic Weave",
+        "summary": "A loom-inspired interactive art instrument. Warp and weft threads weave a responsive kinetic canvas with Bauhaus textile patterns, motion sonification, and hue-shifting controls.",
+        "mashup": "Bauhaus weave \u00b7 Web Audio \u00b7 HSL loom",
+        "play_url": "/bauhaus/drops/1778640942196005/",
+        "studio_url": "/bauhaus/drops/1778640942196005/",
+        "tags": [
+          "weave",
+          "kinetic",
+          "audio",
+          "bauhaus"
+        ]
+      }
+    ],
     "upcoming": {},
     "building": {}
   },

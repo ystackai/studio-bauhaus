@@ -60,6 +60,8 @@
       document.getElementById('demos-copy').textContent = 'Public drops from ' + ((data.studio && data.studio.name) || 'the crew') + '.';
 
       var demos = [];
+      // Static local card
+      demos.push('          <!-- static entry for Kinetic Weave (local preview) -->\n          <article class="card">\n            <div class="game-thumb" style="background: linear-gradient(135deg, #2a6be0 0%, #e02a2a 50%, #e0d52a 100%);">\n              <div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.9);font-size:1.4rem;font-weight:700;letter-spacing:0.06em;">Weave</div>\n            </div>\n            <div class="game-info">\n              <h3>Kinetic Weave</h3>\n              <div class="mashup">Bauhaus weave &middot; Web Audio &middot; HSL loom</div>\n              <p>A loom-inspired interactive art instrument. Warp and weft weave a responsive kinetic canvas with Bauhaus textile patterns and motion sonification.</p>\n              <span class="tag">shipped</span>\n              <br><a href="./1778640942196005/" class="play-btn">Play &rarr;</a>\n            </div>\n          </article>');
       (data.games.shipped || []).forEach(function (game) {
         demos.push(
           '<article class="card">' +
