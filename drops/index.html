@@ -54,26 +54,43 @@
     }
     var studioSlug = StudioShell.detectSlug('bauhaus');
 
+    // Local static drops (shown when API data is unavailable or as fallback)
+    var localDrops = [
+      { title: "Bauhaus Composer", mashup: "canvas · geometric composition toy", summary: "Create and arrange geometric forms in the Bauhaus style. Drag, resize, recolor, compose.", play_url: "/bauhaus/drops/bauhaus-composer/" },
+      { title: "Grain Snap", mashup: "canvas · strain grid toy", summary: "A grid-based strain-and-snap experiment.", play_url: "/bauhaus/drops/1776192006558993060/" }
+    ];
+
+    function renderDropCard(game) {
+      return '<article class="card">' +
+        '<div class="game-thumb"><img src="' + esc(gameScreenshot(game)) + '" alt="' + esc(game.title) + '" onerror="this.style.display=\'none\'"></div>' +
+        '<div class="game-info">' +
+          '<h3>' + esc(game.title) + '</h3>' +
+          (game.mashup ? '<div class="mashup">' + esc(game.mashup) + '</div>' : '') +
+          '<p>' + esc(game.summary || '') + '</p>' +
+          '<span class="tag">shipped</span>' +
+          '<br><a href="' + esc(gameUrl(game)) + '" class="play-btn">Play →</a>' +
+        '</div>' +
+      '</article>';
+    }
+
     StudioShell.init(studioSlug).then(function (data) {
       document.title = 'Drops — ' + ((data.studio && data.studio.name) || studioSlug);
       StudioShell.renderNav('nav');
       document.getElementById('demos-copy').textContent = 'Public drops from ' + ((data.studio && data.studio.name) || 'the crew') + '.';
 
       var demos = [];
+
+      // API shipped drops
       (data.games.shipped || []).forEach(function (game) {
-        demos.push(
-          '<article class="card">' +
-            '<div class="game-thumb"><img src="' + esc(gameScreenshot(game)) + '" alt="' + esc(game.title) + '" onerror="this.style.display=\'none\'"></div>' +
-            '<div class="game-info">' +
-              '<h3>' + esc(game.title) + '</h3>' +
-              (game.mashup ? '<div class="mashup">' + esc(game.mashup) + '</div>' : '') +
-              '<p>' + esc(game.summary || '') + '</p>' +
-              '<span class="tag">shipped</span>' +
-              '<br><a href="' + esc(gameUrl(game)) + '" class="play-btn">Play →</a>' +
-            '</div>' +
-          '</article>'
-        );
+        demos.push(renderDropCard(game));
       });
+
+      // If no API data, show local drops
+      if (demos.length === 0) {
+        localDrops.forEach(function (game) {
+          demos.push(renderDropCard(game));
+        });
+      }
 
       if (data.games.upcoming) {
         var game = data.games.upcoming;
@@ -94,7 +111,12 @@
       document.getElementById('demo-grid').innerHTML = demos.join('') || '<div class="empty-state">No drops published yet.</div>';
       document.getElementById('footer').innerHTML = Components.footer();
     }).catch(function () {
-      document.getElementById('demo-grid').innerHTML = '<div class="empty-state">Drop catalog unavailable.</div>';
+      // API unavailable — render local drops
+      var demos = [];
+      localDrops.forEach(function (game) {
+        demos.push(renderDropCard(game));
+      });
+      document.getElementById('demo-grid').innerHTML = demos.join('') || '<div class="empty-state">Drop catalog unavailable.</div>';
     });
   })();
   </script>
