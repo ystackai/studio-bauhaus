@@ -370,6 +370,16 @@ document.addEventListener('keydown', function (e) {
         selectedIdx = -1;
         render();
     }
+    if (e.key === 'g' || e.key === 'G') {
+        gridVisible = !gridVisible;
+        var gridBtn = document.getElementById('btn-grid');
+        if (gridBtn) gridBtn.textContent = gridVisible ? 'Grid On' : 'Grid Off';
+        render();
+    }
+    if (e.key === 'e' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        exportPNG();
+    }
     if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -519,3 +529,28 @@ setTimeout(function () {
     var tip = document.getElementById('help-tip');
     if (tip) tip.style.opacity = '0';
 }, 8000);
+
+// ── Export PNG ──
+function exportPNG() {
+    var oldGrid = gridVisible;
+    var oldSel = selectedIdx;
+    gridVisible = false;
+    selectedIdx = -1;
+    render();
+
+    var canvasEl = document.getElementById('composer');
+    var link = document.createElement('a');
+    link.download = 'bauhaus-composition-' + Date.now() + '.png';
+    link.href = canvasEl.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // restore
+    gridVisible = oldGrid;
+    selectedIdx = oldSel;
+    render();
+}
+
+// Wire export button
+document.getElementById('btn-export').addEventListener('click', exportPNG);
