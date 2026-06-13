@@ -11,136 +11,251 @@
     --blue: #2D3D8D;
     --black: #1A1A1A;
     --white: #FAFAFA;
+    --grid: #E0E0E0;
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background: var(--white);
     color: var(--black);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     min-height: 100vh;
-    padding: 2rem;
   }
-  .container {
-    max-width: 640px;
-    text-align: center;
+  .wrapper {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
   }
   h1 {
-    font-size: 2.4rem;
+    font-size: 2.6rem;
     font-weight: 700;
-    letter-spacing: -0.02em;
-    margin-bottom: 1rem;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.25rem;
   }
-  h1 span.red { color: var(--red); }
-  h1 span.yellow { color: var(--yellow); }
-  h1 span.blue { color: var(--blue); }
+  h1 span:nth-child(1) { color: var(--red); }
+  h1 span:nth-child(2) { color: var(--yellow); }
+  h1 span:nth-child(3) { color: var(--blue); }
+  h1 span:nth-child(4) { color: var(--black); }
   .subtitle {
-    font-size: 1rem;
-    color: #666;
+    font-size: 0.95rem;
+    color: #555;
     margin-bottom: 2rem;
-    line-height: 1.6;
+    line-height: 1.5;
+    max-width: 560px;
   }
-  .preview-card {
-    background: var(--white);
+  .card {
     border: 2px solid var(--black);
-    padding: 2rem;
-    margin-bottom: 2rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    background: var(--white);
   }
-  .preview-card h2 {
-    font-size: 1.1rem;
+  .card h2 {
+    font-size: 0.95rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     margin-bottom: 1rem;
     color: var(--blue);
+    font-weight: 700;
   }
-  .preview-card p { font-size: 0.9rem; line-height: 1.6; }
   .shape-row {
     display: flex;
     justify-content: center;
-    gap: 1.5rem;
-    margin: 1.5rem 0;
+    gap: 1.25rem;
+    margin: 1.25rem 0;
+    flex-wrap: wrap;
   }
   .shape {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.2s ease;
+    cursor: pointer;
   }
+  .shape:hover { transform: scale(1.15); }
   .shape-circle { background: var(--red); border-radius: 50%; }
   .shape-square { background: var(--yellow); }
   .shape-triangle {
     width: 0; height: 0;
-    border-left: 26px solid transparent;
-    border-right: 26px solid transparent;
-    border-bottom: 48px solid var(--blue);
+    border-left: 28px solid transparent;
+    border-right: 28px solid transparent;
+    border-bottom: 52px solid var(--blue);
     background: transparent;
   }
   .shape-line {
-    width: 48px; height: 4px;
+    width: 52px; height: 5px;
     background: var(--black);
   }
   .shape-cross {
-    width: 48px; height: 48px;
+    width: 52px; height: 52px;
     background: var(--black);
-    clip-path: polygon(16px 0, 32px 0, 32px 16px, 48px 16px, 48px 32px, 32px 32px, 32px 48px, 16px 48px, 16px 32px, 0 32px, 0 16px, 16px 16px);
+    clip-path: polygon(18px 0, 34px 0, 34px 18px, 52px 18px, 52px 34px, 34px 34px, 34px 52px, 18px 52px, 18px 34px, 0 34px, 0 18px, 18px 18px);
   }
-  .verb-list {
-    text-align: left;
-    margin-top: 1rem;
+  .verbs {
+    margin-top: 0.75rem;
     font-size: 0.85rem;
-    line-height: 2;
+    line-height: 1.9;
   }
-  .verb-list strong { color: var(--red); }
-  a.btn {
+  .verbs strong { color: var(--red); font-weight: 600; }
+  .grid-demo {
+    display: grid;
+    grid-template-columns: repeat(6, 48px);
+    grid-template-rows: repeat(6, 48px);
+    gap: 2px;
+    margin: 1rem 0;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .grid-cell {
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--grid);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .grid-cell:hover { background: #f0f0f0; }
+  .grid-cell.filled { background: var(--yellow); }
+  .grid-cell.filled-blue { background: var(--blue); }
+  .grid-cell.filled-red { background: var(--red); }
+  .btn {
     display: inline-block;
-    padding: 0.75rem 2rem;
+    padding: 0.8rem 2.2rem;
     background: var(--black);
     color: var(--white);
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    transition: background 0.2s;
+    transition: background 0.2s ease;
+    border: none;
+    cursor: pointer;
   }
-  a.btn:hover { background: var(--blue); }
+  .btn:hover { background: var(--blue); }
   .status {
-    margin-top: 1.5rem;
-    font-size: 0.75rem;
+    margin-top: 1.25rem;
+    font-size: 0.7rem;
     color: #999;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-around;
+    margin: 1rem 0;
+    padding: 0.75rem 0;
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+  }
+  .stat {
+    text-align: center;
+    font-size: 0.8rem;
+  }
+  .stat .num {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--blue);
   }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrapper">
   <h1>
-    <span class="red">K</span><span class="yellow">l</span><span class="blue">e</span><span style="color:var(--black)">e</span>
+    <span>K</span><span>l</span><span>e</span><span>e</span>
   </h1>
   <p class="subtitle">
-    A 2D generative composition toy — drag, tap, hold to bloom Bauhaus-style geometric compositions.
+    A 2D generative composition toy — drag shapes, tap planes, hold to pulse. Every arrangement blooms into a balanced Bauhaus-style composition.
   </p>
-  <div class="preview-card">
-    <h2>Design Preview — Core Verbs</h2>
+
+  <div class="card">
+    <h2>Palette &amp; Shapes</h2>
     <div class="shape-row">
-      <div class="shape shape-circle"></div>
-      <div class="shape shape-square"></div>
-      <div class="shape shape-triangle"></div>
-      <div class="shape shape-line"></div>
-      <div class="shape shape-cross"></div>
+      <div class="shape shape-circle" title="Circle — red"></div>
+      <div class="shape shape-square" title="Square — yellow"></div>
+      <div class="shape shape-triangle" title="Triangle — blue"></div>
+      <div class="shape shape-line" title="Line — black"></div>
+      <div class="shape shape-cross" title="Cross — black"></div>
     </div>
-    <div class="verb-list">
-      <strong>Drag</strong> — place geometric primitives from toolbar onto canvas<br/>
-      <strong>Tap</strong> — place single-color planes on empty grid cells<br/>
-      <strong>Hold</strong> — grow and emphasize placed shapes
+    <p style="text-align:center; font-size:0.75rem; color:#888; margin-top:0.5rem;">
+      Primary palette: red · yellow · blue · black · white
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Core Verbs</h2>
+    <div class="verbs">
+      <strong>Drag</strong> — place geometric primitives from toolbar onto the grid<br/>
+      <strong>Tap</strong> — fill an empty cell with a single-color plane<br/>
+      <strong>Hold</strong> — pulse a shape to grow, emit, and resonate
     </div>
   </div>
-  <a class="btn" href="GAME_DESIGN_klee.md">Read Full Design</a>
-  <p class="status">Design Phase — No Game Code Yet</p>
+
+  <div class="card">
+    <h2>Composition Grid (Preview)</h2>
+    <div class="grid-demo">
+      <div class="grid-cell filled-red">●</div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell filled-blue">▲</div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell filled">■</div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell filled-red">●</div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell filled-blue">▲</div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><span class="num">3</span>colors</div>
+      <div class="stat"><span class="num">5</span>shapes</div>
+      <div class="stat"><span class="num">18</span>cells</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:1.5rem;">
+    <a class="btn" href="GAME_DESIGN_klee.md">Read Full Design</a>
+  </div>
+  <p class="status" style="text-align:center;">Design Phase — No Game Code Yet</p>
 </div>
+
+<script>
+  // Minimal interactive preview: clicking filled cells cycles their color
+  document.querySelectorAll('.grid-cell.filled, .grid-cell.filled-red, .grid-cell.filled-blue').forEach(function(cell) {
+    var colors = ['filled-red', 'filled', 'filled-blue'];
+    var idx = 0;
+    cell.addEventListener('click', function() {
+      cell.classList.remove(colors[idx % colors.length]);
+      idx++;
+      cell.classList.add(colors[idx % colors.length]);
+    });
+  });
+</script>
 </body>
 </html>
