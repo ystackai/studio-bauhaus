@@ -26,3 +26,12 @@
 - [x] Audio triggers on interaction (not autoplay)
 - [x] Strict Bauhaus primary palette only
 - [x] <2MB payload (single HTML ~25KB)
+
+### 2026-06-13 — Polish & Runtime Verification Fix
+
+- Fixed drag-from-toolbar: shape buttons now support pointerdown→pointermove→pointerup drag onto canvas
+- Added `requestAnimationFrame` game loop for smooth, continuous rendering
+- Added `setInterval(checkClearHold, 50)` for reliable long-press clear on empty canvas
+- Created `.factoryx/preview-entrypoint` → `games/klee/index.html` to resolve preview entrypoint issue
+- Updated `VERIFICATION.md` with full interaction verification results
+- JS syntax validated via `node --check` — no errors

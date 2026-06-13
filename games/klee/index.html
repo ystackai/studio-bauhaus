@@ -147,7 +147,7 @@
     </div>
     <div id="balance-flash"></div>
     <div id="density-warning">Canvas too dense — tap &amp; hold empty area to clear</div>
-    <div id="clear-hint">Long-press empty area to clear all</div>
+    <div id="clear-hint">Drag shapes from toolbar &middot; Tap empty cells &middot; Hold shapes to grow &middot; Long-press empty area to clear</div>
     <div id="hold-indicator"><div class="fill"></div></div>
   </div>
 </div>
@@ -346,10 +346,23 @@
       btn.innerHTML = getShapeSVG(type);
       btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         initAudio();
-        document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selectedShape = type;
+        let shapeDragMove = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          startDragFromToolbar(type, selectedColor, ev.clientX, ev.clientY);
+          updateDragPos(ev.clientX, ev.clientY);
+         };
+        let shapeDragUp = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          endDrag(ev.clientX, ev.clientY);
+          document.removeEventListener('pointermove', shapeDragMove);
+          document.removeEventListener('pointerup', shapeDragUp);
+         };
+        document.addEventListener('pointermove', shapeDragMove);
+        document.addEventListener('pointerup', shapeDragUp);
       });
       toolbar.appendChild(btn);
     });
@@ -944,14 +957,29 @@
   resize();
   render();
 
-  // Expose for testing — check balance periodically
+    // Animation loop for smooth rendering
+   let lastFrameTime = 0;
+   function gameLoop(timestamp) {
+     if (!lastFrameTime) lastFrameTime = timestamp;
+     lastFrameTime = timestamp;
+      // Check clear-hold timer
+     checkClearHold();
+      // Render (continuous for smooth drag preview & hold indicator)
+     render();
+     requestAnimationFrame(gameLoop);
+    }
+   requestAnimationFrame(gameLoop);
+
+    // Clear-hold interval for long-press clear
+   setInterval(checkClearHold, 50);
+
+   // Expose for testing - check balance periodically
   setInterval(() => {
     checkBalance();
     if (state.isBalanced && window.__GAME._balanceListener) {
       window.__GAME._emitBalance();
-    }
-  }, 500);
-
+     }
+   }, 500);
 })();
 </script>
 </body>
