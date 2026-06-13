@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bauhaus Construct — GAME_DESIGN</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #F5F5F0;
+    color: #1A1A1A;
+    line-height: 1.65;
+    padding: 2rem 1.5rem;
+    max-width: 820px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.9rem; font-weight: 700; color: #E04040; margin-bottom: 0.3rem; }
+  h2 { font-size: 1.35rem; font-weight: 700; color: #1A1A1A; margin-top: 2rem; margin-bottom: 0.75rem; border-bottom: 3px solid #3060D0; padding-bottom: 0.25rem; }
+  h3 { font-size: 1.05rem; font-weight: 600; color: #F0C830; margin-top: 1rem; margin-bottom: 0.4rem; }
+  p { margin-bottom: 0.75rem; }
+  code { background: #E8E8E3; padding: 0.15rem 0.4rem; border-radius: 2px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1.5px solid #1A1A1A; padding: 0.55rem 0.8rem; text-align: left; font-size: 0.9rem; }
+  th { background: #F0C830; font-weight: 600; }
+  td code { background: #E8E8E3; padding: 0.1rem 0.35rem; }
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.3rem; }
+  .tag { display: inline-block; background: #E04040; color: #F5F5F0; padding: 0.2rem 0.7rem; border-radius: 3px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 1.2rem; text-transform: uppercase; }
+  .note { background: #F0C830; border-left: 5px solid #E04040; padding: 0.9rem 1.1rem; margin: 1.2rem 0; }
+  .note strong { color: #1A1A1A; }
+  hr.bauhaus { border: none; border-top: 3px solid #3060D0; margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<div class="tag">Design Phase — Draft PR</div>
+<h1>Bauhaus Construct — GAME_DESIGN.md</h1>
+<p><strong>Work Order:</strong> work-order-1781309012254-1-2 &nbsp;·&nbsp; <strong>Direction:</strong> CONSTRUCT &nbsp;·&nbsp; <strong>Variant:</strong> Composition Puzzle</p>
+
+<div class="note">
+  <strong>Isolation:</strong> This design was written from scratch. No prior design files in this repository or its branches were read or reused.
+</div>
+
+<h2>Title &amp; one-liner</h2>
+<p><strong>Bauhaus Construct</strong> — Snap primary-color shapes onto a grid until they form the target composition.</p>
+
+<h2>Anchors</h2>
+<p><strong>Gameplay like:</strong> <em>Tetris</em> — you place pieces one at a time until the board resolves into a complete composition. The tension is between the urgency of filling space and the precision required to hit exact positions; you can only rotate and place, never remove once locked, so every decision is permanent.</p>
+<p><strong>Visuals like:</strong> <em>PixelHunters</em> — flat 2D SVG canvas. Art direction is strictly Bauhaus Digital: primary-color planes (red, yellow, blue) and black/white ground and lines on a measured grid. No gradients, no shadows, no perspective. The grid itself is the aesthetic.</p>
+<p><strong>Sounds like:</strong> <em>The Grain Snap</em> — the generative music instrument from the foundry serves as underscore. Each piece placement triggers a single note from a pentatonic scale tied to the piece's color; as more pieces lock, rhythmic density increases; the final lock plays a resolved chord. Silence returns briefly between levels.</p>
+
+<h2>Core loop (first 30 seconds)</h2>
+<p>The player opens the page. A white canvas fills the screen, split in two: the top half shows a small target composition in primary colors on a subtle black grid; the bottom half shows a tray of 3–5 primitive shapes — a red square, a yellow rectangle, a blue circle, a black line — arranged in a row.</p>
+<p>The first ten seconds: the target is visible but abstract. A black arrow or outline highlights the first empty space on the grid. The player <strong>clicks</strong> a piece from the tray to select it. The piece lifts, follows the cursor.</p>
+<p>The player <strong>moves</strong> the piece over the grid. As it nears a valid cell, the grid cell highlights in a faint black outline. When the piece's footprint aligns with the grid, it <strong>snaps</strong> audibly — a short percussive tone from the generative instrument.</p>
+<p>Three verbs: <strong>select</strong> (click a piece from the tray), <strong>move</strong> (drag it over the grid), <strong>snap</strong> (it locks into place with a note). That is the entire loop, repeated: select, move, snap. Repeat until the composition is complete.</p>
+
+<h2>Interaction map</h2>
+<table>
+  <tr><th>Input</th><th>Action</th><th>Feedback (visual + audio)</th></tr>
+  <tr><td>Click / tap piece in tray</td><td>Select that piece; it lifts and follows cursor</td><td>Faint highlight pulse; soft pluck tone</td></tr>
+  <tr><td>Move cursor over grid</td><td>Piece hovers above grid, showing placement preview with faint outline</td><td>Cell-by-cell highlight on valid snap positions</td></tr>
+  <tr><td>Click / tap on grid</td><td>Snap piece into nearest valid grid cell; locks permanently</td><td>Sharp percussive note from generative instrument (color-matched); cell flashes briefly</td></tr>
+  <tr><td>R key or right-click selected piece</td><td>Rotate piece 90° clockwise</td><td>Short slide tone upward; preview updates with rotated shape</td></tr>
+  <tr><td>Click tray area (no piece selected)</td><td>Deselect; tray returns to idle</td><td>No audio; tray piece dims</td></tr>
+  <tr><td>Escape key</td><td>Deselect; locked pieces remain</td><td>No audio</td></tr>
+  <tr><td>Click "New"</td><td>Discard current level, load next</td><td>Brief silence, then first note of next level's motif</td></tr>
+  <tr><td>Click "Retry"</td><td>Reset current level to initial state</td><td>Brief silence, then re-play of level's first note</td></tr>
+</table>
+<p><em>Every row is implementable: grid is SVG <code>&lt;g&gt;</code> with <code>&lt;rect&gt;</code> cells; pieces are SVG <code>&lt;rect&gt;</code>, <code>&lt;circle&gt;</code>, <code>&lt;line&gt;</code>. Drag via pointer events. Snap via nearest-grid-cell distance. Audio via Web Audio API oscillator nodes mapped to piece colors.</em></p>
+
+<h2>Win / Lose</h2>
+<p><strong>Win:</strong> All required cells in the target composition are filled by locked pieces. The composition resolves: a 600 ms hold of the completed composition with a final resolved chord (all piece-color notes together, fading to white). "New" button appears.</p>
+<p><strong>Lose:</strong> No pieces remain on the tray and the composition is incomplete. Grid outline pulses red; locked pieces remain; tray shows empty. "Retry" button appears.</p>
+<p><strong>Run length:</strong> 30–90 seconds per level. Early levels: 3–5 pieces. Later levels: up to 8–10 pieces with more constrained shapes.</p>
+
+<h2>Session shape</h2>
+<ul>
+  <li><strong>First 10 seconds:</strong> Target top-half, tray bottom-half. Animated black arrow sweeps in one direction indicating the first empty cell. Player drags the first piece in — no text. Grid snaps the piece with sound. By second 10, the player has locked one piece and feels the mechanic.</li>
+  <li><strong>First minute:</strong> Player places 2–3 pieces. Each snap adds a note to an emerging rhythm. The composition starts to feel familiar — player recognizes the grid as workspace, tray as palette. Second lock triggers: "I am building this."</li>
+  <li><strong>Replay hook:</strong> Tight loop, no penalty, instant retry. Satisfaction of pieces clicking into place. The generative music creates a personal soundtrack the player wants to hear complete again.</li>
+</ul>
+
+<h2>Difficulty ramp</h2>
+<p>What escalates: number of pieces (3 → 10), grid complexity (simple blocks → irregular shapes), and available rotations (1 → 4 orientations). Curve is linear — each level adds one piece or one shape variation. The player earns a time bonus for completing levels with fewer moves; no purchases, no power-ups, no micro-economy.</p>
+
+<h2>Why it's fun (falsifiable hypothesis)</h2>
+<p><strong>Precision vs. greed.</strong> The player wants to place pieces quickly and celebrate early completion, but placing a piece in the wrong cell makes a level unwinnable (pieces lock permanently, no undo). The satisfying moment comes from resisting the urge to lock prematurely and thinking one step ahead.</p>
+<p><strong>Confirm if:</strong> Majority of failed levels occur because a player locked an early piece that blocked a later one. Observation: players hover over the grid longer than average placement time on later pieces; players click a second time before the first piece fully locks, indicating regret.</p>
+<p><strong>Refute if:</strong> Players fail because the level layout is genuinely unsolvable (no valid arrangement fits the target). If players complete levels in under 5 seconds with no hesitation, the precision requirement is absent and the tension is not present.</p>
+
+<h2>Scope budget — the OUT list</h2>
+<p>This game explicitly does <strong>NOT</strong> have in v1:</p>
+<ul>
+  <li><strong>3D, perspective, or WebGL.</strong> Everything is flat 2D SVG on a grid.</li>
+  <li><strong>Photorealism.</strong> Shapes are geometric primitives: squares, rectangles, circles, lines, triangles. No textures, no photos, no gradients.</li>
+  <li><strong>Extra colors beyond the primary palette.</strong> Red (#E04040), yellow (#F0C830), blue (#3060D0), black (#1A1A1A), white (#F5F5F0). No green, orange, purple, or any other hue in v1.</li>
+  <li><strong>Narrative or story.</strong> No characters, no plot, no dialogue. No flavor text explaining the game.</li>
+  <li><strong>Power-ups, collectibles, or items.</strong> Pure composition.</li>
+  <li><strong>Multiplayer or networking.</strong> Single-player only. No leaderboards in v1.</li>
+  <li><strong>Save/load.</strong> No persistence. Refreshing resets everything.</li>
+  <li><strong>In-app purchases, ads, monetization.</strong></li>
+  <li><strong>Sound effects other than generative music.</strong> No UI beeps, explosions, or ambient noise.</li>
+  <li><strong>Menus beyond level select and retry.</strong> No settings screen, no options menu.</li>
+  <li><strong>Touch swiping.</strong> Only click/tap and drag. No gesture controls.</li>
+  <li><strong>Variable piece sizes beyond the grid.</strong> All pieces align to the grid exactly.</li>
+</ul>
+
+<hr class="bauhaus">
+
+<h2>Test API</h2>
+<p>The browser game must expose <code>window.__GAME</code> as a namespace:</p>
+
+<h3>State queries (read-only)</h3>
+<ul>
+  <li><code>getState()</code> — returns <code>{ level: number, locked: Array&lt;{cell: {row, col}, color: string, rotation: number}&gt;, tray: Array&lt;{type, color, rotation}&gt;, target: Array&lt;{row, col, color}&gt;, phase: 'idle'|'playing'|'win'|'lose' }</code></li>
+  <li><code>canPlace(piece, row, col, rotation)</code> — boolean: whether placing <code>piece</code> at <code>row, col</code> with <code>rotation</code> is valid (not overlapping, within bounds).</li>
+  <li><code>isLevelComplete()</code> — boolean.</li>
+  <li><code>getAvailablePieces()</code> — array of pieces still on tray.</li>
+  <li><code>isLevelSolvable()</code> — boolean (backtracking solver for critic validation).</li>
+</ul>
+
+<h3>Simulation hooks (mutating)</h3>
+<ul>
+  <li><code>placePiece(pieceIndex, row, col, rotation)</code> — simulates locking a piece. Returns <code>{ success, note }</code>.</li>
+  <li><code>rotatePiece(pieceIndex, degrees)</code> — rotates a tray piece.</li>
+  <li><code>deselect()</code> — clears currently selected piece.</li>
+  <li><code>nextLevel()</code> — advances, resets state.</li>
+  <li><code>retryLevel()</code> — resets current level to initial state.</li>
+  <li><code>resetAll()</code> — resets everything to level 1.</li>
+  <li><code>simulateWin()</code> — forces win state for testing resolution animation.</li>
+  <li><code>simulateLose()</code> — forces lose state (removes tray pieces, leaves locked) for testing lose render.</li>
+</ul>
+
+<h3>Critic test scenarios</h3>
+<ol>
+  <li><code>getState().phase === 'playing'</code> after init — game started correctly.</li>
+  <li><code>canPlace(0, 2, 3, 0)</code> returns <code>true</code> — valid placement recognized.</li>
+  <li><code>canPlace(0, 2, 3, 0)</code> then <code>placePiece(0, 2, 3, 0)</code> — afterward, <code>getState().locked</code> contains the piece.</li>
+  <li><code>canPlace(0, 2, 3, 0)</code> returns <code>false</code> after placement — piece now locked.</li>
+  <li><code>isLevelComplete()</code> returns <code>true</code> after all target cells filled — win detection works.</li>
+  <li><code>isLevelSolvable()</code> returns <code>true</code> for all generated levels — no unsolvable levels.</li>
+  <li><code>simulateWin()</code> — <code>getState().phase</code> becomes <code>'win'</code> — win animation triggers.</li>
+  <li><code>simulateLose()</code> — <code>getState().phase</code> becomes <code>'lose'</code> — lose state renders.</li>
+  <li>All audio uses Web Audio API (no <code>&lt;audio&gt;</code> tags) — generative music integrated.</li>
+</ol>
+
+</body>
+</html>
