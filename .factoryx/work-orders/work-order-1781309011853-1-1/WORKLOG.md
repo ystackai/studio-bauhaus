@@ -19,3 +19,15 @@
 - Preview entrypoint resolves correctly
 - PR open as draft, all files committed
 - Previous run issue (missing preview entrypoint) resolved
+
+## 2026-06-13 — Rewrite TEMPO GAME_DESIGN
+
+- Rewrote `drops/bauhaus-1/design/GAME_DESIGN_tempo.md` from scratch (isolation: no reuse of other design files).
+- All 10 required template sections filled completely.
+- Core loop: see → tap → repeat (3 verbs).
+- Difficulty ramp: BPM 60→84 over 60s, lanes 1→4.
+- Win: 70% hit accuracy; Lose: 10 misses.
+- Falsifiable hypothesis with CONFIRM/REFUTE criteria.
+- OUT list: 12 specific exclusions.
+- Test API: window.__GAME with state queries, simulation hooks, events.
+- File pushed to branch, PR #77 already in draft state (body update pending GitHub API rate limit reset).
