@@ -1,117 +1,127 @@
 # GAME_DESIGN.md — Brief 29: TEMPO
 
-Every game Work Order chain starts with this document, judged BEFORE any code
-is written. Fill every section; an empty or vague section fails the design
-review. The design doc becomes the build contract and the verification spec.
-
 ## Title & one-liner
 
-**Working title:** TEMPO
-
-A flat, primary-colored geometric rhythm game where shapes descend on a Bauhaus grid — tap once to hit the beat, keep the composition in motion.
+**TEMPO** — a one-button rhythm game where Bauhaus geometric shapes slide across a grid in time with a generated pulse; tap to snap them onto the beat.
 
 ## Anchors
 
-- **Gameplay like:** *Rhythm Heaven* — one tap, one decision per beat, repeated hundreds of times until muscle memory takes over. The tension lives in the gap between reading the pattern and executing it cleanly; a missed tap breaks the chain and the player must choose whether to push harder for the streak or reset to rebuild confidence.
-- **Visuals like:** The Bauhaus Digital house style as defined in `.factoryx/FACTORY_CONTEXT.md` — flat 2D canvas with primary-color geometric primitives (circles, triangles, bars) on a visible grid. No gradients, no shadows, no perspective. Each shape's motion is the animation; there is no decorative animation. The grid extends into time so that the x-axis is position, the y-axis is the hit zone, and the vertical scroll is tempo.
-- **Sounds like:** The foundry's parameterized generative music instrument (already built and judged as a working asset). The mix places a steady pulse track at a low volume as the metronome bed; the descending shapes produce short percussive tones when hit, pitched to match the track's key. Silence or off-beat taps produce a muted, dissonant click that is audible but not punishing.
+- **Gameplay like:** *Rhythm Heaven* — a tight one-button loop that rewards micro-timing. You watch shapes glide along horizontal lanes on a grid, and when a shape reaches its target zone you tap. The tension lives in holding a steady internal pulse while the tempo accelerates and lanes multiply; you either lock in or fall out.
+- **Visuals like:** Studio assets at `dust/` (the Bauhaus geometric primitive library: circles, triangles, bars in primary colors), `tempo-preview.html` (the existing design doc preview rendered in house style). No external references — all visuals are generated from flat SVG/Canvas primitives on a strict grid.
+- **Sounds like:** The foundry's parameterized generative underscore (`audio/engine/` — `cueBeat`, `cuePulse`, `cueHit` helpers exported by `AudioEngine`). The mix layers a steady kick on every quarter note, a muted hi-hat on eighths, and a sparse bass tone that shifts with difficulty. A clean hit sound plays when you land on-beat; a muted thud plays on misses.
 
 ## Core loop (the first 30 seconds, written as play)
 
-1. **See** — A primary-colored circle drops from the top of a 5-column grid toward a single horizontal hit zone line near the bottom. A continuous pulse track plays at 120 BPM.
-2. **Tap** — The player presses spacebar (or taps the canvas) when the circle overlaps the hit zone line. On the exact beat the shape flashes white and a percussive tone rings.
-3. **Repeat** — A triangle follows the same path on the next measure, then a bar, then a second circle in blue. The pattern establishes itself over 16 beats. If the player misses, the shape passes through the hit zone as a thin black outline and the pulse track continues unchanged. The core loop is: see-shape-coming, tap-on-beat, see-feedback, repeat. Three verbs: see, tap, repeat.
+1. **SEE** — The grid appears: white background, a blue 4×4 grid drawn with black lines. A red circle and a yellow triangle sit on the top lane; a blue bar on the second lane. All shapes sit motionless for two seconds while a kick drum counts "1, 2, 3, 4" via the generative underscore.
+
+2. **TAP** — The shapes begin sliding left-to-right on their lanes at a slow, steady BPM. A yellow target bar (15% of the screen width) drops onto the grid at a fixed position. When any shape's center crosses that bar, the player taps the spacebar or any screen location. If the shape is within the bar, a clean chime plays, the shape flashes white for 120 ms, and a small score counter ticks up. If the shape passes the bar without a tap, nothing plays and the shape exits off the right edge.
+
+3. **REPEAT** — A new shape appears from the left every 2 seconds. The kick drum continues at the same BPM. By second 30, the player has performed approximately 15 taps and experienced the core feel: watch, time, tap.
+
+Verbs: **see** → **tap** → **repeat**.
 
 ## Interaction map
 
 | Input | Action | Feedback (visual + audio) |
-| --- | --- | --- |
-| Spacebar / Canvas tap | Hit the current beat — trigger a timing check against the current descending shape | **Visual:** shape flashes white with a 120ms scale-burst (1.0→1.25→1.0) at the hit zone; **Audio:** short percussive tone pitched to the track's key; **Accuracy tier:** Perfect (±50ms) = white flash + tone; Good (±100ms) = yellow flash + lower tone; Miss (>100ms or early) = shape continues past hit zone as thin black outline, muted click sound |
-| Spacebar held 500ms+ | Pause the game (pause overlay with a centered white circle on red background) | **Visual:** all shapes freeze mid-frame; a thick white border appears around the canvas; **Audio:** music stops, a low sine tone holds at -20dB |
-| Arrow Left / Arrow Right | Change the hit zone position between two predefined vertical lanes (for later complexity) | **Visual:** the hit zone line shifts left/right with a 150ms eased slide; **Audio:** subtle sweep tone confirming the shift |
-| R (while paused or after game ends) | Restart the current run from the beginning | **Visual:** canvas clears instantly; grid resets; first shape appears within 300ms; **Audio:** pulse track restarts from beat 1 |
+|-------|--------|---------------------------|
+| Spacebar / any mouse click / any touch on canvas | Snap-check: if a shape's center is within the target zone, register a "hit"; otherwise register a "miss" | **Hit**: shape flashes white for 120 ms; score counter increments; a bright chime (generated sine wave, ~880 Hz, 200 ms decay) plays. **Miss**: shape exits right without visual emphasis; a muted thud (low sine, ~120 Hz, 300 ms decay) plays. |
+| Hold spacebar / hold any mouse button | Pause the game: all shapes freeze, grid pulses once in yellow | Visual: shapes halt mid-slide; a thin yellow line draws across the center as a pause indicator. Audio: generative music pauses instantly. |
+| Press `R` or double-tap anywhere | Restart the current run from BPM 60, score 0 | Visual: grid clears instantly; shapes re-spawn from left edge. Audio: kick drum restarts from beat 1. |
 
 ## Win / Lose
 
-**One run lasts 60–120 seconds** (roughly 4–8 measures at the starting BPM, escalating as described below).
-
-- **Win condition:** Achieve a "perfect streak" of 50 consecutive perfect/timing hits on any difficulty. The screen fills with a slow-building yellow grid pattern (no animation beyond the pattern itself) and the pulse track plays a full resolved chord progression as celebration.
-- **Lose condition:** Accumulate 10 misses (shapes passing through the hit zone without a tap within the acceptance window). On the 10th miss, the canvas flashes red for 200ms, then a black rectangle with white text appears: "Composition broken. Tap R to rebuild." The run ends; no game-over animation beyond the flash and the rect.
-
-**Accessibility note:** The miss count is displayed as a small row of 10 red dots at the top-right corner of the canvas, one per miss. This is visible at all times.
+- **Run length:** 60 seconds (at BPM 60, this is 240 quarter-note beats).
+- **Win condition:** Achieve a hit accuracy of 70% or higher. The score display shows hits / total shapes encountered. On a win, a white rectangle fills the center of the grid for 2 seconds, then the game returns to the start.
+- **Lose condition:** Miss 10 shapes total. The miss counter is always visible in the top-right corner. On a loss, a black rectangle sweeps across the grid from left to right, then the game returns to the start.
+- Both outcomes are reachable on every run regardless of skill: early BPM is slow enough that a careful player can consistently hit 70%+, and the miss counter ensures the game is always finite.
 
 ## Session shape
 
-- **First 10 seconds:** The player sees a red circle drop on the first beat with no text overlay. The grid lines are visible but subtle. A thick horizontal hit zone line is centered near the bottom. The first beat is slow enough (120 BPM, one shape per beat) that any player can tap it. The teaching happens through the situation — you see a shape, it reaches the line, the player taps, the shape flashes white and a tone plays. The connection between tap and feedback is immediate and visible. No instructions, no tutorial text.
-
-- **First minute:** The BPM increases from 120 to 150 over the first 30 seconds. Shapes begin appearing in alternating columns (first left, then center, then right) within the single hit zone. By second 40, shapes appear at slightly irregular intervals (some beats have no shape, creating syncopation). By second 50, the first mini-streak of 5 consecutive perfect hits triggers a small visual celebration (a brief yellow flash of the grid). The player is now in the rhythm.
-
-- **The replay hook:** The streak counter is the driver — the player remembers how close they came to 50 perfects, sees the pattern is the same each run (deterministic seed per difficulty level), and presses retry to chase a better streak. The short run length (under two minutes) makes retries feel cheap.
+- **First 10 seconds:** The grid and shapes appear without any text overlay. The kick drum counts "1, 2, 3, 4" while shapes sit idle. On beat 5, the first shape begins sliding and a yellow target bar appears. The player can tap along and learn by doing. A subtle pulsing animation on the target bar signals "tap when the shape reaches me."
+- **First minute:** The BPM increases by 5 BPM every 15 seconds (so BPM 60 → 80 over one run). Lanes multiply: new lanes appear from below, each with a different geometric shape. At BPM 70+ shapes move faster. At BPM 75+ two shapes may occupy lanes simultaneously, requiring the player to tap once for whichever shape reaches the bar first. At BPM 80+ the target bar narrows slightly (from 15% to 12% of grid width), demanding tighter timing.
+- **The replay hook:** Each run is exactly 60 seconds and the BPM curve is deterministic. The player's only variable is timing precision. A "best accuracy" percentage is shown between runs, creating a clear metric to improve. The geometry and colors stay fresh because lane count and BPM combine to produce novel visual rhythms each time.
 
 ## Difficulty ramp
 
-Difficulty escalates on three axes, all independent and additive:
+What escalates (linear curve):
 
-1. **BPM (speed):** Increases by 5 BPM per measure (4 beats), starting at 120 BPM → 140 BPM → 160 BPM. Each BPM tier is a distinct "phase."
-2. **Density (frequency):** Phase 1: one shape per beat. Phase 2: some beats are empty (syncopation). Phase 3: shapes appear in two columns, requiring the hit zone to move (see interaction map). Phase 4: overlapping shapes — two shapes on screen simultaneously, each on a different column.
-3. **Precision window:** Starts at ±100ms (Good/Perfect split at ±50ms). Each phase tightens by 5ms, capping at ±70ms Good / ±35ms Perfect at maximum difficulty.
+| BPM range | Change | Effect on player |
+|-----------|--------|------------------|
+| 60–64 | Base speed | Shapes move slowly; wide target bar (15%). Easy to learn. |
+| 65–69 | +5 BPM | Shapes move 8% faster; target bar unchanged. |
+| 70–74 | +10 BPM total | Second lane opens. Player taps for the nearest shape first. |
+| 75–79 | +15 BPM total | Target bar narrows to 12%. Third lane opens. |
+| 80–84 | +20 BPM total | Fourth lane opens. Target bar narrows further to 10%. Max speed. |
 
-**What the player earns:** Each perfect hit awards +100 points; Good = +50; Miss = -25. Points are displayed as a large number at the top-left in black on white. The only "currency" is the streak counter, which has no cost — it purely measures persistence. No shop, no upgrades, no power-ups.
+The player earns no items to buy — the only "resource" is accuracy percentage, which serves as a personal scoreboard. There is no economy, no power-ups, no extra colors beyond the primary palette.
 
 ## Why it's fun (falsifiable hypothesis)
 
-**Tension:** *Control vs. flow.* The game is fun because it sits at the edge of the player's timing ability — simple enough to learn in 10 seconds, hard enough to sustain for minutes as the BPM climbs. The player constantly negotiates between pushing for perfects (tight window, high risk) and accepting goods (wide window, safe, but streaks require perfects to reach 50).
+**Tension:** *internal pulse vs. visual distraction.* The game is fun because the player's own sense of rhythm is the instrument, while the moving geometric forms are a visual metronome that sometimes aids and sometimes competes with that internal pulse.
 
-**CONFIRM if:** Players visibly lean into the canvas and tap with increasing intensity as BPM rises past 140. Players who reach a streak of 30+ show reduced hesitation (tap latency from shape appearance to press drops from ~300ms to ~150ms). The replay rate (pressing R after a loss) is above 60%.
-
-**REFUTE if:** Players tap randomly/continuously without waiting for shapes (indicating they are not reading the beat). The replay rate is below 30%, suggesting the run feels too short or too punishing. Tap latency remains above 400ms even after 5 runs, indicating the game feels disconnected rather than flowing.
+- **CONFIRM:** If players naturally start humming or tapping a foot while playing, and they report "losing themselves in the rhythm" after repeated runs, the hypothesis is confirmed.
+- **REFUTE:** If players describe the game as "a reaction test" or "just clicking on shapes when they cross a line," or if accuracy scores cluster around 50% (random guessing) rather than showing a right-skewed distribution centered above 60%, the hypothesis is refuted — the game would be a timing-reaction game, not a rhythm game.
 
 ## Scope budget — the OUT list
 
-The following are explicitly **NOT** in v1:
+This game v1 does **NOT** have:
 
-- **3D or perspective** — only flat 2D canvas with primary-color geometric primitives
-- **Multiple levels or stages** — one continuous run, one BPM curve, one pattern seed per difficulty
-- **Narrative or story** — no characters, no plot, no text beyond "Composition broken" on loss and the streak/point counters
-- **Network or multiplayer** — single-player only, no leaderboards in v1
-- **User accounts or save/load** — streaks are per-session; no persistent progress
-- **Power-ups or item pickups** — no collectible shapes, no boosters, no obstacles other than timing
-- **Custom music or external audio** — the generative underscore is the only audio source
-- **Soundtrack selection or music settings** — one generative track, one BPM curve
-- **Complex combo systems** — no "chain multiplier," no "combo x5" — just a streak counter
-- **Mobile app wrapper or native deployment** — browser canvas only
-- **Accessibility beyond the visible hit zone indicator** — no colorblind modes, no haptic feedback, no alternative input maps beyond spacebar and tap
-- **Editor or level designer** — no user-generated content tools
+1. Multiple buttons or multi-input controls — only tap/hold/double-tap.
+2. 3D graphics, perspective, gradients, shadows, or any non-flat rendering.
+3. Pre-existing audio tracks — all music is generative.
+4. Narrative, story, or characters.
+5. Multiple levels, stages, or theme changes.
+6. Score multipliers, combos, or chain bonuses.
+7. High-score persistence or leaderboards.
+8. Touch gestures beyond tap, hold, and double-tap (no swipe, pinch, or drag).
+9. Adjustable difficulty sliders — difficulty escalates automatically via the BPM curve.
+10. Extra colors beyond red, yellow, blue, black, and white.
+11. Networking, multiplayer, or social features.
+12. Save/load state between runs.
 
 ## Test API
 
-The game must expose `window.__GAME` with the following interface so the critic can prove the loop works:
+`window.__GAME` must expose the following for the critic to prove the loop works:
 
-### State queries (read-only)
+### State queries (synchronous getters)
 
-- `window.__GAME.getState()` — returns `{ bpm, streak, score, misses, phase, isPlaying, isPaused, shapesInPlay: number, hitZoneColumn }`
-- `window.__GAME.getHitAccuracy()` — returns the last 50 hit results as an array of `{ timing: 'perfect'|'good'|'miss', beatNumber, latencyMs }`
-- `window.__GAME.isWinConditionMet()` — returns `true` if streak >= 50
-- `window.__GAME.isLoseConditionMet()` — returns `true` if misses >= 10
+| Property | Type | Description |
+|----------|------|-------------|
+| `__GAME.bpm` | `number` | Current BPM (60–84). |
+| `__GAME.accuracy` | `number` | Hit accuracy as percentage 0–100. |
+| `__GAME.hits` | `number` | Total successful taps. |
+| `__GAME.misses` | `number` | Total missed shapes. |
+| `__GAME.laneCount` | `number` | Active number of lanes (1–4). |
+| `__GAME.targetWidthPct` | `number` | Current target bar width as % of grid width (10–15). |
+| `__GAME.timeElapsed` | `number` | Seconds since run start. |
+| `__GAME.isRunning` | `boolean` | `true` while shapes are sliding, `false` on pause/start screen. |
+| `__GAME.isPaused` | `boolean` | `true` when spacebar/hold-pause is active. |
+| `__GAME.hasWon` | `boolean` | `true` after a win condition is reached. |
+| `__GAME.hasLost` | `boolean` | `true` after a loss condition is reached (10 misses). |
+| `__GAME.totalShapes` | `number` | Total shapes encountered in this run (hits + misses). |
 
-### Simulation hooks (write, for testing)
+### Simulation hooks
 
-- `window.__GAME.simulateHit(beatNumber)` — simulates a tap on a given beat, returns the accuracy result (`{ timing, latencyMs }`). Allows testing of the timing logic without real-time input.
-- `window.__GAME.setDifficulty(bpm, densityPhase, precisionMs)` — sets the game state to a specific difficulty configuration, useful for testing edge cases at high BPM.
-- `window.__GAME.skipToBeat(beatNumber)` — jumps the game to a specific beat for testing; pauses the game while doing so.
-- `window.__GAME.setMisses(count)` — sets the miss counter to a specific value to test lose condition at any point.
-- `window.__GAME.setStreak(count)` — sets the streak counter to test win condition triggering.
-- `window.__GAME.reset()` — full game reset; equivalent to pressing R after loss or start.
-- `window.__GAME.pause()` / `window.__GAME.resume()` — pause and resume the game.
+| Method | Params | Effect |
+|--------|--------|--------|
+| `__GAME.simulateHit()` | none | Registers a hit at the current position of the nearest shape to the target bar. Returns `true` if a shape was within 20% of the bar center. |
+| `__GAME.simulateMiss()` | none | Registers a miss for the nearest shape. Returns `true` always. |
+| `__GAME.setBPM(bpm)` | `number` | Jumps BPM instantly to value (60–84). Useful for testing difficulty tiers. |
+| `__GAME.forceWin()` | none | Sets accuracy to 80% and triggers win condition. |
+| `__GAME.forceLose()` | none | Sets miss count to 10 and triggers lose condition. |
+| `__GAME.restart()` | none | Resets all state: BPM 60, score 0, lanes 1, target bar 15%. |
 
-### Event listeners (for observability)
+### Event listeners
 
-The game must dispatch custom events on `window` so the critic can observe transitions:
+The critic may subscribe to:
 
-- `'game:start'` — game begins
-- `'game:pause'` / `'game:resume'` — pause/resume
-- `'game:win'` / `'game:lose'` — end-of-run conditions
-- `'game:hit'` — fired on every tap, payload: `{ timing, beatNumber, latencyMs, scoreDelta }`
-- `'game:streakChange'` — fired when streak changes, payload: `{ streak, wasPerfect }`
+| Event name | Payload | Fires when |
+|------------|---------|------------|
+| `game:hit` | `{ bpm, accuracy, lane }` | A tap lands on a shape within the target zone. |
+| `game:miss` | `{ bpm, lane }` | A shape passes the target zone without a tap. |
+| `game:win` | `{ accuracy, totalShapes }` | Hit accuracy reaches 70%. |
+| `game:lose` | `{ misses, totalShapes }` | Miss count reaches 10. |
+| `game:bpmChange` | `{ from, to }` | BPM increases during the difficulty ramp. |
+| `game:laneChange` | `{ from, to }` | A new lane opens. |
 
-The `window.__GAME` object must be available from `window.__GAME.init()` returning a promise that resolves when the canvas and audio context are ready.
+All event names are prefixed with `game:` and fire via `window.dispatchEvent(new CustomEvent(name, { detail: payload }))`.
