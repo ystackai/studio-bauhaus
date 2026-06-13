@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Klee — Generative Bauhaus Composition</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #F5F0E8;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #app {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  #toolbar {
+    height: 72px; min-height: 72px;
+    background: #1A1A1A;
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 12px;
+    z-index: 10;
+  }
+  .toolbar-title {
+    color: #F5F0E8;
+    font-size: 14px; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    margin-right: 20px;
+  }
+  .toolbar-sep {
+    width: 1px; height: 32px;
+    background: #444; margin: 0 8px;
+  }
+  .shape-btn {
+    width: 48px; height: 48px;
+    background: #2A2A2A;
+    border: 2px solid #444;
+    border-radius: 4px;
+    cursor: grab;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, transform 0.1s;
+    position: relative;
+  }
+  .shape-btn:hover { border-color: #F4D03F; transform: scale(1.05); }
+  .shape-btn:active { transform: scale(0.95); cursor: grabbing; }
+  .shape-btn.selected { border-color: #E63B23; }
+  .shape-btn svg { width: 28px; height: 28px; }
+  .color-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s;
+  }
+  .color-btn:hover { transform: scale(1.1); }
+  .color-btn.selected { border-color: #1A1A1A; transform: scale(1.15); }
+  .color-red    { background: #E63B23; }
+  .color-yellow { background: #F4D03F; }
+  .color-blue   { background: #2B5EA7; }
+  .color-black  { background: #1A1A1A; }
+  #canvas-wrap {
+    flex: 1; position: relative;
+    overflow: hidden;
+    background: #F5F0E8;
+  }
+  #canvas {
+    display: block;
+    cursor: crosshair;
+  }
+  #hud {
+    position: absolute; top: 8px; right: 12px;
+    color: #666; font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 5;
+    text-align: right;
+    line-height: 1.6;
+  }
+  #hud .score { font-weight: 600; font-size: 13px; }
+  #balance-flash {
+    position: absolute; inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 8;
+    transition: opacity 0.3s ease-out;
+  }
+  #balance-flash.active { opacity: 0.5; }
+  #density-warning {
+    position: absolute; bottom: 12px; left: 50%;
+    transform: translateX(-50%);
+    background: #E63B23;
+    color: #F5F0E8;
+    padding: 6px 16px;
+    border-radius: 3px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 8;
+    transition: opacity 0.4s ease-out;
+  }
+  #density-warning.active { opacity: 1; }
+  #clear-hint {
+    position: absolute; bottom: 12px; right: 12px;
+    color: #999; font-size: 10px;
+    letter-spacing: 0.06em;
+    pointer-events: none;
+    z-index: 5;
+  }
+  #hold-indicator {
+    position: absolute;
+    width: 24px; height: 24px;
+    border: 2px solid #E63B23;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  #hold-indicator.active { opacity: 1; }
+  #hold-indicator .fill {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: #E63B23;
+    transform: scale(0);
+    transform-origin: center;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar"></div>
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="hud">
+      <div class="score">Composition: <span id="score-val">0</span></div>
+      <div id="shape-count">Shapes: 0</div>
+    </div>
+    <div id="balance-flash"></div>
+    <div id="density-warning">Canvas too dense — tap &amp; hold empty area to clear</div>
+    <div id="clear-hint">Long-press empty area to clear all</div>
+    <div id="hold-indicator"><div class="fill"></div></div>
+  </div>
+</div>
+<script>
+(function() {
+  'use strict';
+
+  // ─── Constants ───────────────────────────────────────────────
+  const PRIMARY = {
+    red:    '#E63B23',
+    yellow: '#F4D03F',
+    blue:   '#2B5EA7',
+    black:  '#1A1A1A',
+    white:  '#F5F0E8'
+  };
+
+  const SHAPE_TYPES = ['circle', 'square', 'triangle'];
+  const GRID_COLS = 10;
+  const GRID_ROWS = 8;
+
+  // Audio: red→low, yellow→mid, blue→high (MIDI note numbers mapped to Hz)
+  const NOTE_FREQS = {
+    red: 130.81,   // C3
+    yellow: 261.63, // C4
+    blue: 523.25    // C5
+  };
+
+  // Dissonance frequencies
+  const DISSONANCE_FREQS = [138.59, 135.51, 277.18];
+
+  // ─── State ───────────────────────────────────────────────────
+  let state = {
+    shapes: [],        // placed shapes {id, type, color, col, row, size:1, x, y, w, h, growLevel}
+    score: 0,
+    gridCells: new Set(),  // "col,row" strings
+    isBalanced: false,
+    density: 0,
+    cleared: false
+  };
+
+  // ─── DOM refs ────────────────────────────────────────────────
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const toolbar = document.getElementById('toolbar');
+  const hudScore = document.getElementById('score-val');
+  const hudShapes = document.getElementById('shape-count');
+  const balanceFlash = document.getElementById('balance-flash');
+  const densityWarning = document.getElementById('density-warning');
+  const clearHint = document.getElementById('clear-hint');
+  const holdIndicator = document.getElementById('hold-indicator');
+  const holdFill = holdIndicator.querySelector('.fill');
+
+  // ─── Canvas sizing ──────────────────────────────────────────
+  let cellSize = 50;
+  let gridW, gridH, canvasW, canvasH;
+
+  function resize() {
+    const wrap = document.getElementById('canvas-wrap');
+    const toolbarH = toolbar.offsetHeight;
+    const availW = wrap.clientWidth;
+    const availH = wrap.clientHeight - toolbarH;
+
+    // Maintain aspect ratio, fit within available space
+    const idealW = availW;
+    const idealH = availH;
+    const gridAspect = GRID_COLS / GRID_ROWS;
+    const availAspect = idealW / idealH;
+
+    if (availAspect > gridAspect) {
+      gridH = idealH;
+      gridW = gridH * gridAspect;
+    } else {
+      gridW = idealW;
+      gridH = gridW / gridAspect;
+    }
+
+    canvasW = gridW;
+    canvasH = gridH;
+    canvas.width = Math.round(canvasW * window.devicePixelRatio);
+    canvas.height = Math.round(canvasH * window.devicePixelRatio);
+    canvas.style.width = Math.round(canvasW) + 'px';
+    canvas.style.height = Math.round(canvasH) + 'px';
+    ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+
+    cellSize = canvasW / GRID_COLS;
+    render();
+  }
+
+  // ─── Audio engine (Web Audio API) ───────────────────────────
+  let audioCtx = null;
+  let activeOscillators = new Map(); // key: shapeId
+
+  function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  function playTone(color, duration, freq, gainVal, type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+
+  function playPlacementTone(color) {
+    initAudio();
+    const freq = NOTE_FREQS[color] || NOTE_FREQS.yellow;
+    playTone(color, 0.6, freq, 0.15, 'sine');
+  }
+
+  function playTapTone() {
+    initAudio();
+    playTone('tap', 0.4, NOTE_FREQS.yellow, 0.12, 'triangle');
+  }
+
+  function startGrowTone(color, shapeId) {
+    if (!audioCtx) return;
+    const freq = NOTE_FREQS[color] || NOTE_FREQS.yellow;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    activeOscillators.set(shapeId, { osc, gain });
+  }
+
+  function stopGrowTone(shapeId) {
+    const entry = activeOscillators.get(shapeId);
+    if (entry) {
+      const { osc, gain } = entry;
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+      osc.stop(audioCtx.currentTime + 0.35);
+      activeOscillators.delete(shapeId);
+    }
+  }
+
+  function playBalanceChord() {
+    initAudio();
+    // Red-low / Yellow-mid / Blue-high resolved chord
+    setTimeout(() => playTone('red', 1.5, NOTE_FREQS.red, 0.12, 'sine'), 0);
+    setTimeout(() => playTone('yellow', 1.5, NOTE_FREQS.yellow, 0.10, 'sine'), 80);
+    setTimeout(() => playTone('blue', 1.8, NOTE_FREQS.blue, 0.08, 'sine'), 160);
+  }
+
+  function playClearSound() {
+    initAudio();
+    // Descending sweep
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 1.0);
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1.1);
+  }
+
+  function playDissonance() {
+    initAudio();
+    DISSONANCE_FREQS.forEach((f, i) => {
+      setTimeout(() => playTone('dissonance', 0.8, f, 0.06, 'sawtooth'), i * 50);
+    });
+  }
+
+  // ─── Toolbar ─────────────────────────────────────────────────
+  let selectedShape = 'circle';
+  let selectedColor = 'red';
+
+  function buildToolbar() {
+    // Title
+    const title = document.createElement('div');
+    title.className = 'toolbar-title';
+    title.textContent = 'Klee';
+    toolbar.appendChild(title);
+
+    // Shape buttons
+    SHAPE_TYPES.forEach(type => {
+      const btn = document.createElement('div');
+      btn.className = 'shape-btn' + (type === selectedShape ? ' selected' : '');
+      btn.dataset.shape = type;
+      btn.innerHTML = getShapeSVG(type);
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        initAudio();
+        document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedShape = type;
+      });
+      toolbar.appendChild(btn);
+    });
+
+    // Separator
+    toolbar.appendChild(Object.assign(document.createElement('div'), { className: 'toolbar-sep' }));
+
+    // Color buttons
+    Object.keys(PRIMARY).forEach(c => {
+      if (c === 'white') return; // No white shape
+      const btn = document.createElement('div');
+      btn.className = 'color-btn color-' + c + (c === selectedColor ? ' selected' : '');
+      btn.dataset.color = c;
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        initAudio();
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedColor = c;
+      });
+      toolbar.appendChild(btn);
+    });
+
+    // Separator
+    toolbar.appendChild(Object.assign(document.createElement('div'), { className: 'toolbar-sep' }));
+
+    // Clear button
+    const clearBtn = document.createElement('div');
+    clearBtn.className = 'shape-btn';
+    clearBtn.title = 'Clear all';
+    clearBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#E63B23" stroke-width="2">' +
+      '<line x1="4" y1="4" x2="20" y2="20"/><line x1="20" y1="4" x2="4" y2="20"/>' +
+      '</svg>';
+    clearBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      clearAll();
+    });
+    toolbar.appendChild(clearBtn);
+  }
+
+  function getShapeSVG(type) {
+    const s = '28';
+    if (type === 'circle') {
+      return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="none" stroke="#F5F0E8" stroke-width="2.5"/></svg>';
+    } else if (type === 'square') {
+      return '<svg viewBox="0 0 28 28"><rect x="4" y="4" width="20" height="20" fill="none" stroke="#F5F0E8" stroke-width="2.5"/></svg>';
+    } else {
+      return '<svg viewBox="0 0 28 28"><polygon points="14,3 25,25 3,25" fill="none" stroke="#F5F0E8" stroke-width="2.5"/></svg>';
+    }
+  }
+
+  // ─── Grid & Canvas Drawing ──────────────────────────────────
+  function getGridBounds() {
+    // Center the grid on canvas with margin
+    const margin = Math.min(canvasW, canvasH) * 0.03;
+    return { x: margin, y: margin, w: canvasW - margin * 2, h: canvasH - margin * 2 };
+  }
+
+  function getCellBounds(col, row) {
+    const gb = getGridBounds();
+    return {
+      x: gb.x + col * cellSize,
+      y: gb.y + row * cellSize,
+      w: cellSize,
+      h: cellSize
+    };
+  }
+
+  function colRowFromPos(px, py) {
+    const gb = getGridBounds();
+    const col = Math.floor((px - gb.x) / cellSize);
+    const row = Math.floor((py - gb.y) / cellSize);
+    if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return null;
+    return { col, row };
+  }
+
+  let renderAnimFrame = 0;
+  let lastRenderTime = 0;
+
+  function render() {
+    renderAnimFrame++;
+    ctx.clearRect(0, 0, canvasW, canvasH);
+
+    const gb = getGridBounds();
+
+    // Draw grid
+    ctx.strokeStyle = '#DDD8CC';
+    ctx.lineWidth = 0.5;
+    for (let c = 0; c <= GRID_COLS; c++) {
+      ctx.beginPath();
+      ctx.moveTo(gb.x + c * cellSize, gb.y);
+      ctx.lineTo(gb.x + c * cellSize, gb.y + gb.h);
+      ctx.stroke();
+    }
+    for (let r = 0; r <= GRID_ROWS; r++) {
+      ctx.beginPath();
+      ctx.moveTo(gb.x, gb.y + r * cellSize);
+      ctx.lineTo(gb.x + gb.w, gb.y + r * cellSize);
+      ctx.stroke();
+    }
+
+    // Draw shapes
+    state.shapes.forEach(shape => {
+      const bounds = getCellBounds(shape.col, shape.row);
+      const growExtra = shape.growLevel || 0;
+      const growPixels = growExtra * Math.min(cellSize, cellSize) * 0.15;
+      const pad = (growExtra > 0) ? (growPixels * 0.3) : 4;
+      const sz = Math.max(8, Math.min(bounds.w, bounds.h) - pad * 2 - growPixels);
+
+      ctx.save();
+      if (shape.densityFaded) {
+        ctx.globalAlpha = 0.3;
+      }
+      ctx.fillStyle = PRIMARY[shape.color] || PRIMARY.red;
+      ctx.strokeStyle = shape.color === 'black' ? PRIMARY.white : PRIMARY[shape.color];
+      ctx.lineWidth = 2 + growExtra * 1.5;
+
+      const cx = bounds.x + bounds.w / 2;
+      const cy = bounds.y + bounds.h / 2;
+
+      if (shape.type === 'circle') {
+        ctx.beginPath();
+        ctx.arc(cx, cy, sz / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (shape.type === 'square') {
+        ctx.fillRect(cx - sz / 2, cy - sz / 2, sz, sz);
+        ctx.strokeRect(cx - sz / 2, cy - sz / 2, sz, sz);
+      } else if (shape.type === 'triangle') {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - sz / 2);
+        ctx.lineTo(cx + sz / 2, cy + sz / 2);
+        ctx.lineTo(cx - sz / 2, cy + sz / 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (shape.type === 'line') {
+        const lw = 2 + growExtra * 3;
+        ctx.strokeStyle = PRIMARY[shape.color];
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(bounds.x + 4, cy);
+        ctx.lineTo(bounds.x + bounds.w - 4, cy);
+        ctx.stroke();
+      } else if (shape.type === 'cross') {
+        const lw = 2 + growExtra * 3;
+        ctx.strokeStyle = PRIMARY[shape.color];
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - sz / 2);
+        ctx.lineTo(cx, cy + sz / 2);
+        ctx.moveTo(cx - sz / 2, cy);
+        ctx.lineTo(cx + sz / 2, cy);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    });
+
+    // Draw placement preview (where shape will snap)
+    if (dragPreview) {
+      const preview = dragPreview;
+      const bounds = getCellBounds(preview.col, preview.row);
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = PRIMARY[preview.color];
+      ctx.strokeStyle = PRIMARY.black;
+      ctx.lineWidth = 2;
+      const cx = bounds.x + bounds.w / 2;
+      const cy = bounds.y + bounds.h / 2;
+      const sz = Math.min(bounds.w, bounds.h) - 8;
+
+      if (preview.type === 'circle') {
+        ctx.beginPath(); ctx.arc(cx, cy, sz/2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      } else if (preview.type === 'square') {
+        ctx.fillRect(cx-sz/2, cy-sz/2, sz, sz); ctx.strokeRect(cx-sz/2, cy-sz/2, sz, sz);
+      } else if (preview.type === 'triangle') {
+        ctx.beginPath(); ctx.moveTo(cx,cy-sz/2); ctx.lineTo(cx+sz/2,cy+sz/2); ctx.lineTo(cx-sz/2,cy+sz/2); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ─── Interaction: Drag & Drop from Toolbar ──────────────────
+  let dragState = null; // { type, color, col, row, offsetX, offsetY, fromToolbar }
+  let dragPreview = null; // { col, row, type, color }
+
+  function startDragFromToolbar(shapeType, color, screenX, screenY) {
+    initAudio();
+    dragState = {
+      type: shapeType,
+      color: color,
+      fromToolbar: true
+    };
+    dragPreview = { type: shapeType, color: color };
+    canvas.style.cursor = 'grab';
+  }
+
+  function updateDragPos(screenX, screenY) {
+    if (!dragState || !dragPreview) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = screenX - rect.left;
+    const y = screenY - rect.top;
+    const pos = colRowFromPos(x, y);
+    if (pos) {
+      dragPreview.col = pos.col;
+      dragPreview.row = pos.row;
+    }
+    render();
+  }
+
+  function endDrag(screenX, screenY) {
+    if (!dragState || !dragPreview) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = screenX - rect.left;
+    const y = screenY - rect.top;
+    const pos = colRowFromPos(x, y);
+
+    if (pos) {
+      const key = pos.col + ',' + pos.row;
+      if (!state.gridCells.has(key)) {
+        placeShape(dragState.type, dragState.color, pos.col, pos.row);
+      }
+    }
+
+    dragState = null;
+    dragPreview = null;
+    canvas.style.cursor = 'crosshair';
+    render();
+  }
+
+  // ─── Interaction: Tap-to-place Color Plane ───────────────────
+  function tapPlace(screenX, screenY) {
+    const rect = canvas.getBoundingClientRect();
+    const x = screenX - rect.left;
+    const y = screenY - rect.top;
+    const pos = colRowFromPos(x, y);
+
+    if (!pos) return;
+    const key = pos.col + ',' + pos.row;
+    if (state.gridCells.has(key)) return; // Cell occupied
+
+    initAudio();
+    playTapTone();
+
+    // Flash cell white
+    const bounds = getCellBounds(pos.col, pos.row);
+    ctx.save();
+    ctx.fillStyle = PRIMARY.white;
+    ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+    ctx.restore();
+
+    // After flash, draw the color plane
+    setTimeout(() => {
+      placeShape('square', selectedColor, pos.col, pos.row);
+    }, 120);
+  }
+
+  // ─── Core: Place Shape ──────────────────────────────────────
+  function placeShape(type, color, col, row) {
+    const key = col + ',' + row;
+    if (state.gridCells.has(key)) return;
+
+    state.gridCells.add(key);
+    const shape = {
+      id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type, color, col, row,
+      size: 1,
+      growLevel: 0,
+      densityFaded: false
+    };
+    state.shapes.push(shape);
+    state.cleared = false;
+
+    playPlacementTone(color);
+    updateDensity();
+    checkBalance();
+    updateHUD();
+  }
+
+  // ─── Hold-to-grow ───────────────────────────────────────────
+  let holdTimer = null;
+  let holdShape = null;
+  let holdStartTime = 0;
+  let isHoldingOnShape = false;
+
+  function startHold(screenX, screenY) {
+    const rect = canvas.getBoundingClientRect();
+    const x = screenX - rect.left;
+    const y = screenY - rect.top;
+    const pos = colRowFromPos(x, y);
+    if (!pos) return;
+
+    const shape = state.shapes.find(s => s.col === pos.col && s.row === pos.row);
+    if (!shape) return;
+
+    holdStartTime = Date.now();
+    holdShape = shape;
+    isHoldingOnShape = true;
+
+    // Show hold indicator
+    const bounds = getCellBounds(pos.col, pos.row);
+    holdIndicator.style.left = (bounds.x + bounds.w/2 - 12) + 'px';
+    holdIndicator.style.top = (bounds.y + bounds.h/2 - 12) + 'px';
+    holdIndicator.classList.add('active');
+    holdFill.style.transform = 'scale(0)';
+
+    // Start grow after 400ms
+    holdTimer = setTimeout(() => {
+      growShape(shape);
+    }, 400);
+  }
+
+  function growShape(shape) {
+    if (shape.growLevel < 3) {
+      shape.growLevel++;
+      playTone(shape.color, 0.3, (NOTE_FREQS[shape.color] || NOTE_FREQS.yellow) * (1 + shape.growLevel * 0.15), 0.1, 'sine');
+      startGrowTone(shape.color, shape.id);
+      updateDensity();
+      checkBalance();
+      render();
+    }
+  }
+
+  function endHold() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    if (holdShape && activeOscillators.has(holdShape.id)) {
+      stopGrowTone(holdShape.id);
+    }
+    holdShape = null;
+    isHoldingOnShape = false;
+    holdIndicator.classList.remove('active');
+    render();
+  }
+
+  // ─── Clear All (long-press empty canvas) ────────────────────
+  let clearTimer = null;
+  let clearStartTime = 0;
+  let isLongPressingEmpty = false;
+
+  function startClearHold() {
+    clearStartTime = Date.now();
+    isLongPressingEmpty = true;
+  }
+
+  function checkClearHold() {
+    if (!isLongPressingEmpty) return;
+    const elapsed = Date.now() - clearStartTime;
+    if (elapsed >= 1000) {
+      playClearSound();
+      clearAll();
+      isLongPressingEmpty = false;
+    }
+  }
+
+  function clearAll() {
+    state.shapes = [];
+    state.gridCells = new Set();
+    state.isBalanced = false;
+    state.cleared = true;
+    playClearSound();
+    updateDensity();
+    checkBalance();
+    updateHUD();
+
+    // Flash entire canvas
+    const gb = getGridBounds();
+    ctx.fillStyle = PRIMARY.white;
+    ctx.fillRect(gb.x, gb.y, gb.w, gb.h);
+    setTimeout(() => render(), 150);
+  }
+
+  // ─── Density & Balance ──────────────────────────────────────
+  function updateDensity() {
+    const totalCells = GRID_COLS * GRID_ROWS;
+    let occupiedCells = 0;
+    state.shapes.forEach(s => {
+      const cells = (1 + (s.growLevel || 0)) * (1 + (s.growLevel || 0));
+      occupiedCells += cells;
+    });
+    state.density = occupiedCells / totalCells;
+
+    if (state.density > 0.4 && !state.shapes.some(s => s.densityFaded)) {
+      state.shapes.forEach(s => { s.densityFaded = true; });
+      playDissonance();
+      densityWarning.classList.add('active');
+    } else {
+      state.shapes.forEach(s => { s.densityFaded = false; });
+      densityWarning.classList.remove('active');
+    }
+  }
+
+  function checkBalance() {
+    const colorsUsed = new Set(state.shapes.map(s => s.color));
+    const typesUsed = new Set(state.shapes.map(s => s.type));
+    const minCol = state.shapes.length ? Math.min(...state.shapes.map(s => s.col)) : GRID_COLS;
+    const maxCol = state.shapes.length ? Math.max(...state.shapes.map(s => s.col)) : 0;
+    const spread = maxCol - minCol + 1;
+    const minRow = state.shapes.length ? Math.min(...state.shapes.map(s => s.row)) : GRID_ROWS;
+    const maxRow = state.shapes.length ? Math.max(...state.shapes.map(s => s.row)) : 0;
+    const spreadRow = maxRow - minRow + 1;
+
+    const hasThreeColors = colorsUsed.size >= 3;
+    const hasCircle = typesUsed.has('circle');
+    const hasSquare = typesUsed.has('square');
+    const hasTriangle = typesUsed.has('triangle');
+    const hasAllThreeTypes = hasCircle && hasSquare && hasTriangle;
+    const spreadEnough = spread >= Math.ceil(GRID_COLS / 2);
+
+    const wasBalanced = state.isBalanced;
+    state.isBalanced = hasThreeColors && hasAllThreeTypes && spreadEnough;
+
+    if (state.isBalanced && !wasBalanced) {
+      scoreBalance();
+    } else if (!state.isBalanced && wasBalanced) {
+      // No penalty, just unbalance
+    }
+  }
+
+  function scoreBalance() {
+    state.score++;
+    hudScore.textContent = state.score;
+    playBalanceChord();
+
+    // White pulse
+    balanceFlash.classList.add('active');
+    setTimeout(() => balanceFlash.classList.remove('active'), 500);
+
+    updateHUD();
+  }
+
+  function updateHUD() {
+    hudScore.textContent = state.score;
+    hudShapes.textContent = 'Shapes: ' + state.shapes.length;
+  }
+
+  // ─── Pointer Events ─────────────────────────────────────────
+  let pointerDownPos = null;
+  let pointerDownTime = 0;
+  let hasMoved = false;
+  let dragFromToolbar = false;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    initAudio();
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const pos = colRowFromPos(x, y);
+
+    pointerDownPos = { x: e.clientX, y: e.clientY };
+    pointerDownTime = Date.now();
+    hasMoved = false;
+    dragFromToolbar = false;
+
+    // Check if we're on a placed shape
+    if (pos) {
+      const shape = state.shapes.find(s => s.col === pos.col && s.row === pos.row);
+      if (shape) {
+        startHold(e.clientX, e.clientY);
+        return;
+      }
+    }
+
+    // Empty cell: start tap timer or clear hold
+    startClearHold();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    e.preventDefault();
+
+    if (dragState) {
+      updateDragPos(e.clientX, e.clientY);
+      return;
+    }
+
+    if (pointerDownPos) {
+      const dx = e.clientX - pointerDownPos.x;
+      const dy = e.clientY - pointerDownPos.y;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        hasMoved = true;
+        // Cancel clear hold if moved
+        if (isLongPressingEmpty) {
+          isLongPressingEmpty = false;
+          clearTimeout(clearTimer);
+        }
+      }
+    }
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+
+    if (dragState) {
+      endDrag(e.clientX, e.clientY);
+      return;
+    }
+
+    const elapsed = Date.now() - pointerDownTime;
+
+    if (isHoldingOnShape && holdShape) {
+      // Was holding on a shape
+      if (elapsed < 400) {
+        // Tap on shape — do nothing (shape stays)
+      }
+      endHold();
+      pointerDownPos = null;
+      return;
+    }
+
+    if (hasMoved) {
+      pointerDownPos = null;
+      return;
+    }
+
+    // Short tap on empty cell
+    if (elapsed < 400 && pointerDownPos) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      tapPlace(e.clientX, e.clientY);
+    }
+
+    // Cancel clear hold
+    isLongPressingEmpty = false;
+    if (clearTimer) clearTimeout(clearTimer);
+    pointerDownPos = null;
+  });
+
+  canvas.addEventListener('pointercancel', (e) => {
+    if (dragState) {
+      dragState = null;
+      dragPreview = null;
+      canvas.style.cursor = 'crosshair';
+    }
+    if (isHoldingOnShape) endHold();
+    isLongPressingEmpty = false;
+    pointerDownPos = null;
+  });
+
+  // ─── window.__GAME Test Surface ─────────────────────────────
+  window.__GAME = {
+    getState: function() {
+      return {
+        shapes: state.shapes.map(s => ({
+          id: s.id, type: s.type, color: s.color,
+          col: s.col, row: s.row, growLevel: s.growLevel,
+          densityFaded: s.densityFaded
+        })),
+        score: state.score,
+        density: state.density,
+        isBalanced: state.isBalanced,
+        gridCells: Array.from(state.gridCells)
+      };
+    },
+    isBalanced: function() {
+      return state.isBalanced;
+    },
+    place: function(type, color, col, row) {
+      if (SHAPE_TYPES.includes(type) && Object.keys(PRIMARY).includes(color)) {
+        placeShape(type, color, col, row);
+        return true;
+      }
+      return false;
+    },
+    clear: function() {
+      clearAll();
+    },
+    onBalance: function(fn) {
+      // Expose a hook for monitoring
+      window.__GAME._balanceListener = fn;
+    },
+    _getState: function() { return state; }
+  };
+
+  // Expose balance listener callback
+  const origCheckBalance = checkBalance;
+  // We already handle balance in checkBalance; expose via a simple callback mechanism
+  window.__GAME._emitBalance = function() {
+    if (window.__GAME._balanceListener) {
+      window.__GAME._balanceListener();
+    }
+  };
+
+  // ─── Init ───────────────────────────────────────────────────
+  buildToolbar();
+  window.addEventListener('resize', resize);
+  resize();
+  render();
+
+  // Expose for testing — check balance periodically
+  setInterval(() => {
+    checkBalance();
+    if (state.isBalanced && window.__GAME._balanceListener) {
+      window.__GAME._emitBalance();
+    }
+  }, 500);
+
+})();
+</script>
+</body>
+</html>
