@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Rhythmic Vessel</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  overflow: hidden;
+  background: #1a1a1a;
+  touch-action: none;
+  position: fixed; inset: 0;
+  cursor: none;
+  font-family: system-ui, sans-serif;
+}
+
+#mainCanvas {
+  display: block; width: 100vw; height: 100vh;
+  position: fixed; inset: 0; z-index: 1;
+}
+
+/* Linen-grain overlay */
+#linenOverlay {
+  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 3;
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+}
+
+/* Flash transition layer */
+#flashLayer {
+  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 4;
+  background: #FFD700; opacity: 0;
+  transition: none;
+}
+
+/* Start prompt */
+#startPrompt {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(26, 26, 26, 0.85);
+  color: #E63946;
+  font-size: 16px; letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer; user-select: none;
+  transition: opacity 1s ease;
+}
+#startPrompt.hidden { opacity: 0; pointer-events: none; }
+#startPrompt .sub {
+  font-size: 11px; color: #FFD700; letter-spacing: 0.18em;
+  margin-top: 12px; text-transform: none; opacity: 0.7;
+}
+
+/* HUD */
+#hud {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 5; color: rgba(255,215,0,0.35); font-size: 10px;
+  letter-spacing: 0.15em; text-transform: uppercase; pointer-events: none;
+}
+
+/* SVG filter defs */
+.svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Linen grain texture filter -->
+    <filter id="linenGrain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75"
+        numOctaves="4" seed="23" stitchTiles="stitch" result="noise"/>
+      <feColorMatrix type="saturate" values="0" in="noise" result="desat"/>
+      <feComponentTransfer in="desat">
+        <feFuncA type="linear" slope="1.5"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
+
+<canvas id="mainCanvas"></canvas>
+<canvas id="linenOverlay"></canvas>
+<div id="flashLayer"></div>
+<div id="startPrompt">
+  <span>Move the cursor</span>
+  <span class="sub">slowly toward the form</span>
+</div>
+<div id="hud">grain &mdash; sigh &mdash; snap</div>
+
+<script>
+(function () {
+"use strict";
+
+/* ═══════════════════════════════════════════
+   CONSTANTS — The Rhythmic Vessel
+   ═══════════════════════════════════════════ */
+const VEL_THRESHOLD_PXS = 8;        // px/frame lock threshold (hard-coded)
+const FRAME_MS = 16.67;             // ~60fps target
+const COLOR_RED    = [230, 57, 70];   // #E63946
+const COLOR_BLACK  = [26, 26, 26];    // #1a1a1a
+const COLOR_YELLOW = [255, 215, 0];   // #FFD700
+const C_MAJOR_FREQS = [261.63, 329.63, 392.00, 523.25]; // C4 E4 G4 C5
+
+/* Grain noise parameters */
+const GRAIN_SCALE      = 0.03;
+const GRAIN_AMP        = 3.5;       // max px micro-offset per axis
+const DECAY_CURVE_POWER = 1.6;      // non-linear decay steepness
+
+/* Canvas refs */
+const canvas     = document.getElementById('mainCanvas');
+const ctx        = canvas.getContext('2d', { alpha: false, desynchronized: true });
+const linenCanvas = document.getElementById('linenOverlay');
+const linenCtx   = linenCanvas.getContext('2d');
+const flashLayer  = document.getElementById('flashLayer');
+const startPrompt = document.getElementById('startPrompt');
+
+/* ═══════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════ */
+let W, H;
+let cursorX = 0, cursorY = 0;       // rendered position
+let lastMoveX = 0, lastMoveY = 0;   // raw input
+let velX = 0, velY = 0;            // velocity vectors
+let speed = 0;                       // scalar speed
+let state = 'idle';                  // idle | approaching | locking | snapped | released
+let lockTimer = 0;
+let snapCount = 0;
+let grainAccumX = 0, grainAccumY = 0; // Perlin noise accumulator
+let lastGrainTime = 0;
+let trail = [];                      // cursor trail for linen rendering
+const TRAIL_MAX = 120;
+
+/* Geometric pulse */
+let pulses = [];                     // { x, y, radius, maxRadius, alpha, phase }
+
+/* Bauhaus shapes */
+let bauShapes = [];
+
+/* Audio state */
+let audioCtx = null;
+let masterGain = null;
+let humOscs = [];
+let humGains = [];
+let noiseNode = null;
+let crackleGain = null;
+let snapOscs = [];
+let snapGain = null;
+let audioStarted = false;
+
+/* Flash state */
+let flashAlpha = 0;
+let flashTarget = 0;
+
+/* ═══════════════════════════════════════════
+   PERLIN-LIKE NOISE (Simplex-style, seeded)
+   ═══════════════════════════════════════════ */
+const PERM = new Uint8Array(512);
+(function buildPerm() {
+  const p = [];
+  for (let i = 0; i < 256; i++) p[i] = i;
+  // Fisher-Yates shuffle with deterministic seed
+  let seed = 42;
+  function rng() { seed = (seed * 16807 + 0) % 2147483647; return seed / 2147483647; }
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+
+const GRAD3 = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+// Fix: use actual minus signs via arithmetic
+const GRAD_TABLE = [
+  [1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]
+];
+
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+
+function grad(hash, x, y) {
+  const g = GRAD_TABLE[hash & 7];
+  return g[0] * x + g[1] * y;
+}
+
+function perlin2(x, y) {
+  const X = Math.floor(x) & 255;
+  const Y = Math.floor(y) & 255;
+  x -= Math.floor(x);
+  y -= Math.floor(y);
+  const u = fade(x);
+  const v = fade(y);
+  const A  = PERM[X] + Y;
+  const B  = PERM[X + 1] + Y;
+  return lerp(
+    lerp(grad(PERM[A], x, y), grad(PERM[B], x, y), u),
+    lerp(grad(PERM[A + 1], x - 1, y), grad(PERM[B + 1], x - 1, y), u),
+    v
+  );
+}
+
+/* Octave noise for richer grain */
+function octaveNoise(x, y, octaves) {
+  let val = 0, amp = 1, freq = 1, maxAmp = 0;
+  for (let i = 0; i < octaves; i++) {
+    val += perlin2(x * freq, y * freq) * amp;
+    maxAmp += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return val / maxAmp;
+}
+
+/* ═══════════════════════════════════════════
+   AUDIO ENGINE — C-Major Hum + Grain
+   ═══════════════════════════════════════════ */
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.35;
+  masterGain.connect(audioCtx.destination);
+
+  // ── Hum oscillator stack (C-major chord, breathy) ──
+  humOscs = [];
+  humGains = [];
+  for (let i = 0; i < C_MAJOR_FREQS.length; i++) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    // Use triangle for warmth, slight detune for thickness
+    osc.type = 'triangle';
+    osc.frequency.value = C_MAJOR_FREQS[i];
+    // Small detune for natural chorus
+    if (i > 0) osc.detune.value = (Math.random() - 0.5) * 12;
+    gain.gain.value = i === 0 ? 0.18 : 0.07;
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+    humOscs.push(osc);
+    humGains.push(gain);
+  }
+
+  // ── Granular vinyl-crackle noise ──
+  const bufferSize = audioCtx.sampleRate * 2; // 2 sec buffer
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    // Mix of white noise and intermittent clicks
+    if (Math.random() < 0.002) {
+      // Vinyl crackle click
+      data[i] = (Math.random() * 2 - 1) * 0.6;
+    } else {
+      // Brown-ish noise for warmth
+      data[i] = (Math.random() * 2 - 1) * 0.03;
+    }
+  }
+  noiseNode = audioCtx.createBufferSource();
+  noiseNode.buffer = noiseBuffer;
+  noiseNode.loop = true;
+
+  // Bandpass to shape the grain texture
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 3000;
+  bp.Q.value = 0.8;
+
+  crackleGain = audioCtx.createGain();
+  crackleGain.gain.value = 0.04;
+
+  noiseNode.connect(bp);
+  bp.connect(crackleGain);
+  crackleGain.connect(masterGain);
+  noiseNode.start();
+
+  // ── Snap chord gain ──
+  snapGain = audioCtx.createGain();
+  snapGain.gain.value = 0;
+  snapGain.connect(masterGain);
+}
+
+function updateHum(speedNorm) {
+  // speedNorm: 0..1 where 1 = very slow (near threshold)
+  // As cursor slows, hum rises in pitch (semitones up to +12)
+  const semitonesUp = Math.pow(speedNorm, DECAY_CURVE_POWER) * 12;
+
+  for (let i = 0; i < humOscs.length; i++) {
+    const baseFreq = C_MAJOR_FREQS[i];
+    // Rise pitch on slow movement, but stay in C-major
+    const freqShift = Math.pow(speedNorm, DECAY_CURVE_POWER) * baseFreq * 0.5;
+    humOscs[i].frequency.setTargetAtTime(
+      baseFreq + freqShift, audioCtx.currentTime, 0.08
+    );
+    // Gain increases as cursor slows (breathy sigh)
+    const humVol = 0.12 + speedNorm * 0.1;
+    humGains[i].gain.setTargetAtTime(humVol, audioCtx.currentTime, 0.08);
+  }
+
+  // Crackle intensity rises with strain
+  if (crackleGain) {
+    const crackleVol = 0.02 + speedNorm * 0.08;
+    crackleGain.gain.setTargetAtTime(crackleVol, audioCtx.currentTime, 0.1);
+  }
+}
+
+function triggerSnapChord() {
+  if (!audioCtx || !snapGain) return;
+  const now = audioCtx.currentTime;
+
+  // Percussive brass-like chord: triangle + square combo with fast attack/decay
+  const freqs = [261.63, 329.63, 392.00, 523.25, 659.25]; // C-E-G-C-E
+
+  for (let i = 0; i < freqs.length; i++) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = i < 3 ? 'triangle' : 'square';
+    osc.frequency.value = freqs[i];
+    // Sharp attack, medium decay (percussive brass)
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(i < 3 ? 0.25 : 0.12, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+    osc.connect(gain);
+    gain.connect(snapGain);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  }
+
+  // Fade master hum slightly during snap
+  snapGain.gain.setValueAtTime(0.001, now);
+  snapGain.gain.linearRampToValueAtTime(0.6, now + 0.01);
+  snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+}
+
+/* ═══════════════════════════════════════════
+   BAUHAUS GEOMETRIC SHAPES
+   ═══════════════════════════════════════════ */
+function initBauShapes() {
+  bauShapes = [];
+  const cx = W / 2, cy = H / 2;
+  const margin = Math.min(W, H) * 0.15;
+
+  // Central circle (Anni Albers inspired — woven form)
+  bauShapes.push({
+    type: 'circle', x: cx, y: cy, r: Math.min(W, H) * 0.08,
+    color: COLOR_RED, pulsePhase: 0
+  });
+
+  // Offset square (Bayer / Moholy-Nagy grid)
+  const sqSize = Math.min(W, H) * 0.06;
+  bauShapes.push({
+    type: 'square', x: cx + margin * 0.6, y: cy - margin * 0.5,
+    size: sqSize, color: COLOR_YELLOW, pulsePhase: Math.PI * 0.5
+  });
+
+  // Arch shape (Gropius — architectural portal)
+  const archR = Math.min(W, H) * 0.1;
+  bauShapes.push({
+    type: 'arch', x: cx - margin * 0.7, y: cy + margin * 0.3,
+    r: archR, color: COLOR_RED, pulsePhase: Math.PI
+  });
+
+  // Second circle (contrapuntal balance)
+  bauShapes.push({
+    type: 'circle', x: cx + margin * 0.8, y: cy + margin * 0.6,
+    r: Math.min(W, H) * 0.05, color: COLOR_YELLOW, pulsePhase: Math.PI * 1.2
+  });
+
+  // Small square (detail accent)
+  bauShapes.push({
+    type: 'square', x: cx - margin * 0.4, y: cy - margin * 0.7,
+    size: sqSize * 0.5, color: COLOR_RED, pulsePhase: Math.PI * 1.6
+  });
+
+  // Arch companion
+  bauShapes.push({
+    type: 'arch', x: cx + margin * 0.3, y: cy - margin * 0.9,
+    r: archR * 0.7, color: COLOR_YELLOW, pulsePhase: Math.PI * 2
+  });
+}
+
+function drawBauShape(s, time) {
+  ctx.save();
+  const breathe = 1 + 0.03 * Math.sin(time * 0.8 + s.pulsePhase);
+  const approachPulse = getApproachPulse() * 0.4;
+  const scale = breathe + approachPulse;
+
+  ctx.globalAlpha = 0.75 + approachPulse * 0.25;
+
+  if (s.type === 'circle') {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r * scale, 0, Math.PI * 2);
+    ctx.fillStyle = `rgb(${s.color[0]},${s.color[1]},${s.color[2]})`;
+    ctx.fill();
+    // Thin stroke for Bauhaus precision
+    ctx.strokeStyle = `rgba(255,215,0,${0.15 + approachPulse * 0.3})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else if (s.type === 'square') {
+    const sz = s.size * scale;
+    ctx.fillStyle = `rgb(${s.color[0]},${s.color[1]},${s.color[2]})`;
+    ctx.fillRect(s.x - sz / 2, s.y - sz / 2, sz, sz);
+    ctx.strokeStyle = `rgba(26,26,26,${0.3 + approachPulse * 0.4})`;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(s.x - sz / 2, s.y - sz / 2, sz, sz);
+  } else if (s.type === 'arch') {
+    const r = s.r * scale;
+    // Arch: half-circle on top of a rectangle base
+    const h = r * 1.5;
+    ctx.fillStyle = `rgb(${s.color[0]},${s.color[1]},${s.color[2]})`;
+    // Base rectangle
+    ctx.fillRect(s.x - r, s.y, r * 2, h);
+    // Half-circle top
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, Math.PI, 0);
+    ctx.fill();
+    // Inner cutout for Bauhaus line quality
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#1a1a1a';
+    const innerR = r * 0.65;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, innerR, Math.PI, 0);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  ctx.restore();
+}
+
+function getApproachPulse() {
+  // Returns 0..1 based on how close speed is to threshold
+  if (state === 'snapping') return Math.min(1, lockTimer * 5);
+  const margin = VEL_THRESHOLD_PXS * 3;
+  const diff = speed - VEL_THRESHOLD_PXS;
+  return Math.max(0, 1 - diff / margin);
+}
+
+/* ═══════════════════════════════════════════
+   CURSOR TRAIL & LINEN OVERLAY
+   ═══════════════════════════════════════════ */
+function pushTrail(x, y) {
+  trail.push({ x, y, t: performance.now(), speed });
+  if (trail.length > TRAIL_MAX) trail.shift();
+}
+
+function drawCursor() {
+  // Cursor as a small Bauhaus circle with grain offset
+  const gx = GRAIN_AMP * octaveNoise(grainAccumX, 0.5, 3);
+  const gy = GRAIN_AMP * octaveNoise(0.5, grainAccumY, 3);
+  const cx = cursorX + gx;
+  const cy = cursorY + gy;
+
+  // Glow based on approach state
+  const approachPulse = getApproachPulse();
+  const glowR = 6 + approachPulse * 14;
+
+  // Outer ring (growing as it slows)
+  ctx.beginPath();
+  ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(255,215,0,${0.15 + approachPulse * 0.6})`;
+  ctx.lineWidth = 1 + approachPulse * 2;
+  ctx.stroke();
+
+  // Inner dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = `rgb(${COLOR_RED[0]},${COLOR_RED[1]},${COLOR_RED[2]})`;
+  ctx.fill();
+
+  // Grain micro-ripples around cursor when near threshold
+  if (approachPulse > 0.3) {
+    const rippleAlpha = (approachPulse - 0.3) * 0.3;
+    for (let i = 0; i < 3; i++) {
+      const angle = (i / 3) * Math.PI * 2 + performance.now() * 0.001;
+      const rippleR = 15 + approachPulse * 20 + i * 8;
+      ctx.beginPath();
+      ctx.arc(
+        cx + Math.cos(angle) * rippleR * 0.3,
+        cy + Math.sin(angle) * rippleR * 0.3,
+        2, 0, Math.PI * 2
+      );
+      ctx.fillStyle = `rgba(255,215,0,${rippleAlpha})`;
+      ctx.fill();
+    }
+  }
+}
+
+function drawTrail() {
+  if (trail.length < 2) return;
+
+  ctx.save();
+  for (let i = 1; i < trail.length; i++) {
+    const p0 = trail[i - 1];
+    const p1 = trail[i];
+    const age = (performance.now() - p1.t) / 3000; // 3s fade
+    const alpha = Math.max(0, 0.25 * (1 - age));
+    if (alpha <= 0) continue;
+
+    ctx.beginPath();
+    ctx.moveTo(p0.x + GRAIN_AMP * octaveNoise(grainAccumX + i * 0.1, 0.3, 2),
+               p0.y + GRAIN_AMP * octaveNoise(0.3, grainAccumY + i * 0.1, 2));
+    ctx.lineTo(p1.x + GRAIN_AMP * octaveNoise(grainAccumX + (i + 1) * 0.1, 0.7, 2),
+               p1.y + GRAIN_AMP * octaveNoise(0.7, grainAccumY + (i + 1) * 0.1, 2));
+
+    // Trail color shifts from red to yellow as it slows
+    const t = i / trail.length;
+    const r = Math.round(COLOR_RED[0] + (COLOR_YELLOW[0] - COLOR_RED[0]) * (1 - t));
+    const g = Math.round(COLOR_RED[1] + (COLOR_YELLOW[1] - COLOR_RED[1]) * (1 - t));
+    const b = Math.round(COLOR_RED[2] + (COLOR_YELLOW[2] - COLOR_RED[2]) * (1 - t));
+    ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.lineWidth = 2 + p1.speed * 0.3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function renderLinenOverlay() {
+  if (trail.length < 2) return;
+
+  linenCtx.clearRect(0, 0, linenCanvas.width, linenCanvas.height);
+
+  // Draw grain trail on overlay
+  for (let i = 1; i < Math.min(trail.length, 60); i++) {
+    const p = trail[i];
+    const age = (performance.now() - p.t) / 2000;
+    if (age > 1) continue;
+
+    const grainX = GRAIN_AMP * octaveNoise(grainAccumX + i * 0.05, 0.5, 3);
+    const grainY = GRAIN_AMP * octaveNoise(0.5, grainAccumY + i * 0.05, 3);
+
+    linenCtx.beginPath();
+    linenCtx.arc(p.x + grainX, p.y + grainY, 1.5 + age * 2, 0, Math.PI * 2);
+    linenCtx.fillStyle = `rgba(200,180,160,${0.08 * (1 - age)})`;
+    linenCtx.fill();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   GEOMETRIC PULSE BEAT (on snap)
+   ═══════════════════════════════════════════ */
+function triggerPulse(x, y) {
+  pulses.push({
+    x, y, radius: 5, maxRadius: Math.max(W, H) * 0.4,
+    alpha: 1, phase: 0
+  });
+  // Additional concentric rings
+  for (let i = 1; i <= 3; i++) {
+    pulses.push({
+      x, y, radius: 5 + i * 8, maxRadius: Math.max(W, H) * (0.4 - i * 0.06),
+      alpha: 1 - i * 0.2, phase: i * 0.3
+    });
+  }
+}
+
+function updatePulses() {
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    p.radius += 8 + p.phase * 4;
+    p.alpha -= 0.015;
+    if (p.alpha <= 0 || p.radius > p.maxRadius) {
+      pulses.splice(i, 1);
+    }
+  }
+}
+
+function drawPulses() {
+  for (const p of pulses) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,215,0,${p.alpha * 0.5})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Geometric cross-lines on first ring
+    if (p.radius < 80) {
+      const len = p.radius * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(p.x - len, p.y);
+      ctx.lineTo(p.x + len, p.y);
+      ctx.moveTo(p.x, p.y - len);
+      ctx.lineTo(p.x, p.y + len);
+      ctx.strokeStyle = `rgba(230,57,70,${p.alpha * 0.4})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════
+   FLASH TRANSITION (sigh → snap)
+   ═══════════════════════════════════════════ */
+function triggerFlash() {
+  flashTarget = 0.4;
+}
+
+function updateFlash(dt) {
+  if (flashAlpha > 0 && flashTarget <= 0) {
+    flashAlpha -= dt * 3; // fade out over ~333ms
+    if (flashAlpha < 0) flashAlpha = 0;
+  } else if (flashTarget > 0) {
+    flashAlpha = Math.min(flashAlpha + dt * 15, flashTarget);
+    flashTarget *= 0.9; // decay target
+  }
+  flashLayer.style.opacity = flashAlpha;
+}
+
+/* ═══════════════════════════════════════════
+   VELOCITY LOCK / SNAP LOGIC
+   ═══════════════════════════════════════════ */
+function checkSnap() {
+  if (state !== 'approaching') return;
+
+  // Hard-coded millisecond velocity threshold check
+  // speed in px/frame → we want the cursor to slow below threshold
+  if (speed < VEL_THRESHOLD_PXS) {
+    lockTimer += 16; // ~ms per frame at 60fps
+
+    // Must sustain below threshold for a brief moment to confirm lock
+    if (lockTimer >= FRAME_MS * 2) {
+      triggerSnap();
+    }
+  } else {
+    // Reset if speed exceeds threshold again
+    lockTimer = 0;
+    state = 'approaching';
+  }
+}
+
+function triggerSnap() {
+  state = 'snapping';
+
+  // Visual: geometric pulse beat
+  triggerPulse(cursorX, cursorY);
+
+  // Visual: flash transition sigh → snap
+  triggerFlash();
+
+  // Audio: percussive brass chord resolution
+  triggerSnapChord();
+
+  // Snap count
+  snapCount++;
+
+  // Resume after brief moment
+  setTimeout(() => {
+    state = 'released';
+    setTimeout(() => {
+      state = 'idle';
+      trail = [];
+      pulses = [];
+      cursorX = lastMoveX;
+      cursorY = lastMoveY;
+    }, 300);
+  }, 500);
+}
+
+/* ═══════════════════════════════════════════
+   INPUT HANDLING — sub-5ms latency path
+   ═══════════════════════════════════════════ */
+function onMove(rawX, rawY) {
+  lastMoveX = rawX;
+  lastMoveY = rawY;
+
+  if (state === 'idle') {
+    state = 'approaching';
+    cursorX = rawX;
+    cursorY = rawY;
+    lastGrainTime = performance.now();
+    return;
+  }
+
+  const dx = rawX - cursorX;
+  const dy = rawY - cursorY;
+
+  // Raw velocity for this frame
+  velX = dx;
+  velY = dy;
+  speed = Math.sqrt(dx * dx + dy * dy);
+
+  // ── NOISE-BASED DECAY (the Waltz / Grain) ──
+  const now = performance.now();
+  const dt = now - lastGrainTime;
+  if (dt > 16) { // update grain at ~60Hz to save CPU
+    lastGrainTime = now;
+
+    // Time-varying noise seed for organic micro-variations
+    const timeScale = now * 0.0003;
+    const noiseX = octaveNoise(rawX * GRAIN_SCALE + timeScale, rawY * GRAIN_SCALE, 4);
+    const noiseY = octaveNoise(rawX * GRAIN_SCALE, rawY * GRAIN_SCALE + timeScale, 4);
+
+    // Grain offsets
+    grainAccumX += noiseX;
+    grainAccumY += noiseY;
+
+    // Decay factor: non-linear slowing as approach increases
+    const approachPulse = getApproachPulse();
+    const decayFactor = Math.pow(1 - approachPulse * 0.85, DECAY_CURVE_POWER);
+
+    // Apply grain-infused decay to movement
+    const targetX = cursorX + dx * decayFactor + noiseX * GRAIN_AMP;
+    const targetY = cursorY + dy * decayFactor + noiseY * GRAIN_AMP;
+
+    cursorX = targetX;
+    cursorY = targetY;
+  } else {
+    // Fallback: simple interpolated movement (still under 5ms)
+    const approachPulse = getApproachPulse();
+    const decayFactor = Math.pow(1 - approachPulse * 0.85, DECAY_CURVE_POWER);
+    cursorX += dx * decayFactor;
+    cursorY += dy * decayFactor;
+  }
+
+  pushTrail(cursorX, cursorY);
+
+  // Check for snap condition
+  checkSnap();
+}
+
+/* Pointer events (fastest path) */
+let lastPointerX = 0, lastPointerY = 0;
+canvas.addEventListener('pointermove', (e) => {
+  e.preventDefault();
+  const t0 = performance.now();
+  onMove(e.clientX, e.clientY);
+  // Latency audit (dev only):
+  // if (performance.now() - t0 > 5) console.warn('LATENCY:', performance.now() - t0, 'ms');
+}, { passive: false });
+
+canvas.addEventListener('pointerdown', () => {
+  // Re-snap on click during approaching
+  if (state === 'approaching' && speed < VEL_THRESHOLD_PXS * 1.5) {
+    lockTimer = FRAME_MS * 3; // force snap faster
+  }
+});
+
+/* ═══════════════════════════════════════════
+   BACKGROUND — strain-reactive gradient
+   ═══════════════════════════════════════════ */
+function drawBackground() {
+  const approachPulse = getApproachPulse();
+
+  // Base dark field
+  ctx.fillStyle = `rgb(${COLOR_BLACK[0]},${COLOR_BLACK[1]},${COLOR_BLACK[2]})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // Strain-reactive radial gradient from cursor position
+  const gradAlpha = approachPulse * 0.08;
+  const gradR = Math.min(W, H) * (0.3 + approachPulse * 0.4);
+  const grad = ctx.createRadialGradient(
+    cursorX, cursorY, 0,
+    cursorX, cursorY, gradR
+  );
+
+  // Yellow-ish glow that intensifies as cursor slows
+  grad.addColorStop(0, `rgba(255,215,0,${gradAlpha})`);
+  grad.addColorStop(0.5, `rgba(230,57,70,${gradAlpha * 0.4})`);
+  grad.addColorStop(1, 'rgba(26,26,26,0)');
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines (Bauhaus constructive geometry) — very subtle
+  const gridAlpha = 0.03 + approachPulse * 0.04;
+  ctx.strokeStyle = `rgba(255,215,0,${gridAlpha})`;
+  ctx.lineWidth = 0.5;
+
+  const gridSize = Math.min(W, H) * 0.12;
+  for (let x = gridSize; x < W; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  for (let y = gridSize; y < H; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   MAIN RENDER LOOP
+   ═══════════════════════════════════════════ */
+let lastFrameTime = 0;
+
+function render(timestamp) {
+  const dt = Math.min(32, timestamp - lastFrameTime); // cap delta
+  lastFrameTime = timestamp;
+
+  // Background with strain gradient
+  drawBackground();
+
+  // Bauhaus geometric shapes
+  for (const s of bauShapes) {
+    drawBauShape(s, timestamp * 0.001);
+  }
+
+  // Cursor trail (linen texture path)
+  drawTrail();
+
+  // Current cursor position with grain
+  drawCursor();
+
+  // Geometric pulse beats
+  updatePulses();
+  drawPulses();
+
+  // Flash transition layer handled separately via DOM
+  updateFlash(dt / 1000);
+
+  // Linen overlay rendering
+  renderLinenOverlay();
+
+  // Audio update (every frame for smoothness)
+  if (audioStarted && state !== 'idle') {
+    const speedNorm = Math.max(0, Math.min(1, speed / VEL_THRESHOLD_PXS));
+    updateHum(speedNorm);
+  }
+
+  requestAnimationFrame(render);
+}
+
+/* ═══════════════════════════════════════════
+   RESIZE HANDLING
+   ═══════════════════════════════════════════ */
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  linenCanvas.width = W * dpr;
+  linenCanvas.height = H * dpr;
+  linenCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  initBauShapes();
+}
+
+/* ═══════════════════════════════════════════
+   START HANDLER (autoplay policy bypass)
+   ═══════════════════════════════════════════ */
+function onStart() {
+  startPrompt.classList.add('hidden');
+  if (!audioStarted) {
+    initAudio();
+    audioStarted = true;
+  }
+}
+
+startPrompt.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  onStart();
+});
+startPrompt.addEventListener('click', () => {
+  onStart();
+});
+
+/* ═══════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════ */
+function init() {
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Seed initial state
+  cursorX = W / 2;
+  cursorY = H / 2;
+  lastMoveX = cursorX;
+  lastMoveY = cursorY;
+
+  // Start render loop
+  requestAnimationFrame(render);
+}
+
+// Boot on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
+</script>
+</body>
+</html>

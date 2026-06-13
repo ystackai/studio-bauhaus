@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0;url=composer.html">
+  <meta name="description" content="Bauhaus Digital — Geometric Composer. Art and technology are one.">
+  <title>Bauhaus Digital — Compose</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #0A0A0A; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+    .loader {
+      text-align: center; color: #F2EDE4;
+      animation: fadeIn 0.6s ease forwards;
+    }
+    .loader h1 {
+      font-size: clamp(1.4rem, 3.2vw, 2rem);
+      font-weight: 900; letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .loader h1 .r { color: #D93838; }
+    .loader h1 .b { color: #2962AD; }
+    .loader h1 .y { color: #E8B828; }
+    .loader p {
+      margin-top: 0.6rem;
+      font-size: clamp(0.55rem, 1.3vw, 0.7rem);
+      color: #6B6B6B; letter-spacing: 0.2em; text-transform: uppercase;
+    }
+    .loader a {
+      display: inline-block; margin-top: 1.5rem;
+      font-size: 0.65rem; font-weight: 700;
+      color: #F2EDE4; text-transform: uppercase;
+      letter-spacing: 0.15em; text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 0.5rem 1.2rem; border-radius: 2px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .loader a:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.3); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <h1><span class="r">B</span><span class="b">a</span><span class="y">u</span>haus</h1>
+    <p>Geometric Composer</p>
+    <a href="composer.html">Enter Composer &rarr;</a>
+  </div>
+  <script>
+    (function() {
+      // Auto-redirect after brief delay, or immediately if prefers-reduced-motion
+      var t = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 100 : 800;
+      setTimeout(function() { window.location.href = 'composer.html'; }, t);
+    })();
+  </script>
+</body>
+</html>
