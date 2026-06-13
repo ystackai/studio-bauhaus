@@ -60,10 +60,10 @@
   }
   .color-btn:hover { transform: scale(1.1); }
   .color-btn.selected { border-color: #1A1A1A; transform: scale(1.15); }
-  .color-red    { background: #E63B23; }
+  .color-red     { background: #E63B23; }
   .color-yellow { background: #F4D03F; }
-  .color-blue   { background: #2B5EA7; }
-  .color-black  { background: #1A1A1A; }
+  .color-blue    { background: #2B5EA7; }
+  .color-black   { background: #1A1A1A; }
   #canvas-wrap {
     flex: 1; position: relative;
     overflow: hidden;
@@ -132,7 +132,7 @@
     border-radius: 50%;
     background: #E63B23;
     transform: scale(0);
-    transform-origin: center;
+    transition: transform 0.05s linear;
   }
 </style>
 </head>
@@ -157,11 +157,11 @@
 
   // ─── Constants ───────────────────────────────────────────────
   const PRIMARY = {
-    red:    '#E63B23',
+    red:     '#E63B23',
     yellow: '#F4D03F',
-    blue:   '#2B5EA7',
-    black:  '#1A1A1A',
-    white:  '#F5F0E8'
+    blue:    '#2B5EA7',
+    black:   '#1A1A1A',
+    white:   '#F5F0E8'
   };
 
   const SHAPE_TYPES = ['circle', 'square', 'triangle'];
@@ -170,9 +170,9 @@
 
   // Audio: red→low, yellow→mid, blue→high (MIDI note numbers mapped to Hz)
   const NOTE_FREQS = {
-    red: 130.81,   // C3
+    red: 130.81,    // C3
     yellow: 261.63, // C4
-    blue: 523.25    // C5
+    blue: 523.25     // C5
   };
 
   // Dissonance frequencies
@@ -180,9 +180,9 @@
 
   // ─── State ───────────────────────────────────────────────────
   let state = {
-    shapes: [],        // placed shapes {id, type, color, col, row, size:1, x, y, w, h, growLevel}
+    shapes: [],
     score: 0,
-    gridCells: new Set(),  // "col,row" strings
+    gridCells: new Set(),
     isBalanced: false,
     density: 0,
     cleared: false
@@ -190,7 +190,6 @@
 
   // ─── DOM refs ────────────────────────────────────────────────
   const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
   const toolbar = document.getElementById('toolbar');
   const hudScore = document.getElementById('score-val');
   const hudShapes = document.getElementById('shape-count');
@@ -198,39 +197,45 @@
   const densityWarning = document.getElementById('density-warning');
   const clearHint = document.getElementById('clear-hint');
   const holdIndicator = document.getElementById('hold-indicator');
-  const holdFill = holdIndicator.querySelector('.fill');
+  const holdFill = holdIndicator && holdIndicator.querySelector('.fill');
 
   // ─── Canvas sizing ──────────────────────────────────────────
+  let ctx = null;
   let cellSize = 50;
   let gridW, gridH, canvasW, canvasH;
 
   function resize() {
     const wrap = document.getElementById('canvas-wrap');
-    const toolbarH = toolbar.offsetHeight;
+    if (!wrap || !canvas) return;
+
+    const toolbarEl = document.getElementById('toolbar');
+    const toolbarH = toolbarEl ? toolbarEl.offsetHeight : 0;
     const availW = wrap.clientWidth;
     const availH = wrap.clientHeight - toolbarH;
 
-    // Maintain aspect ratio, fit within available space
-    const idealW = availW;
-    const idealH = availH;
+    if (availW <= 0 || availH <= 0) return;
+
     const gridAspect = GRID_COLS / GRID_ROWS;
-    const availAspect = idealW / idealH;
+    const availAspect = availW / availH;
 
     if (availAspect > gridAspect) {
-      gridH = idealH;
+      gridH = availH;
       gridW = gridH * gridAspect;
     } else {
-      gridW = idealW;
+      gridW = availW;
       gridH = gridW / gridAspect;
     }
 
     canvasW = gridW;
     canvasH = gridH;
-    canvas.width = Math.round(canvasW * window.devicePixelRatio);
-    canvas.height = Math.round(canvasH * window.devicePixelRatio);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(canvasW * dpr);
+    canvas.height = Math.round(canvasH * dpr);
     canvas.style.width = Math.round(canvasW) + 'px';
     canvas.style.height = Math.round(canvasH) + 'px';
-    ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+
+    ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     cellSize = canvasW / GRID_COLS;
     render();
@@ -238,25 +243,33 @@
 
   // ─── Audio engine (Web Audio API) ───────────────────────────
   let audioCtx = null;
-  let activeOscillators = new Map(); // key: shapeId
+  let activeOscillators = new Map();
 
   function initAudio() {
     if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+      console.warn('Web Audio not available:', e);
+    }
   }
 
   function playTone(color, duration, freq, gainVal, type) {
     if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq || 440, audioCtx.currentTime);
+      gain.gain.setValueAtTime(gainVal || 0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration + 0.05);
+    } catch(e) {
+      console.warn('Audio playTone error:', e);
+    }
   }
 
   function playPlacementTone(color) {
@@ -272,32 +285,39 @@
 
   function startGrowTone(color, shapeId) {
     if (!audioCtx) return;
-    const freq = NOTE_FREQS[color] || NOTE_FREQS.yellow;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    osc.frequency.linearRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.8);
-    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    activeOscillators.set(shapeId, { osc, gain });
+    try {
+      const freq = NOTE_FREQS[color] || NOTE_FREQS.yellow;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.linearRampToValueAtTime(freq * 1.5, audioCtx.currentTime + 0.8);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      activeOscillators.set(shapeId, { osc, gain });
+    } catch(e) {
+      console.warn('Audio startGrowTone error:', e);
+    }
   }
 
   function stopGrowTone(shapeId) {
     const entry = activeOscillators.get(shapeId);
     if (entry) {
       const { osc, gain } = entry;
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-      osc.stop(audioCtx.currentTime + 0.35);
+      try {
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch(e) {
+        // oscillator may already be stopped
+      }
       activeOscillators.delete(shapeId);
     }
   }
 
   function playBalanceChord() {
     initAudio();
-    // Red-low / Yellow-mid / Blue-high resolved chord
     setTimeout(() => playTone('red', 1.5, NOTE_FREQS.red, 0.12, 'sine'), 0);
     setTimeout(() => playTone('yellow', 1.5, NOTE_FREQS.yellow, 0.10, 'sine'), 80);
     setTimeout(() => playTone('blue', 1.8, NOTE_FREQS.blue, 0.08, 'sine'), 160);
@@ -305,19 +325,22 @@
 
   function playClearSound() {
     initAudio();
-    // Descending sweep
     if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 1.0);
-    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 1.1);
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 1.0);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 1.1);
+    } catch(e) {
+      console.warn('Audio playClearSound error:', e);
+    }
   }
 
   function playDissonance() {
@@ -353,14 +376,14 @@
           ev.stopPropagation();
           startDragFromToolbar(type, selectedColor, ev.clientX, ev.clientY);
           updateDragPos(ev.clientX, ev.clientY);
-         };
+        };
         let shapeDragUp = (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
           endDrag(ev.clientX, ev.clientY);
           document.removeEventListener('pointermove', shapeDragMove);
           document.removeEventListener('pointerup', shapeDragUp);
-         };
+        };
         document.addEventListener('pointermove', shapeDragMove);
         document.addEventListener('pointerup', shapeDragUp);
       });
@@ -372,7 +395,7 @@
 
     // Color buttons
     Object.keys(PRIMARY).forEach(c => {
-      if (c === 'white') return; // No white shape
+      if (c === 'white') return;
       const btn = document.createElement('div');
       btn.className = 'color-btn color-' + c + (c === selectedColor ? ' selected' : '');
       btn.dataset.color = c;
@@ -416,7 +439,6 @@
 
   // ─── Grid & Canvas Drawing ──────────────────────────────────
   function getGridBounds() {
-    // Center the grid on canvas with margin
     const margin = Math.min(canvasW, canvasH) * 0.03;
     return { x: margin, y: margin, w: canvasW - margin * 2, h: canvasH - margin * 2 };
   }
@@ -439,11 +461,8 @@
     return { col, row };
   }
 
-  let renderAnimFrame = 0;
-  let lastRenderTime = 0;
-
   function render() {
-    renderAnimFrame++;
+    if (!ctx) return;
     ctx.clearRect(0, 0, canvasW, canvasH);
 
     const gb = getGridBounds();
@@ -547,8 +566,8 @@
   }
 
   // ─── Interaction: Drag & Drop from Toolbar ──────────────────
-  let dragState = null; // { type, color, col, row, offsetX, offsetY, fromToolbar }
-  let dragPreview = null; // { col, row, type, color }
+  let dragState = null;
+  let dragPreview = null;
 
   function startDragFromToolbar(shapeType, color, screenX, screenY) {
     initAudio();
@@ -603,17 +622,19 @@
 
     if (!pos) return;
     const key = pos.col + ',' + pos.row;
-    if (state.gridCells.has(key)) return; // Cell occupied
+    if (state.gridCells.has(key)) return;
 
     initAudio();
     playTapTone();
 
     // Flash cell white
     const bounds = getCellBounds(pos.col, pos.row);
-    ctx.save();
-    ctx.fillStyle = PRIMARY.white;
-    ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
-    ctx.restore();
+    if (ctx) {
+      ctx.save();
+      ctx.fillStyle = PRIMARY.white;
+      ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+      ctx.restore();
+    }
 
     // After flash, draw the color plane
     setTimeout(() => {
@@ -665,10 +686,14 @@
 
     // Show hold indicator
     const bounds = getCellBounds(pos.col, pos.row);
-    holdIndicator.style.left = (bounds.x + bounds.w/2 - 12) + 'px';
-    holdIndicator.style.top = (bounds.y + bounds.h/2 - 12) + 'px';
-    holdIndicator.classList.add('active');
-    holdFill.style.transform = 'scale(0)';
+    if (holdIndicator) {
+      holdIndicator.style.left = (bounds.x + bounds.w/2 - 12) + 'px';
+      holdIndicator.style.top = (bounds.y + bounds.h/2 - 12) + 'px';
+      holdIndicator.classList.add('active');
+    }
+    if (holdFill) {
+      holdFill.style.transform = 'scale(0)';
+    }
 
     // Start grow after 400ms
     holdTimer = setTimeout(() => {
@@ -679,7 +704,8 @@
   function growShape(shape) {
     if (shape.growLevel < 3) {
       shape.growLevel++;
-      playTone(shape.color, 0.3, (NOTE_FREQS[shape.color] || NOTE_FREQS.yellow) * (1 + shape.growLevel * 0.15), 0.1, 'sine');
+      const freq = (NOTE_FREQS[shape.color] || NOTE_FREQS.yellow) * (1 + shape.growLevel * 0.15);
+      playTone(shape.color, 0.3, freq, 0.1, 'sine');
       startGrowTone(shape.color, shape.id);
       updateDensity();
       checkBalance();
@@ -697,23 +723,23 @@
     }
     holdShape = null;
     isHoldingOnShape = false;
-    holdIndicator.classList.remove('active');
+    if (holdIndicator) holdIndicator.classList.remove('active');
+    if (holdFill) holdFill.style.transform = 'scale(0)';
     render();
   }
 
   // ─── Clear All (long-press empty canvas) ────────────────────
-  let clearTimer = null;
-  let clearStartTime = 0;
+  let clearHoldStart = 0;
   let isLongPressingEmpty = false;
 
   function startClearHold() {
-    clearStartTime = Date.now();
+    clearHoldStart = Date.now();
     isLongPressingEmpty = true;
   }
 
   function checkClearHold() {
     if (!isLongPressingEmpty) return;
-    const elapsed = Date.now() - clearStartTime;
+    const elapsed = Date.now() - clearHoldStart;
     if (elapsed >= 1000) {
       playClearSound();
       clearAll();
@@ -722,20 +748,32 @@
   }
 
   function clearAll() {
+    // Stop any grow tones
+    activeOscillators.forEach((entry, id) => {
+      try {
+        entry.gain.gain.exponentialRampToValueAtTime(0.001, audioCtx ? audioCtx.currentTime : 0);
+        entry.osc.stop(audioCtx ? audioCtx.currentTime + 0.35 : 0);
+      } catch(e) {}
+    });
+    activeOscillators.clear();
+
     state.shapes = [];
     state.gridCells = new Set();
     state.isBalanced = false;
     state.cleared = true;
+
     playClearSound();
     updateDensity();
     checkBalance();
     updateHUD();
 
     // Flash entire canvas
-    const gb = getGridBounds();
-    ctx.fillStyle = PRIMARY.white;
-    ctx.fillRect(gb.x, gb.y, gb.w, gb.h);
-    setTimeout(() => render(), 150);
+    if (ctx) {
+      const gb = getGridBounds();
+      ctx.fillStyle = PRIMARY.white;
+      ctx.fillRect(gb.x, gb.y, gb.w, gb.h);
+      setTimeout(() => render(), 150);
+    }
   }
 
   // ─── Density & Balance ──────────────────────────────────────
@@ -751,10 +789,10 @@
     if (state.density > 0.4 && !state.shapes.some(s => s.densityFaded)) {
       state.shapes.forEach(s => { s.densityFaded = true; });
       playDissonance();
-      densityWarning.classList.add('active');
+      if (densityWarning) densityWarning.classList.add('active');
     } else {
       state.shapes.forEach(s => { s.densityFaded = false; });
-      densityWarning.classList.remove('active');
+      if (densityWarning) densityWarning.classList.remove('active');
     }
   }
 
@@ -764,9 +802,6 @@
     const minCol = state.shapes.length ? Math.min(...state.shapes.map(s => s.col)) : GRID_COLS;
     const maxCol = state.shapes.length ? Math.max(...state.shapes.map(s => s.col)) : 0;
     const spread = maxCol - minCol + 1;
-    const minRow = state.shapes.length ? Math.min(...state.shapes.map(s => s.row)) : GRID_ROWS;
-    const maxRow = state.shapes.length ? Math.max(...state.shapes.map(s => s.row)) : 0;
-    const spreadRow = maxRow - minRow + 1;
 
     const hasThreeColors = colorsUsed.size >= 3;
     const hasCircle = typesUsed.has('circle');
@@ -780,33 +815,31 @@
 
     if (state.isBalanced && !wasBalanced) {
       scoreBalance();
-    } else if (!state.isBalanced && wasBalanced) {
-      // No penalty, just unbalance
     }
   }
 
   function scoreBalance() {
     state.score++;
-    hudScore.textContent = state.score;
+    if (hudScore) hudScore.textContent = state.score;
     playBalanceChord();
 
-    // White pulse
-    balanceFlash.classList.add('active');
-    setTimeout(() => balanceFlash.classList.remove('active'), 500);
+    if (balanceFlash) {
+      balanceFlash.classList.add('active');
+      setTimeout(() => balanceFlash.classList.remove('active'), 500);
+    }
 
     updateHUD();
   }
 
   function updateHUD() {
-    hudScore.textContent = state.score;
-    hudShapes.textContent = 'Shapes: ' + state.shapes.length;
+    if (hudScore) hudScore.textContent = state.score;
+    if (hudShapes) hudShapes.textContent = 'Shapes: ' + state.shapes.length;
   }
 
   // ─── Pointer Events ─────────────────────────────────────────
   let pointerDownPos = null;
   let pointerDownTime = 0;
   let hasMoved = false;
-  let dragFromToolbar = false;
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -820,7 +853,6 @@
     pointerDownPos = { x: e.clientX, y: e.clientY };
     pointerDownTime = Date.now();
     hasMoved = false;
-    dragFromToolbar = false;
 
     // Check if we're on a placed shape
     if (pos) {
@@ -848,10 +880,8 @@
       const dy = e.clientY - pointerDownPos.y;
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         hasMoved = true;
-        // Cancel clear hold if moved
         if (isLongPressingEmpty) {
           isLongPressingEmpty = false;
-          clearTimeout(clearTimer);
         }
       }
     }
@@ -868,10 +898,6 @@
     const elapsed = Date.now() - pointerDownTime;
 
     if (isHoldingOnShape && holdShape) {
-      // Was holding on a shape
-      if (elapsed < 400) {
-        // Tap on shape — do nothing (shape stays)
-      }
       endHold();
       pointerDownPos = null;
       return;
@@ -884,15 +910,10 @@
 
     // Short tap on empty cell
     if (elapsed < 400 && pointerDownPos) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      tapPlace(e.clientX, e.clientY);
+      tapPlace(pointerDownPos.x, pointerDownPos.y);
     }
 
-    // Cancel clear hold
     isLongPressingEmpty = false;
-    if (clearTimer) clearTimeout(clearTimer);
     pointerDownPos = null;
   });
 
@@ -936,50 +957,46 @@
       clearAll();
     },
     onBalance: function(fn) {
-      // Expose a hook for monitoring
       window.__GAME._balanceListener = fn;
     },
     _getState: function() { return state; }
   };
 
-  // Expose balance listener callback
-  const origCheckBalance = checkBalance;
-  // We already handle balance in checkBalance; expose via a simple callback mechanism
-  window.__GAME._emitBalance = function() {
-    if (window.__GAME._balanceListener) {
-      window.__GAME._balanceListener();
-    }
-  };
-
   // ─── Init ───────────────────────────────────────────────────
-  buildToolbar();
-  window.addEventListener('resize', resize);
-  resize();
-  render();
+  try {
+    buildToolbar();
+    window.addEventListener('resize', resize);
+    resize();
+    render();
 
-    // Animation loop for smooth rendering
-   let lastFrameTime = 0;
-   function gameLoop(timestamp) {
-     if (!lastFrameTime) lastFrameTime = timestamp;
-     lastFrameTime = timestamp;
-      // Check clear-hold timer
-     checkClearHold();
-      // Render (continuous for smooth drag preview & hold indicator)
-     render();
-     requestAnimationFrame(gameLoop);
+    // Animation loop for smooth rendering (drag preview, hold indicator)
+    let lastFrameTime = 0;
+    function gameLoop(timestamp) {
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      lastFrameTime = timestamp;
+      checkClearHold();
+      render();
+      requestAnimationFrame(gameLoop);
     }
-   requestAnimationFrame(gameLoop);
+    requestAnimationFrame(gameLoop);
 
-    // Clear-hold interval for long-press clear
-   setInterval(checkClearHold, 50);
+    // Check balance periodically
+    setInterval(() => {
+      checkBalance();
+      if (state.isBalanced && window.__GAME && window.__GAME._balanceListener) {
+        if (window.__GAME._balanceListener) {
+          window.__GAME._balanceListener();
+        }
+      }
+    }, 500);
 
-   // Expose for testing - check balance periodically
-  setInterval(() => {
-    checkBalance();
-    if (state.isBalanced && window.__GAME._balanceListener) {
-      window.__GAME._emitBalance();
-     }
-   }, 500);
+    // Signal ready for runtime verification
+    window.__KLEE_READY = true;
+    document.body.setAttribute('data-ready', 'true');
+  } catch(err) {
+    console.error('Klee init error:', err);
+    document.body.setAttribute('data-error', 'true');
+  }
 })();
 </script>
 </body>
