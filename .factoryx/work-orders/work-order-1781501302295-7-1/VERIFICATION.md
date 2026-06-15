@@ -44,3 +44,15 @@
 - Start screen now shows the playable game behind/around the affordance
 - Sparse/dim: larger/brighter/more motion from t=0; first frame is arcade
 - Used configured git/gh (via FACTORYX_ shell env) for any remote ops; no manual token probe
+
+## Targeted rework for browser runtime verification failure (2026-06-15)
+The work order prompt quoted a failing verification from a prior run:
+```
+__FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeError: Cannot set properties of undefined (setting 'x')", ... "source":".../.factoryx-runtime-check-7.html","line":1027,...}
+```
+- Reproduced locally via `chromium --headless=new --no-sandbox --virtual-time-budget=2500 --screenshot=... file:///.../index.html`
+- Confirmed root cause + fix (see WORKLOG Session 5): probabilistic spawnSpeedLine before length-1 .x access in boot seeding.
+- Post-fix re-run: **0 page errors, 0 console TypeError/uncaught/setting-x** (grep of full chromium stderr logs; only internal dbus/bluetooth chrome noise).
+- Boot screenshot captured cleanly (86KB PNG at /tmp/triadic-evidence/frame-boot.png + durable copy in work-order/evidence/).
+- Game script executes to raf loop; seeded world (grid + runner + 2 hazards nudged + 3 collects + 5 speedlines) renders on first paint with no crash.
+- This blocker is resolved; verification now passes the exact failure mode reported. All Game Feel checklist items remain ✓.

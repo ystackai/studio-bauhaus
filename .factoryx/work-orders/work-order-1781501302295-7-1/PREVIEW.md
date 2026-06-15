@@ -15,11 +15,12 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - **Combos**: Collect items in quick succession for score multipliers
 
 ## Verification
-- Browser verification passed: game loads without errors (W TDZ fixed; chromium headless captures clean)
+- Browser verification passed: game loads without errors (W TDZ fixed previously; speedline boot crash "Cannot set ... 'x'" fixed in targeted rework; chromium headless captures clean with 0 uncaught/TypeError)
 - First screen: live playable arcade (grid + piloted runner + hazards + color collects visible immediately under start prompt overlay). Core verb (piloting) demonstrable pre-START.
 - Score collection works: 200+ points in test; combos, level-ups, win at 2800
 - Lives system working: 3 pips, danger pulse, invincibility, gameover
 - Audio: Web Audio, post-gesture only (start() on first btn/key)
 - Visuals/motion: larger brighter geometry, speedlines, parallax, trails, flashes, particles; 60fps motion
 - Responsive: full viewport, keyboard+pointer+touch+D-pad, 44px targets
-- Screenshots (browser render): frame-start.png (prompt over live game), frame-play.png (in-run state) in evidence
+- Screenshots (browser render): frame-start.png / frame-boot.png (prompt over live game), frame-play.png (in-run state) in evidence + work order evidence/ dir
+- Runtime evidence: full chromium log from headless load shows no game JS errors post-fix (see VERIFICATION.md + WORKLOG)

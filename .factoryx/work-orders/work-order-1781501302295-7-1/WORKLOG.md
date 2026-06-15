@@ -51,3 +51,15 @@
 ### Current status
 - All prior pending polish items addressed or superseded by the start-screen + visual overhaul.
 - Ready for browser verification pass, gh PR update, and continued polish until 14:28Z deadline.
+
+### Session 5 (targeted rework for reported browser runtime verification failure)
+- **~09:36** — Previous run produced `__FACTORYX_BROWSER_RUNTIME_ERROR__` with `Uncaught TypeError: Cannot set properties of undefined (setting 'x')` at boot in the runtime-check html (line ~1027).
+  - Root cause: boot speedline seeding `for(i=0;i<5;i++){ spawnSpeedLine(); speedLines[speedLines.length-1].x = ... }` — `spawnSpeedLine` has probabilistic early `if(Math.random()>0.18) return;` so after a skip, `length-1` could index a non-existent entry (or -1 when length==0) → undefined.x assignment crash on load.
+  - Fixed: `spawnSpeedLine(force=false)`; gate becomes `if(!force && Math.random()>0.18) return;`; seed calls `spawnSpeedLine(true)` to guarantee push before the `.x=` nudge. Runtime call sites unchanged (still thinned).
+  - Other potential .x sets on entities were already guarded (player nullchecks, for..of splices safe, init order).
+  - Re-ran chromium --headless load of `file://.../index.html` (virtual-time 2.5s, --screenshot); no Uncaught/TypeError/"setting 'x'" in console logs (only unrelated dbus/bluetooth chrome internals); 86KB boot frame PNG captured showing grid/runner/hazards/collects.
+  - Evidence copied to work-order evidence/; this was the blocking issue quoted in the work order prompt — now resolved before any further peripheral polish.
+- Updated WORKLOG, VERIFICATION, PREVIEW to record the targeted fix + fresh evidence.
+- Branch/PR will be updated with this as the resolution to the "requesting targeted rework" note. Continue polish pass under deadline budget.
+
+- **Controls hardening (dpad delegation)**: The dpad button listeners were registered via querySelectorAll before the dpad DOM creation code at bottom of script (creation order bug from prior sessions). On load the .dpad-btns did not exist yet, so no listeners were ever attached — dpad would be visually present on mobile but non-functional for pre-start demo piloting and in-game. Fixed by switching to event delegation on #ui-layer (closest .dpad-btn) for all pointer/touch start/end/cancel. Small diff, guarantees the "dpad usable for pre-start" behavior claimed in prior polish commit, and satisfies touch targets + keyboard+pointer alongside for responsive. Re-verified load still clean. No other drive-by changes.

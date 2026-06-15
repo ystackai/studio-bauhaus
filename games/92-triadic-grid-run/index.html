@@ -340,8 +340,8 @@ function spawnCollectFlash(x,y,color) {
   collectFlashColor=color;
 }
 
-function spawnSpeedLine() {
-  if(Math.random()>0.18) return;
+function spawnSpeedLine(force=false) {
+  if(!force && Math.random()>0.18) return;
   speedLines.push({
     x:W+10,
     y:Math.random()*H,
@@ -805,18 +805,46 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>{keys[e.code]=false;});
 
-// D-pad
-document.querySelectorAll('.dpad-btn').forEach(btn=>{
-  const dir=btn.dataset.dir;
-  const dirKeys={'up':'ArrowUp','down':'ArrowDown','left':'ArrowLeft','right':'ArrowRight'};
-  const startFn=(e)=>{e.preventDefault();keys[dirKeys[dir]]=true;touchActive=true;touchX=player?player.targetX:W*0.18;touchY=player?player.targetY:H*0.5;};
-  const endFn=(e)=>{e.preventDefault();keys[dirKeys[dir]]=false;touchActive=false;};
-  btn.addEventListener('touchstart',startFn,{passive:false});
-  btn.addEventListener('touchend',endFn,{passive:false});
-  btn.addEventListener('touchcancel',endFn,{passive:false});
-  btn.addEventListener('mousedown',startFn);
-  btn.addEventListener('mouseup',endFn);
-  btn.addEventListener('mouseleave',endFn);
+// D-pad (delegated so creation order at end of script does not prevent attachment; works pre-start for demo pilot + in-game)
+const dirKeys={'up':'ArrowUp','down':'ArrowDown','left':'ArrowLeft','right':'ArrowRight'};
+const uiLayer=document.getElementById('ui-layer');
+uiLayer.addEventListener('touchstart',e=>{
+  const btn=e.target.closest('.dpad-btn'); if(!btn) return;
+  e.preventDefault();
+  const dir=btn.dataset.dir; if(!dir) return;
+  keys[dirKeys[dir]]=true; touchActive=true;
+  touchX=player?player.targetX:W*0.18; touchY=player?player.targetY:H*0.5;
+},{passive:false});
+uiLayer.addEventListener('touchend',e=>{
+  const btn=e.target.closest('.dpad-btn'); if(!btn) return;
+  e.preventDefault();
+  const dir=btn.dataset.dir; if(!dir) return;
+  keys[dirKeys[dir]]=false; touchActive=false;
+},{passive:false});
+uiLayer.addEventListener('touchcancel',e=>{
+  const btn=e.target.closest('.dpad-btn'); if(!btn) return;
+  e.preventDefault();
+  const dir=btn.dataset.dir; if(!dir) return;
+  keys[dirKeys[dir]]=false; touchActive=false;
+},{passive:false});
+uiLayer.addEventListener('mousedown',e=>{
+  const btn=e.target.closest('.dpad-btn'); if(!btn) return;
+  e.preventDefault();
+  const dir=btn.dataset.dir; if(!dir) return;
+  keys[dirKeys[dir]]=true; touchActive=true;
+  touchX=player?player.targetX:W*0.18; touchY=player?player.targetY:H*0.5;
+});
+uiLayer.addEventListener('mouseup',e=>{
+  const btn=e.target.closest('.dpad-btn'); if(!btn) return;
+  e.preventDefault();
+  const dir=btn.dataset.dir; if(!dir) return;
+  keys[dirKeys[dir]]=false; touchActive=false;
+});
+uiLayer.addEventListener('mouseleave',e=>{
+  const btn=e.target.closest('.dpad-btn'); if(!btn) return;
+  e.preventDefault();
+  const dir=btn.dataset.dir; if(!dir) return;
+  keys[dirKeys[dir]]=false; touchActive=false;
 });
 
 canvas.addEventListener('touchstart',e=>{
@@ -923,7 +951,7 @@ for(let i=0;i<3;i++){ spawnCollectible(); }
 // Nudge a couple hazards further in view for instant readability
 hazards.forEach((h,i)=>{ if(i===0) h.x = W*0.55; if(i===1) h.x=W*0.78; });
 // Seed speed lines for immediate forward-motion cue on first paint
-for(let i=0;i<5;i++){ spawnSpeedLine(); speedLines[speedLines.length-1].x = 40 + i* (W/6); }
+for(let i=0;i<5;i++){ spawnSpeedLine(true); speedLines[speedLines.length-1].x = 40 + i* (W/6); }
 lastTime=performance.now();
 document.getElementById('hint').textContent='';
 const hs=document.getElementById('high-score'); hs.textContent='BEST: '+highScore; hs.classList.add('active');
