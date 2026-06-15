@@ -33,3 +33,9 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Additional polish landed: player trail now consistently draws the current runner shape (triangle/circle/square per level) rather than mixed; makes the "crisp ... runner" identity pop in fast motion.
 - All evidence in work-order/evidence/ (reverify-final-7.png, chromium-reverify-final-7.log, frame-final-current-*.png). Source remains single self-contained index.html; preview entrypoint `games/92-triadic-grid-run/index.html` is the playable game (start overlay is non-blocking; core piloting verb live from t=0).
 - No code changes outside the game; no homepage mutation. PR#84 will be refreshed with full Work Order prompt in context section before deadline.
+
+## PR
+- Canonical branch pushed + PR#84 updated (https://github.com/ystackai/studio-bauhaus/pull/84)
+- FactoryX Work Order Context (full prompt + payload + workflow) attached as https://github.com/ystackai/studio-bauhaus/pull/84#issuecomment-4706711225 (and embedded in WORKLOG/VERIFICATION of this work order for durable record).
+- All per instructions: used only the work order branch, gh/git configured helpers, no token inspection in outputs.
+
