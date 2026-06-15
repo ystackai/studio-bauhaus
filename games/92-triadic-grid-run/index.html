@@ -926,7 +926,7 @@ hazards.forEach((h,i)=>{ if(i===0) h.x = W*0.55; if(i===1) h.x=W*0.78; });
 for(let i=0;i<5;i++){ spawnSpeedLine(); speedLines[speedLines.length-1].x = 40 + i* (W/6); }
 lastTime=performance.now();
 document.getElementById('hint').textContent='';
-document.getElementById('high-score').textContent='BEST: '+highScore;
+const hs=document.getElementById('high-score'); hs.textContent='BEST: '+highScore; hs.classList.add('active');
 requestAnimationFrame(gameLoop);
 </script>
 </body>
