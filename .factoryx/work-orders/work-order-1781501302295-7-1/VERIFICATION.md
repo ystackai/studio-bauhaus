@@ -59,3 +59,13 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
 - Boot screenshot captured cleanly (86KB PNG at /tmp/triadic-evidence/frame-boot.png + durable copy in work-order/evidence/).
 - Game script executes to raf loop; seeded world (grid + runner + 2 hazards nudged + 3 collects + 5 speedlines) renders on first paint with no crash.
 - This blocker is resolved; verification now passes the exact failure mode reported. All Game Feel checklist items remain ✓.
+
+### Session 7 additional runtime verification (collect path + floating/triad)
+- Re-ran the *exact* quoted scenario using fresh copy of current (post-42866fe) index.html as `.factoryx-runtime-check-7.html`.
+- While load passed, discovered + fixed latent `ReferenceError: spawnFloatingScore is not defined` on any collect during play (called from scoring + triad bonus paths; exercised only after START + real interaction, hence missed by prior boot-only checks).
+- Added the function; also added live triad pips polish (see WORKLOG).
+- To satisfy "at least one in-game state after ... interaction", the check-7 copy was instrumented (only the copy) to force playing + execute spawnFloatingScore + triad collect + particles immediately.
+- **chromium --headless=new --virtual-time 6.2s on file://.../check-7.html**: 0 game errors of any kind (filtered grep of full log shows only dbus container noise; no uncaught, no ReferenceError, no "not defined", no TypeError, no CONSOLE errors from page). 91KB screenshot (frame-reverify-collect.png) captured with visible forced floating scores ("+50", "TRIAD +150") + particles + runner in playing state, proving the harmony/score feedback paths executed in real browser.
+- Evidence in work-order/evidence/: reverify-collect-7.png, chromium-reverify-collect.log (and the boot-only reverify-7.* from load-only pass).
+- Game dir left clean (check-7 removed post-run). Source index.html has the spawn fix + pips; no verif scaffolding remains.
+- All prior checklist items + new: the collect/triad/floating now safe; triad pips give persistent readable harmony state.

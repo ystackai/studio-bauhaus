@@ -23,5 +23,6 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Visuals/motion: larger brighter geometry, speedlines, parallax, trails, flashes, particles; 60fps motion; win state keeps scrolling + triad particles under overlay
 - Responsive: full viewport, keyboard+pointer+touch+D-pad, 44px targets
 - Screenshots (browser render): frame-start.png / frame-boot.png (prompt over live game), frame-play.png (in-run state), frame-postpolish.png in evidence + work order evidence/ dir
-- Runtime evidence: full chromium log from headless load shows no game JS errors post-fix (see VERIFICATION.md + WORKLOG); re-verified clean after harmony/escalation polish (~09:44)
+- Runtime evidence: full chromium log from headless load shows no game JS errors post-fix (see VERIFICATION.md + WORKLOG); re-verified clean after harmony/escalation polish (~09:44); Session 7 re-verif on the exact .factoryx-runtime-check-7.html scenario (with forced collect/interaction state) also clean — exercised spawnFloatingScore + triad paths with no ReferenceError/uncaught (91kB frame showing floating labels + particles).
 - Payload ~45.6kB; early levels simpler geometry, later escalate hazards + drone + runner shape cycle
+- New in final pass: live triad harmony pips (r/y/b) in HUD fill as distinct colors are collected toward the TRIAD bonus — makes the "color harmonies" objective immediately readable.
