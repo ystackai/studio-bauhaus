@@ -69,3 +69,15 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
 - Evidence in work-order/evidence/: reverify-collect-7.png, chromium-reverify-collect.log (and the boot-only reverify-7.* from load-only pass).
 - Game dir left clean (check-7 removed post-run). Source index.html has the spawn fix + pips; no verif scaffolding remains.
 - All prior checklist items + new: the collect/triad/floating now safe; triad pips give persistent readable harmony state.
+
+### Session 8 — Final re-exercise of the exact quoted browser runtime failure (pre-deadline close-out)
+- **Targeted re-verification (2026-06-15 ~09:56Z)**: To directly address the work order prompt's "Previous run issue" and "requesting targeted rework", re-created the *precise* file path and scenario from the error report: `file:///.../games/92-triadic-grid-run/.factoryx-runtime-check-7.html`.
+  - Copied pristine current index.html (HEAD at time: post-trail-polish) to `.factoryx-runtime-check-7.html` inside the game dir.
+  - Patched *only the copy* (python instrumentation) to auto-transition to `state='playing'`, activate all HUD/lives/progress/dpad, seed partial→full triad, and explicitly invoke `spawnFloatingScore`, `spawnParticles`, and updateUI (triad pips) — exercising the exact collect/harmony/floating/score feedback code paths that require post-START interaction (these were the latent crash surface in Session 7).
+  - Executed: `/usr/bin/chromium --headless=new --no-sandbox --virtual-time-budget=6800 --screenshot=... "$CHECKFILE"`
+  - Captured: 98kB `frame-reverify-final-7.png` (visible runner + grid + forced "+50" / "TRIAD +150" floating labels + white/red/yellow particles + lit triad pips in HUD) + `chromium-reverify-final-7.log`.
+- **Results**: **CLEAN**. Grep of full log for uncaught/TypeError/ReferenceError/"not defined"/"Cannot set properties of undefined (setting 'x')"/pageerror/CONSOLE errors from page: none. Only pre-paint dbus/bus/bluetooth/gpu-sandbox noise (same class as all prior clean passes). The forced in-game state executed without crash; raf loop + spawns + DOM updates all safe.
+- Evidence files (durable): work-order/evidence/reverify-final-7.png + chromium-reverify-final-7.log (plus frame-final-current-*.png from companion real-index boot run).
+- Also performed: post-code-edit boot verification on the real `index.html` (after the crisp-runner-trail polish); clean 0 game errors.
+- This pass confirms the speedline "setting 'x'" root cause (Session 5) + the floating/triad ReferenceError (Session 7) + any analogous undefined access are fully resolved even under forced interaction timing. Game dir cleaned (no check-7 left). All Game Feel checklist items + quality bar items remain ✓. No blockers for final push + PR update.
+- Work Order: work-order-1781501302295-7-1

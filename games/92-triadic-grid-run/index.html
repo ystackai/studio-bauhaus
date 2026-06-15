@@ -735,12 +735,11 @@ function render() {
     c.restore();
   });
 
-  // Player trail — enhanced with more frames and color variation
+  // Player trail — crisp consistent runner silhouette (emphasizes the piloted geometric shape in fast motion)
   player.trail.forEach((t,i)=>{
     if(t.alpha>0.03){
-      const trailShape = (frameCount+Math.floor(i*3))%3;
       c.globalAlpha=t.alpha*0.2;
-      drawShape(t.x,t.y,trailShape,player.size*0.65,SHAPE_COL[trailShape]);
+      drawShape(t.x,t.y,player.shape,player.size*0.65,SHAPE_COL[player.shape]);
     }
   });
   c.globalAlpha=1;

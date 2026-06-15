@@ -26,3 +26,10 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Runtime evidence: full chromium log from headless load shows no game JS errors post-fix (see VERIFICATION.md + WORKLOG); re-verified clean after harmony/escalation polish (~09:44); Session 7 re-verif on the exact .factoryx-runtime-check-7.html scenario (with forced collect/interaction state) also clean — exercised spawnFloatingScore + triad paths with no ReferenceError/uncaught (91kB frame showing floating labels + particles).
 - Payload ~45.6kB; early levels simpler geometry, later escalate hazards + drone + runner shape cycle
 - New in final pass: live triad harmony pips (r/y/b) in HUD fill as distinct colors are collected toward the TRIAD bonus — makes the "color harmonies" objective immediately readable.
+
+## Final pre-deadline verification (Session 8)
+- Reproduced the *exact* prior failing scenario path quoted in the originating work order (`.../games/92-triadic-grid-run/.factoryx-runtime-check-7.html`) using an instrumented copy that forces post-start playing state + collect/triad/floating/particle execution.
+- chromium --headless (virtual 6.8s): **0 game errors of any kind** (confirmed via grep; only dbus infra). 98kB frame captured with visible forced "+50"/"TRIAD +150" labels + particles + lit harmony pips + live runner/grid — proving interaction-exercised paths are solid.
+- Additional polish landed: player trail now consistently draws the current runner shape (triangle/circle/square per level) rather than mixed; makes the "crisp ... runner" identity pop in fast motion.
+- All evidence in work-order/evidence/ (reverify-final-7.png, chromium-reverify-final-7.log, frame-final-current-*.png). Source remains single self-contained index.html; preview entrypoint `games/92-triadic-grid-run/index.html` is the playable game (start overlay is non-blocking; core piloting verb live from t=0).
+- No code changes outside the game; no homepage mutation. PR#84 will be refreshed with full Work Order prompt in context section before deadline.
