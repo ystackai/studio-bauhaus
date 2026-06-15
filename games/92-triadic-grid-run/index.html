@@ -362,8 +362,8 @@ function spawnCollectFlash(x,y,color) {
   collectFlashColor=color;
 }
 
-function spawnFloatingScore(x,y,text){
-  floatingScores.push({x:x, y:y, vy:-1.1-Math.random()*0.4, life:1.0, alpha:1, text:text});
+function spawnFloatingScore(x,y,text,color){
+  floatingScores.push({x:x, y:y, vy:-1.1-Math.random()*0.4, life:1.0, alpha:1, text:text, color: color || '#FFD60A'});
 }
 
 function spawnSpeedLine(force=false) {
@@ -563,7 +563,7 @@ function update(dt) {
       score+=pts;
       spawnParticles(col.x,col.y,SHAPE_COL[col.type],16);
       spawnCollectFlash(col.x,col.y,SHAPE_COL[col.type]);
-      spawnFloatingScore(col.x,col.y-25,'+'+pts);
+      spawnFloatingScore(col.x,col.y-25,'+'+pts, SHAPE_COL[col.type]);
       flashT=0.1;
       flashColor=SHAPE_COL[col.type];
       player.glowT=0.25;
@@ -575,7 +575,7 @@ function update(dt) {
         const bonus=150;
         score+=bonus;
         spawnParticles(col.x,col.y,'#fff',10);
-        spawnFloatingScore(col.x,col.y-48,'TRIAD +'+bonus);
+        spawnFloatingScore(col.x,col.y-48,'TRIAD +'+bonus,'#fff');
         flashT=0.22;
         flashColor='#fff';
         Audio.triad();
@@ -821,9 +821,9 @@ function render() {
     c.restore();
   });
 
-  // Floating scores
+  // Floating scores — colored by harmony (r/y/b for collects, white for TRIAD) for satisfying color reaction
   floatingScores.forEach(fs=>{
-    c.save();c.globalAlpha=fs.alpha;c.fillStyle='#FFD60A';c.font='bold '+Math.max(12,15*fs.alpha)+'px Helvetica Neue, Arial, sans-serif';
+    c.save();c.globalAlpha=fs.alpha;c.fillStyle=fs.color||'#FFD60A';c.font='bold '+Math.max(12,15*fs.alpha)+'px Helvetica Neue, Arial, sans-serif';
     c.textAlign='center';c.fillText(fs.text,fs.x,fs.y);c.restore();
   });
 

@@ -80,3 +80,13 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Work Order: work-order-1781501302295-7-1
 - (No game payload change in this pass; verif + memory update only, per "address before peripheral".)
 - **Session 12 polish (post re-verif)**: Grid resonance — red diagonals of the Bauhaus grid briefly intensify on TRIAD harmony success. Environmental AV reaction to "collecting color harmonies" that makes the world feel alive and responsive. Clean post-edit boot verif. Work Order: work-order-1781501302295-7-1
+
+## Session 13: Watchdog re-verif (pre-polish per prompt) + colored floating scores for harmony payoff (2026-06-15 ~10:33Z)
+- **~10:33Z** — Full browser runtime re-verification (real index + exact `.factoryx-runtime-check-7.html` forced post-interaction) executed first to directly address the work order's "Previous run issue to address before peripheral polish: watchdog reset: status running but no agent child after verifier rollout" (and the quoted prior TypeError on that path). PR#84 inspected via gh first (OPEN, passing checks, no blocking reviews/CHANGES_REQUESTED).
+  - Boot: clean 87kB frame-session13-boot.png, 0 game errors.
+  - Check-7 (instrumented copy only, forced 'playing' + HUD + partial→full triad + explicit spawnFloatingScore("+50"/"TRIAD +150") + spawnParticles(r/y/b/white) + updateUI(pips) + Audio.triad + morph + resonance): clean 98kB frame-reverify-session13-7.png, 0 errors (harness exercised harmony/collect/floating/particle paths safely).
+  - Evidence in work-order/evidence/ (session13-boot + reverify-session13-7 + logs). Source index.html left pristine (no scaffolding).
+- All prior PREVIEW claims re-validated under current verifier: first screen = playable game (pilot verb live pre-START with visible fast geometric motion of crisp triadic runner via trails + morph on harmony + grid resonance); TRIAD collector with satisfying AV; escalation; responsive; post-gesture audio; eased 60fps; self-contained ~47kB.
+- **Session 13 polish (post re-verif)**: Floating score labels now render in the collected harmony's color (r/y/b primaries for ordinary +pts collects; white for "TRIAD +150"). Makes the "collecting color harmonies" objective and payoff immediately visible in the motion feedback layer itself (pairs with existing white burst particles, special tone, lit pips, runner morph, and grid resonance on success). Small precise diff; no behavior change to scoring, collisions, or flow. Post-edit boot verif clean (87kB, 0 errors). Evidence + this note will drive fresh preview redeploy on push.
+- PR#84 will be updated (comment + body with full prompt) after commit/push on canonical branch.
+- Work Order: work-order-1781501302295-7-1

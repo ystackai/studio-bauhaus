@@ -130,3 +130,14 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
 - Work Order: work-order-1781501302295-7-1
 - (This pass produced no source changes; re-established confidence before considering additional polish under remaining deadline budget.)
 - **Session 12 polish (after the required clean watchdog re-verif)**: Added grid resonance — red Kandinsky diagonals briefly intensify on successful TRIAD harmony collection (new gridResonanceT timer + draw boost). Environmental reaction makes the "shifting grids" and "satisfying ... reactions" more palpable without any bloat or risk. Post-edit boot verif clean (78kB PNG, 0 game errors). All Game Feel / quality items re-validated. Work Order: work-order-1781501302295-7-1
+
+### Session 13 — Watchdog re-verification (pre-edit) + harmony color floating scores (2026-06-15 ~10:33Z)
+- **Re-verif pass addressing "Previous run issue to address before peripheral polish: watchdog reset..." before any edit**:
+  - PR inspected first via gh (checks pass; no blocking reviews/CHANGES_REQUESTED).
+  - Real `index.html` boot (6500ms virtual): exit 0; 87kB `frame-session13-boot.png` captured; full log strict scan **CLEAN — 0 page errors, 0 uncaught, 0 TypeError, 0 ReferenceError, 0 "Cannot set properties of undefined (setting 'x')", 0 "not defined" from game script**. Only container dbus noise.
+  - Exact `.factoryx-runtime-check-7.html` (the path quoted in originating failure): pristine copy + python harness (only on copy) forcing 'playing' + full UI + partial→complete triad + direct `spawnFloatingScore("+50"/"TRIAD +150"/"×3 HARMONY")` + `spawnParticles(r/y/b/white)` + `updateUI` + `Audio.triad` + morph/glow/resonance — exercising the post-interaction collect/harmony/floating/score paths per "at least one in-game state after ... interaction".
+  - 7500ms virtual run: 98kB `frame-reverify-session13-7.png`; **CLEAN** (0 game or harness errors in grep for uncaught/TypeError/etc.; harness paths executed under raf).
+  - Temp check-7 removed post-run; no scaffolding in source. Evidence in work-order/evidence/ (session13-* + logs).
+- **Post-verif polish (color harmony feedback)**: see WORKLOG. Floating scores now carry + render the collected harmony color (primary r/y/b for +pts, white for TRIAD). Strengthens "collecting color harmonies" legibility and satisfying reaction at the exact collect moment (visual matches tone/particles/pips/morph/grid resonance). Post-edit boot verif clean (87kB, 0 errors).
+- All Game Feel checklist + quality bar remain ✓ (core verb first 30s, input<100ms + easing + feedback, post-gesture audio, >=44px, 60fps target, <2MB self-contained ~47.7kB, no net). Browser runtime verification exercised real index + instrumented interaction state on the exact prior-failure file path. No blockers.
+- Work Order: work-order-1781501302295-7-1
