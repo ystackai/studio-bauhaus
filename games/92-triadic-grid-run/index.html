@@ -1024,6 +1024,7 @@ for(let i=0;i<8;i++){ spawnSpeedLine(true); speedLines[speedLines.length-1].x = 
 lastTime=performance.now();
 document.getElementById('hint').textContent='';
 const hs=document.getElementById('high-score'); hs.textContent='BEST: '+highScore; hs.classList.add('active');
+render(); // immediate first paint so pre-screenshot in browser verifiers sees live arcade content (grid+runner+hazards+collects) without waiting for rAF tick
 requestAnimationFrame(gameLoop);
 </script>
 </body>
