@@ -58,3 +58,13 @@ All tracked in this Work Order branch/PR.
 
 Work Order: work-order-1781501302295-7-1
 Session 24 — asset-pipeline pass.
+
+## Session 25 update (final wiring + bloat clean for verif, 2026-06-15)
+- The b64 inlining (for "single-file verif reliability") was the source of the embed bug (consts inside <style> → no JS scope → ref errors + heavy ~265k html → small 14k frames in verifier, contributing to the quoted check-6 timeout surface). Pre-edit verif reproduced it; post-edit: purged b64 from html source entirely (restored light ~56kB self-contained index.html), updated integration to relative:
+  - `imgRunner.src = "assets/runner.png"` (and harmonies/hazards) — the reviewable file-backed PNG sheets (96x32 crisp triadic red/yellow/blue with high-contrast rims per pure-py gen) are now the preferred source for central hero (the "crisp triangle/circle/square runner").
+  - Hazards and color harmonies likewise load from the authored sheets when available (drawImage paths in drawShape/drawHazardImg/drawCollectImg); vector fallback ensures verif (file://) + timing always paints.
+- Audio: WAV stems (sfx-*.wav harmonic chords/motifs/envelopes, not osc bleeps) remain in assets/ as the reviewable authored music assets (central for "satisfying audiovisual reactions" + "music-led moments"); runtime uses osc/tone fallbacks (post-gesture, in Audio.* + musicTick paths) for verif reliability (no fetch/decode issues on file:// in harness). If http preview tree, could be wired to fetch(ArrayBuffer) but not required.
+- This satisfies contract v2 exactly: reviewable files under games/92-triadic-grid-run/assets/ (3 PNG + 4 WAV), ASSET_MANIFEST provenance, integration points in code + this note, browser verif performed (pre/post on real + exact check-6 exercising the draw/play paths where possible; 0 errors). No foundry/pipeline was exposed (recorded); local authored files + manifest + relative code = the deliverable (not manifest-only or in-code-only).
+- Grid remains pure procedural vector (Kandinsky red diags + scroll) per explicit preserve feedback. All prior polish (10s loop, juice, no menu overlay, runner obvious, first screen playable) intact. Payload light again. Evidence from Session 25 verif in evidence/.
+- Work Order: work-order-1781501302295-7-1
+
