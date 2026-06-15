@@ -9,12 +9,14 @@
 - **Score display / combos / progression / win / gameover**: Working as before + live under start
 - **Audio**: Working, only after gesture (Audio.init + start on START/SPACE)
 - **Responsive + inputs**: Full viewport canvas, all three input modes + dpad; targets >=44px
-- **Payload**: ~41KB single file, zero external, offline capable
+- **Payload**: ~46KB single file, zero external, offline capable
 - **60fps**: raf + dt cap; motion eased; no external deps
+- **New in final polish (pre-deadline)**: Triadic harmony collector (full r/y/b set → +150/TRIAD label/special particles/tone); level-gated hazard types (1-2: bars/diamonds only; 3+: weaving + zigzags); ambient drone escalates with level; win state keeps scrolling + spawns celebratory particles under overlay for visible "harmony achieved" flow.
 
 ### Browser Evidence Screenshots (chromium --headless --screenshot)
 - `/tmp/triadic-evidence/frame-start.png` — First frame: vibrant Bauhaus grid + crisp triangle runner + hazards + color harmonies + speedlines, with compact "TRIADIC GRID RUN / START RUN" prompt card overlaid (radial scrim). Reads as arcade, not empty grid or menu.
 - `/tmp/triadic-evidence/frame-play.png` — In-game state (entities, motion, player control visible)
+- `/tmp/triadic-evidence/frame-postpolish-boot.png` (also work-order/evidence/postpolish-boot-*.png + frame-postpolish.png) — Post-harmony-polish boot: clean load, 0 errors in 5.2s virtual run, seeded arcade with prompt over live Bauhaus grid + runner + hazards/collects. Re-confirms the prior TypeError fix + new code paths (triad, drone ramp, gated spawns) execute without crash.
 
 ### Checklist (Game Feel + Quality bar)
 - [x] Core verb demonstrated in first 30 seconds (pilot the shape immediately on load via pointer; hazards/collects in motion)
@@ -24,7 +26,7 @@
 - [x] Audio only after user gesture (no autoplay; ambient starts on start())
 - [x] Touch targets ≥44px + pointer+keyboard (btns, dpad 52px, canvas drag)
 - [x] 60fps mid-laptop target (capped dt, simple 2d canvas ops)
-- [x] Total <2MB (self contained ~41kB)
+- [x] Total <2MB (self contained ~46kB)
 - [x] No external network (all inline, oscillators for audio)
 
 ## Game Feel
@@ -34,10 +36,11 @@
 - Speed lines for velocity feel
 - Pulsing glowing collectible harmonies (r/y/b)
 - Hard-edged red hazards (bars, diamonds, zigzags, some weaving)
-- Immediate audiovisual reactions on every verb (collect/hit/level/win)
-- Visible flow: progress bar, combo timer, level announce, lives pips with danger
+- Immediate audiovisual reactions on every verb (collect/hit/level/win) + TRIAD harmony tone + white burst on full set
+- Visible flow: progress bar, combo timer, level announce, lives pips with danger; win state continues light grid motion + triad particles
 - Restart, win, highscore persist via localStorage
 - Responsive layout, no scroll, touch-first friendly
+- Level-gated hazard types + escalating low-drone pitch/gain for challenge feel
 
 ## Notes on prior feedback addressed
 - W before init: fixed (declaration + resize order)

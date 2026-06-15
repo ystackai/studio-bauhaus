@@ -165,6 +165,7 @@ let levelAnnounceT=0, levelAnnounceText='';
 let highScore=parseInt(localStorage.getItem('triadicHS'))||0;
 let floatingScores=[], collectFlashT=0, collectFlashX=0, collectFlashY=0;
 let ambientFreq=0, ambientPhase=0;
+let triad=[]; // triadic color harmony collector (r/y/b set for bonus)
 
 // ═══════════════════════════════════════════════════
 //  AUDIO ENGINE — Web Audio API, zero external files
@@ -237,6 +238,18 @@ const Audio = (() => {
     win: () => {
       [440,523,587,659,784,880,988,1100].forEach((f,i)=>setTimeout(()=>tone(f,0.35,'sine',0.1),i*100));
     },
+    triad: () => {
+      tone(660,0.09,'triangle',0.09); setTimeout(()=>tone(880,0.11,'sine',0.07),65);
+      setTimeout(()=>tone(1100,0.16,'sine',0.05),130);
+    },
+    update: (lvl, spd) => {
+      if(ambientOsc && ambientGain && ctx){
+        try{
+          ambientOsc.frequency.value = 62 + (lvl-1)*4.5;
+          ambientGain.gain.value = Math.min(0.028, 0.013 + (lvl-1)*0.0025);
+        }catch(e){}
+      }
+    },
     start: () => {
       tone(580,0.08,'sine',0.06);
       setTimeout(()=>tone(780,0.12,'sine',0.07),80);
@@ -301,10 +314,11 @@ function initPlayer() {
 function spawnHazard() {
   const r=Math.random();
   let h;
-  if(r<0.35){
+  // Early levels: only crisp static bars + diamonds (predictable geometry). Level 3+ escalates with weaving/zigzag hard-edge hazards.
+  if(r<0.35 || (level<3 && r<0.68)){
     const yBase=80+Math.random()*(H-160);
     h={x:W+80,y:yBase,type:'bar',w:26+Math.random()*20,h:92+Math.random()*80,spd:speed*(0.7+Math.random()*0.6),rot:0,rotSpd:(Math.random()-0.5)*0.02};
-  } else if(r<0.55){
+  } else if(r<0.55 || (level<3 && r<0.95)){
     const yBase=80+Math.random()*(H-160);
     h={x:W+80,y:yBase,type:'diamond',w:40+Math.random()*14,h:40+Math.random()*14,spd:speed*(0.8+Math.random()*0.4),rot:0,rotSpd:(Math.random()>0.5?1:-1)*(0.03+Math.random()*0.03)};
   } else if(r<0.8){
@@ -373,6 +387,7 @@ function initGame() {
   hazards=[]; collectibles=[]; particles=[]; speedLines=[]; floatingScores=[];
   gridOffset=0; shakeT=0; flashT=0; spawnTimer=0; collectTimer=0;
   levelAnnounceT=0;
+  triad=[];
   initGrid(); initBgShapes(); initPlayer(); updateUI();
   announceLevel(1);
 }
@@ -418,6 +433,7 @@ function update(dt) {
   if(shakeT>0) shakeT-=dt;
   if(flashT>0) flashT-=dt;
   if(collectFlashT>0) collectFlashT-=dt;
+  if(frameCount % 28 === 0) Audio.update(level, speed); // escalate drone with progression for audible flow
 
   // Always advance world motion (grid, parallax bg, speed cues) so first frame reads as live arcade
   gridOffset += (state==='playing' ? speed : speed * 0.55);
@@ -527,6 +543,20 @@ function update(dt) {
       flashColor=SHAPE_COL[col.type];
       player.glowT=0.25;
       Audio.collect(combo);
+      // Triadic harmony: collect one of each primary (r/y/b) for bonus — core "color harmonies" verb
+      triad.push(col.type);
+      if(triad.length>3) triad.shift();
+      if(new Set(triad).size===3){
+        const bonus=150;
+        score+=bonus;
+        spawnParticles(col.x,col.y,'#fff',10);
+        spawnFloatingScore(col.x,col.y-48,'TRIAD +'+bonus);
+        flashT=0.22;
+        flashColor='#fff';
+        Audio.triad();
+        triad=[];
+        updateUI();
+      }
       collectibles.splice(i,1);
       updateUI();
       const nl=Math.min(MAX_LEVEL,Math.floor(score/LEVEL_SCORE)+1);
@@ -539,6 +569,7 @@ function update(dt) {
         player.shape=(level-1)%3;
         announceLevel(level);
         Audio.levelUp();
+        Audio.update(level, speed); // immediate audible escalation on level gate
         shakeT=0.15;
         flashT=0.3;
         flashColor='#FFD60A';
@@ -580,6 +611,14 @@ function update(dt) {
     if(fs.life<=0) floatingScores.splice(i,1);
   }
 
+  // Win state: keep light world motion + celebratory triad particles under the overlay for satisfying visible flow/harmony achieved
+  if(state==='win' && frameCount % 4 === 0){
+    const cx = W*0.28 + Math.random()*W*0.44;
+    const cy = H*0.22 + Math.random()*H*0.56;
+    spawnParticles(cx, cy, SHAPE_COL[frameCount % 3], 4);
+    if(frameCount % 9 === 0) spawnParticles(cx-18, cy+12, '#fff', 2);
+  }
+
   // (speed lines, bg shapes, timers, and UI updates are handled at top of update for all states)
 }
 
@@ -587,6 +626,7 @@ function hitPlayer(hz) {
   lives--;
   combo=0;
   comboTimer=0;
+  triad=[]; // break harmony on hit — risk/reward in the flow
   player.invincible=1.5;
   shakeT=0.3;
   flashT=0.15;
