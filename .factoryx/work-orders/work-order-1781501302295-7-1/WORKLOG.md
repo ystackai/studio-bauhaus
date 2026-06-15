@@ -340,3 +340,20 @@
 - Work Order: work-order-1781501302295-7-1
 - Deadline budget was ~17:32Z; this pass closes the explicit previous check-6 + asset contract v2 blocking items with the required file-backed artifacts + verification protocol under polish_until_deadline.
 
+
+## Session 26 (2026-06-15 ~18:05Z) — targeted syntax + asset polish to unblock (addressing quoted prior check-6 failure + asset/playtest blocking)
+- Before any further polish: read FEEDBACK + PREVIEW/VERIF; reproduced the exact "Previous run issue" SyntaxError on check-6.
+- Root causes fixed in index.html (minimal diff):
+  - Removed 7 stray `  base64,';` (and variants) lines that had been injected into <style> after the canvas rule (corrupted the stylesheet, led to JS parse "Unexpected token '}'" around line 405 in instrumented check copies).
+  - Fixed Audio IIFE close from `})();})();` to `})();` (extra paren from prior edit).
+- Regenerated the reviewable PNG assets (games/.../assets/*.png) with deliberate pure-python raster (stdlib only) + correct palette + stronger detail so runner is "unmistakable", collect/hazard "visible intent" even before considering the vector fallback. See ASSET_MANIFEST for gen method + sizes + integration (drawImage slices + fallback).
+- Full verif pre/post:
+  - Real index boot: clean, large frame.
+  - Exact .factoryx-runtime-check-6.html (the one named in the failure report) recreated + instrumented with append-harness only (force playing + post-gesture collect/triad/floating/particle/hit paths + HUD + update calls) to exercise "in-game state after ... interaction"; clean 0 errors, 162kB frame.
+  - All evidence + logs copied to evidence/ ; temp check deleted.
+- Updated ASSET_MANIFEST.md + VERIFICATION.md with session record + provenance.
+- Git: committed on the canonical branch; pushed `origin HEAD:factoryx/factory-bauhaus/work-order-1781501302295-7-1` (fast-forward after fetch).
+- PR: existing #84 (https://github.com/ystackai/studio-bauhaus/pull/84) will observe the new commit. (Full Work Order prompt + payload is in the work-order/ dir files + prior PR comments; this diff is the minimal targeted rework requested before peripheral.)
+- No other files touched; no menu/gallery reversion; Bauhaus grid procedural preserved; first screen remains the live playable arcade; 10s loop + juice + obvious player/hazards/collects + file-backed assets now stronger.
+- Work Order: work-order-1781501302295-7-1
+
