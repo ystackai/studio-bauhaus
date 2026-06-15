@@ -513,10 +513,11 @@ function update(dt) {
   player.speedAngle=Math.atan2(dy,dx);
   if(moveSpeed>8 && frameCount%2===0) spawnSpeedLine();
   // Satisfying geometric wake / thrust lines when the crisp runner is in fast motion (visible chase pressure + movement feel)
-  if(moveSpeed>10 && frameCount%2===0 && player){
+  if(moveSpeed>8 && frameCount%2===0 && player){
     const bx=player.x - Math.cos(player.speedAngle)*14, by=player.y - Math.sin(player.speedAngle)*14;
-    speedLines.push({x:bx, y:by, len:24+Math.random()*16, spd:Math.max(4,speed*1.6), alpha:0.24+Math.random()*0.12, thickness:1.15+Math.random()*0.6});
-    if(moveSpeed>16 && frameCount%3===0) speedLines.push({x:bx-2, y:by+3, len:15+Math.random()*11, spd:speed*1.85, alpha:0.19, thickness:0.95});
+    speedLines.push({x:bx, y:by, len:26+Math.random()*18, spd:Math.max(4,speed*1.65), alpha:0.26+Math.random()*0.14, thickness:1.25+Math.random()*0.7});
+    if(moveSpeed>14 && frameCount%2===0) speedLines.push({x:bx-3, y:by+2, len:18+Math.random()*12, spd:speed*1.9, alpha:0.21, thickness:1.05});
+    if(moveSpeed>18 && frameCount%3===0) speedLines.push({x:bx+1, y:by-4, len:12+Math.random()*9, spd:speed*2.05, alpha:0.17, thickness:0.85});
   }
 
   if(player.glowT>0) player.glowT-=dt;
@@ -530,11 +531,11 @@ function update(dt) {
   // Demo spawns + always move entities so start screen shows live hazards/collectibles/motion immediately — denser for obvious 10s arcade loop + visible threat/collect intent from t=0
   const isPlaying = state==='playing';
   spawnTimer += dt;
-  const hInt = Math.max(0.28, 1.18 - (isPlaying?level:0.95)*0.08 );
-  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?8:6)) spawnHazard(); }
+  const hInt = Math.max(0.26, 1.12 - (isPlaying?level:1.05)*0.09 );
+  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?8:7)) spawnHazard(); }
   collectTimer += dt;
-  const cInt = Math.max(0.48, 1.42 - (isPlaying?level:0.82)*0.06 );
-  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?6:6)) spawnCollectible(); }
+  const cInt = Math.max(0.44, 1.32 - (isPlaying?level:0.92)*0.07 );
+  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?6:7)) spawnCollectible(); }
 
   // Update hazards (motion always for visual; collisions only while playing)
   for(let i=hazards.length-1;i>=0;i--){
@@ -586,7 +587,14 @@ function update(dt) {
       spawnParticles(col.x,col.y,SHAPE_COL[col.type],32); // stronger collection juice + impact
       // short inward "suck" particles toward player for satisfying collect feel (more for reward feedback)
       for(let s=0;s<8;s++){ const a=Math.random()*Math.PI*2, ss=2+Math.random()*3.8; particles.push({x:col.x+Math.cos(a)*6,y:col.y+Math.sin(a)*6,vx:Math.cos(a+Math.PI)*ss*0.9,vy:Math.sin(a+Math.PI)*ss*0.9,life:0.6,decay:0.035,size:2+Math.random()*3,color:SHAPE_COL[col.type],shape:col.type}); }
-      spawnCollectFlash(col.x,col.y,SHAPE_COL[col.type]);
+      // escalating combo reward juice: on streak>=4, extra inward burst + geometric ring pop for stronger "combo payoff" visibility in the chase
+      if(combo>=4){
+        for(let s=0;s<6;s++){ const a=Math.random()*Math.PI*2, ss=1.5+Math.random()*2.5; particles.push({x:col.x+Math.cos(a)*4,y:col.y+Math.sin(a)*4,vx:Math.cos(a+Math.PI)*ss*1.1,vy:Math.sin(a+Math.PI)*ss*1.1,life:0.55,decay:0.04,size:1.5+Math.random()*2,color:'#fff',shape:col.type}); }
+        // small crisp expanding ring in collect color for immediate high-combo visual pop
+        collectFlashT=0.42; collectFlashX=col.x; collectFlashY=col.y; collectFlashColor=SHAPE_COL[col.type];
+      } else {
+        spawnCollectFlash(col.x,col.y,SHAPE_COL[col.type]);
+      }
       spawnFloatingScore(col.x,col.y-25,'+'+pts, SHAPE_COL[col.type]);
       // motion trail + speedline surge on every collect for "fast geometric motion" + visible chase pressure
       for(let k=0;k<5;k++){ spawnSpeedLine(true); }
@@ -711,8 +719,10 @@ function hitPlayer(hz) {
   spawnParticles(player.x,player.y,'#FFD60A',16);
   spawnParticles(player.x,player.y,'#fff',9);
   // Weightier impact + satisfying recoil motion for the crisp runner on hazard collision (stronger "dodging" consequence feel)
-  for(let k=0;k<5;k++){ spawnSpeedLine(true); }
-  if(player && player.trail){ player.trail.push({x:player.x+4,y:player.y-4,alpha:0.7}); player.trail.push({x:player.x-6,y:player.y+2,alpha:0.6}); player.trail.push({x:player.x+2,y:player.y+5,alpha:0.55}); player.trail.push({x:player.x-3,y:player.y-5,alpha:0.5}); }
+  for(let k=0;k<6;k++){ spawnSpeedLine(true); }
+  if(player && player.trail){ player.trail.push({x:player.x+5,y:player.y-5,alpha:0.72}); player.trail.push({x:player.x-7,y:player.y+3,alpha:0.62}); player.trail.push({x:player.x+3,y:player.y+6,alpha:0.58}); player.trail.push({x:player.x-4,y:player.y-6,alpha:0.52}); player.trail.push({x:player.x+1,y:player.y+2,alpha:0.48}); }
+  // small opposing wake for recoil "kick" pop on the runner at moment of impact
+  if(player){ const bx=player.x + Math.cos(player.speedAngle)*11, by=player.y + Math.sin(player.speedAngle)*11; speedLines.push({x:bx,y:by,len:14+Math.random()*10,spd:speed*0.9,alpha:0.28,thickness:1.4}); }
   Audio.hit();
   updateUI();
   if(lives<=0){
@@ -1083,13 +1093,13 @@ initStartBgShapes();
 initPlayer();
 spawnTimer=0;
 collectTimer=0;
-// Seed a few hazards and collectibles so the very first frame shows live arcade motion (grid + runner + hazards + harmonies)
-for(let i=0;i<2;i++){ spawnHazard(); }
-for(let i=0;i<3;i++){ spawnCollectible(); }
+// Seed hazards/collectibles + extra for instant obvious 10s arcade loop density (threat + harmony intent visible from t=0 under the light start card)
+for(let i=0;i<3;i++){ spawnHazard(); }
+for(let i=0;i<4;i++){ spawnCollectible(); }
 // Nudge a couple hazards further in view for instant readability
-hazards.forEach((h,i)=>{ if(i===0) h.x = W*0.55; if(i===1) h.x=W*0.78; });
+hazards.forEach((h,i)=>{ if(i===0) h.x = W*0.52; if(i===1) h.x=W*0.71; if(i===2) h.x = W*0.88; });
 // Seed speed lines for immediate forward-motion cue on first paint
-for(let i=0;i<8;i++){ spawnSpeedLine(true); speedLines[speedLines.length-1].x = 30 + i* (W/9); }
+for(let i=0;i<9;i++){ spawnSpeedLine(true); speedLines[speedLines.length-1].x = 26 + i* (W/9.5); }
 lastTime=performance.now();
 document.getElementById('hint').textContent='';
 const hs=document.getElementById('high-score'); hs.textContent='BEST: '+highScore; hs.classList.add('active');

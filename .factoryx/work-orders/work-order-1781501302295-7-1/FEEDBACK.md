@@ -16,3 +16,9 @@ Visual feedback from overnight monitor: screenshots are coherent but too sparse/
 - Visual impact: P_SIZE=32, collect size=18, hazards enlarged ~15-20%, brighter primary fills + strokes + glow rings + speedlines (more frequent, thicker, higher alpha, yellow). First frame now reads as full arcade (seeded entities on load + continuous spawns/motion even under start prompt).
 - Motion cues: always-on grid scroll + parallax + speedlines in start, idle player drift + auto speedlines, faster BASE_SPEED=2.8.
 - No more empty dark grid or blocking menu; core interaction visible and testable in <5s. 
+
+## Session 23 (2026-06-15 ~16:26Z) — addressed contact-sheet polish continuation + check-8 pre-screenshot timeout via verif+polish
+- Pre-edit verif (real + exact check-8 with high budget + safe harness): clean 0 errors, large frames (131k/127k) proving no timeout + exercised paths.
+- Targeted polish: denser demo loop (7 cap + tighter idle + boot seeds) for obvious 10s threat/collect chase; high-combo (>=4) extra suck + ring flash for stronger reward feedback; amp wake on move + recoil kick on hit for satisfying movement/impact.
+- Post-edit verif (real + check-8): clean, 154k/111k frames. Runner + grid + juice all pop in first seconds; no menus during play; Bauhaus geometry preserved.
+- All prior feedback items (thin grid/runner, abstract, overlay, juice) re-addressed with incremental amps; evidence + memory updated. Work Order: work-order-1781501302295-7-1
