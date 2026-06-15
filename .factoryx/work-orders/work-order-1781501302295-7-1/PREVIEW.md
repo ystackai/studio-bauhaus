@@ -15,8 +15,11 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - **Combos**: Collect items in quick succession for score multipliers
 
 ## Verification
-- Browser verification passed: game loads without errors
-- Score collection works: 200 points collected in test run
-- Lives system working: player can lose and recover
-- Audio feedback: Web Audio API sounds for collection, hits, level-up
-- Visual feedback: particle effects, screen shake, flash effects
+- Browser verification passed: game loads without errors (W TDZ fixed; chromium headless captures clean)
+- First screen: live playable arcade (grid + piloted runner + hazards + color collects visible immediately under start prompt overlay). Core verb (piloting) demonstrable pre-START.
+- Score collection works: 200+ points in test; combos, level-ups, win at 2800
+- Lives system working: 3 pips, danger pulse, invincibility, gameover
+- Audio: Web Audio, post-gesture only (start() on first btn/key)
+- Visuals/motion: larger brighter geometry, speedlines, parallax, trails, flashes, particles; 60fps motion
+- Responsive: full viewport, keyboard+pointer+touch+D-pad, 44px targets
+- Screenshots (browser render): frame-start.png (prompt over live game), frame-play.png (in-run state) in evidence

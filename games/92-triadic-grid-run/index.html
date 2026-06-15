@@ -12,6 +12,9 @@
   #ui-layer>*{pointer-events:auto}
   .screen{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center}
   .screen.active{display:flex}
+  #start-screen{position:absolute;inset:0;background:radial-gradient(circle at 50% 38%, rgba(26,26,26,0.35) 0%, rgba(26,26,26,0.65) 42%, rgba(26,26,26,0.82) 68%);display:none;align-items:center;justify-content:center}
+  #start-screen.active{display:flex}
+  #start-card{background:rgba(20,20,20,0.82);border:1px solid rgba(255,255,255,0.12);padding:1.1rem 1.6rem 1.25rem;border-radius:4px;min-width:260px;max-width:86vw}
   .title{font-size:clamp(1.8rem,5.5vw,3.5rem);font-weight:900;letter-spacing:0.08em;color:#f0f0f0;line-height:1.1;margin-bottom:0.5rem}
   .subtitle{font-size:clamp(0.7rem,1.8vw,1rem);color:#888;margin-bottom:1.5rem;max-width:480px;line-height:1.6;padding:0 1rem}
   .btn{min-width:44px;min-height:44px;padding:0.75rem 2.5rem;font-size:0.95rem;font-weight:700;letter-spacing:0.1em;background:#E63946;color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.15s,transform 0.1s;text-transform:uppercase}
@@ -84,18 +87,19 @@
   <div id="progress-bar-container"><div id="progress-bar"></div></div>
   <div id="hint"></div>
 
-  <!-- START SCREEN -->
+  <!-- START SCREEN: overlaid prompt so the grid + runner + hazards + collectibles are the first thing visible and playable -->
   <div id="start-screen" class="screen active">
-    <div id="start-bg-shapes"></div>
-    <div class="title" style="color:#E63946">TRIADIC<br>GRID RUN</div>
-    <div class="subtitle" style="margin-bottom:0.8rem">Navigate the grid. Collect harmonies.<br>Dodge the chaos. Achieve rhythm.</div>
-    <div class="shapes-row">
-      <div class="shape-icon"><svg viewBox="0 0 44 44"><polygon points="22,4 38,38 6,38" fill="#E63946" stroke="#1a1a1a" stroke-width="2"/></svg></div>
-      <div class="shape-icon"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="#FFD60A" stroke="#1a1a1a" stroke-width="2"/></svg></div>
-      <div class="shape-icon"><svg viewBox="0 0 44 44"><rect x="6" y="6" width="32" height="32" fill="#4361EE" stroke="#1a1a1a" stroke-width="2"/></svg></div>
+    <div id="start-card">
+      <div class="title" style="color:#E63946;font-size:clamp(1.55rem,4.8vw,2.6rem);margin-bottom:0.15rem">TRIADIC GRID RUN</div>
+      <div class="subtitle" style="margin-bottom:0.9rem;font-size:clamp(0.68rem,1.6vw,0.92rem)">Pilot the runner · Collect color harmonies · Dodge hard geometry</div>
+      <div class="shapes-row" style="margin-bottom:0.9rem;gap:0.9rem">
+        <div class="shape-icon"><svg viewBox="0 0 44 44"><polygon points="22,4 38,38 6,38" fill="#E63946" stroke="#1a1a1a" stroke-width="2"/></svg></div>
+        <div class="shape-icon"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="#FFD60A" stroke="#1a1a1a" stroke-width="2"/></svg></div>
+        <div class="shape-icon"><svg viewBox="0 0 44 44"><rect x="6" y="6" width="32" height="32" fill="#4361EE" stroke="#1a1a1a" stroke-width="2"/></svg></div>
+      </div>
+      <button class="btn" id="start-btn">START RUN</button>
+      <div class="controls-info" style="margin-top:0.65rem"><span>WASD</span>/<span>ARROWS</span>/<span>DRAG</span> — immediate response</div>
     </div>
-    <button class="btn" id="start-btn">START</button>
-    <div class="controls-info"><span>WASD</span> / <span>Arrows</span> to move · <span>Mouse</span> / <span>Touch</span> to aim</div>
   </div>
 
   <!-- GAME OVER SCREEN -->
@@ -128,14 +132,24 @@
 // ═══════════════════════════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════════════════════════
-const P_SIZE = 28;
-const GRID_SPACING = 55;
-const BASE_SPEED = 2.5;
+const P_SIZE = 32;
+const GRID_SPACING = 52;
+const BASE_SPEED = 2.8;
 const MAX_LEVEL = 7;
 const LEVEL_SCORE = 400;
 const WIN_SCORE = MAX_LEVEL * LEVEL_SCORE;
 const SHAPE_COL = ['#E63946','#FFD60A','#4361EE'];
 const TRI=0, CIRC=1, SQR=2;
+
+// ═══════════════════════════════════════════════════
+//  DOM REFS (early so W/H available for state inits)
+// ═══════════════════════════════════════════════════
+const canvas = document.getElementById('game-canvas');
+const c = canvas.getContext('2d');
+let W = 960, H = 600;
+const resize = () => { W=window.innerWidth; H=window.innerHeight; canvas.width=W; canvas.height=H; };
+window.addEventListener('resize', resize);
+resize();
 
 // ═══════════════════════════════════════════════════
 //  STATE
@@ -151,16 +165,6 @@ let levelAnnounceT=0, levelAnnounceText='';
 let highScore=parseInt(localStorage.getItem('triadicHS'))||0;
 let floatingScores=[], collectFlashT=0, collectFlashX=0, collectFlashY=0;
 let ambientFreq=0, ambientPhase=0;
-
-// ═══════════════════════════════════════════════════
-//  DOM REFS
-// ═══════════════════════════════════════════════════
-const canvas = document.getElementById('game-canvas');
-const c = canvas.getContext('2d');
-let W, H;
-const resize = () => { W=window.innerWidth; H=window.innerHeight; canvas.width=W; canvas.height=H; };
-window.addEventListener('resize', resize);
-resize();
 
 // ═══════════════════════════════════════════════════
 //  AUDIO ENGINE — Web Audio API, zero external files
@@ -299,18 +303,18 @@ function spawnHazard() {
   let h;
   if(r<0.35){
     const yBase=80+Math.random()*(H-160);
-    h={x:W+80,y:yBase,type:'bar',w:22+Math.random()*18,h:80+Math.random()*90,spd:speed*(0.7+Math.random()*0.6),rot:0,rotSpd:(Math.random()-0.5)*0.02};
+    h={x:W+80,y:yBase,type:'bar',w:26+Math.random()*20,h:92+Math.random()*80,spd:speed*(0.7+Math.random()*0.6),rot:0,rotSpd:(Math.random()-0.5)*0.02};
   } else if(r<0.55){
     const yBase=80+Math.random()*(H-160);
-    h={x:W+80,y:yBase,type:'diamond',w:34+Math.random()*12,h:34+Math.random()*12,spd:speed*(0.8+Math.random()*0.4),rot:0,rotSpd:(Math.random()>0.5?1:-1)*(0.03+Math.random()*0.03)};
+    h={x:W+80,y:yBase,type:'diamond',w:40+Math.random()*14,h:40+Math.random()*14,spd:speed*(0.8+Math.random()*0.4),rot:0,rotSpd:(Math.random()>0.5?1:-1)*(0.03+Math.random()*0.03)};
   } else if(r<0.8){
     const fromTop=Math.random()>0.5;
     const startY=fromTop?80:H-160;
     const dir=fromTop?1:-1;
-    h={x:W+80,y:startY,type:'bar',w:20+Math.random()*14,h:55+Math.random()*55,spd:speed*(0.85+Math.random()*0.35),rot:0,rotSpd:0,moveDir:dir,moveAmp:50+Math.random()*60,moveStart:startY,phase:Math.random()*Math.PI*2,warning:true,warnTimer:30};
+    h={x:W+80,y:startY,type:'bar',w:24+Math.random()*16,h:62+Math.random()*50,spd:speed*(0.85+Math.random()*0.35),rot:0,rotSpd:0,moveDir:dir,moveAmp:50+Math.random()*60,moveStart:startY,phase:Math.random()*Math.PI*2,warning:true,warnTimer:30};
   } else {
     const startY=80+Math.random()*(H-160);
-    h={x:W+80,y:startY,type:'zigzag',w:28+Math.random()*8,h:28+Math.random()*8,spd:speed*(0.9+Math.random()*0.3),rot:0,rotSpd:0.05+Math.random()*0.03,moveDir:1,moveAmp:55+Math.random()*45,moveStart:startY,phase:Math.random()*Math.PI*2};
+    h={x:W+80,y:startY,type:'zigzag',w:32+Math.random()*10,h:32+Math.random()*10,spd:speed*(0.9+Math.random()*0.3),rot:0,rotSpd:0.05+Math.random()*0.03,moveDir:1,moveAmp:55+Math.random()*45,moveStart:startY,phase:Math.random()*Math.PI*2};
   }
   hazards.push(h);
 }
@@ -319,7 +323,7 @@ function spawnCollectible() {
   const type=Math.floor(Math.random()*3);
   const spawnX=W*0.25+Math.random()*W*0.55;
   const spawnY=80+Math.random()*(H-160);
-  collectibles.push({x:spawnX,y:spawnY,type,size:14,spd:speed*0.8,pulse:Math.random()*Math.PI*2,rot:Math.random()*Math.PI*2});
+  collectibles.push({x:spawnX,y:spawnY,type,size:18,spd:speed*0.8,pulse:Math.random()*Math.PI*2,rot:Math.random()*Math.PI*2});
 }
 
 function spawnParticles(x,y,color,count) {
@@ -337,14 +341,14 @@ function spawnCollectFlash(x,y,color) {
 }
 
 function spawnSpeedLine() {
-  if(Math.random()>0.3) return;
+  if(Math.random()>0.18) return;
   speedLines.push({
     x:W+10,
     y:Math.random()*H,
-    len:40+Math.random()*80,
-    spd:speed*2+Math.random()*2,
-    alpha:0.1+Math.random()*0.15,
-    thickness:1+Math.random()*1.5
+    len:48+Math.random()*95,
+    spd:speed*2.1+Math.random()*1.8,
+    alpha:0.18+Math.random()*0.22,
+    thickness:1.2+Math.random()*1.6
   });
 }
 
@@ -409,21 +413,32 @@ function updateUI() {
 //  UPDATE
 // ═══════════════════════════════════════════════════
 function update(dt) {
-  if(state!=='playing'){
-    // Animate start screen background
-    if(state==='start'){
-      startBgShapes.forEach(s=>{
-        s.x-=s.speed;
-        s.rot+=s.speed*0.01;
-        s.y+=Math.sin(frameCount*0.01+s.x*0.01)*0.3;
-        if(s.x+s.size<-50){s.x=W+50;s.y=Math.random()*H;}
-      });
-      frameCount++;
-    }
-    if(levelAnnounceT>0) levelAnnounceT-=dt;
-    return;
-  }
   frameCount++;
+  if(levelAnnounceT>0) levelAnnounceT-=dt;
+  if(shakeT>0) shakeT-=dt;
+  if(flashT>0) flashT-=dt;
+  if(collectFlashT>0) collectFlashT-=dt;
+
+  // Always advance world motion (grid, parallax bg, speed cues) so first frame reads as live arcade
+  gridOffset += (state==='playing' ? speed : speed * 0.55);
+  bgShapes.forEach(s=>{
+    s.x += s.vx * (speed/BASE_SPEED) * 0.5;
+    s.y += s.vy;
+    s.rot += s.rotSpd;
+    if(s.x + s.size < -50){ s.x = W + 50; s.y = Math.random()*H; }
+    if(s.y + s.size < -50) s.y = H + 50;
+    if(s.y - s.size > H + 50) s.y = -50;
+  });
+  for(let i=speedLines.length-1;i>=0;i--){
+    const sl=speedLines[i]; sl.x -= sl.spd;
+    if(sl.x < -sl.len) speedLines.splice(i,1);
+  }
+  // Idle player motion cue in start (gentle vertical drift so it reads alive)
+  if(state==='start' && player){
+    player.targetY = H*0.5 + Math.sin(frameCount*0.018)*72;
+    player.wobble += dt * 2.2;
+    if(frameCount % 4 === 0) spawnSpeedLine();
+  }
 
   // Combo decay
   if(combo>0){comboTimer+=dt;if(comboTimer>comboDecayTime){combo=0;comboTimer=0;}}
@@ -458,23 +473,17 @@ function update(dt) {
 
   if(player.glowT>0) player.glowT-=dt;
   if(player.invincible>0) player.invincible-=dt;
-  if(collectFlashT>0) collectFlashT-=dt;
 
-  gridOffset+=speed;
+  // Demo spawns + always move entities so start screen shows live hazards/collectibles/motion immediately
+  const isPlaying = state==='playing';
+  spawnTimer += dt;
+  const hInt = Math.max(0.45, 1.8 - (isPlaying?level:1)*0.1 );
+  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?6:3)) spawnHazard(); }
+  collectTimer += dt;
+  const cInt = Math.max(0.7, 2.1 - (isPlaying?level:0)*0.06 );
+  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?5:3)) spawnCollectible(); }
 
-  // Spawn hazards — more frequent at higher levels
-  spawnTimer+=dt;
-  const hInt=Math.max(0.3,1.4-level*0.12);
-  if(spawnTimer>hInt){spawnTimer=0;spawnHazard();}
-  // Occasionally spawn double hazards at high levels
-  if(level>=5 && Math.random()<0.15) spawnHazard();
-
-  // Spawn collectibles
-  collectTimer+=dt;
-  const cInt=Math.max(0.55,1.6-level*0.07);
-  if(collectTimer>cInt){collectTimer=0;spawnCollectible();}
-
-  // Update hazards
+  // Update hazards (motion always for visual; collisions only while playing)
   for(let i=hazards.length-1;i>=0;i--){
     const h=hazards[i];
     h.x-=h.spd;
@@ -485,7 +494,7 @@ function update(dt) {
       h.y=h.moveStart+Math.sin(frameCount*0.04+h.phase)*h.moveAmp;
     }
     if(h.x+h.w<-80){hazards.splice(i,1);continue;}
-    if(player.invincible<=0){
+    if(isPlaying && player.invincible<=0){
       const px=player.x,py=player.y,pr=player.size*0.6;
       let hit=false;
       if(h.type==='bar'||h.type==='zigzag'){
@@ -499,14 +508,14 @@ function update(dt) {
     }
   }
 
-  // Update collectibles
+  // Update collectibles (motion always; scoring/award only while playing)
   for(let i=collectibles.length-1;i>=0;i--){
     const col=collectibles[i];
     col.x-=col.spd;
     col.pulse+=dt*4;
     col.rot+=dt*1.5;
     if(col.x<-40){collectibles.splice(i,1);continue;}
-    if((player.x-col.x)**2+(player.y-col.y)**2<(player.size+col.size+14)**2){
+    if(isPlaying && (player.x-col.x)**2+(player.y-col.y)**2<(player.size+col.size+14)**2){
       combo++;
       comboTimer=0;
       const pts=50*(1+Math.floor(combo/3));
@@ -571,28 +580,7 @@ function update(dt) {
     if(fs.life<=0) floatingScores.splice(i,1);
   }
 
-  // Speed lines
-  for(let i=speedLines.length-1;i>=0;i--){
-    const sl=speedLines[i];
-    sl.x-=sl.spd;
-    if(sl.x<-sl.len){speedLines.splice(i,1);}
-  }
-
-  // BG shapes
-  bgShapes.forEach(s=>{
-    s.x+=s.vx*(speed/BASE_SPEED)*0.5;
-    s.y+=s.vy;
-    s.rot+=s.rotSpd;
-    if(s.x+s.size<-50){s.x=W+50;s.y=Math.random()*H;}
-    if(s.y+s.size<-50)s.y=H+50;
-    if(s.y-s.size>H+50)s.y=-50;
-  });
-
-  // Level announce
-  if(levelAnnounceT>0) levelAnnounceT-=dt;
-  if(shakeT>0) shakeT-=dt;
-  if(flashT>0) flashT-=dt;
-  updateUI();
+  // (speed lines, bg shapes, timers, and UI updates are handled at top of update for all states)
 }
 
 function hitPlayer(hz) {
@@ -676,24 +664,6 @@ function render() {
     const sx=(Math.random()-0.5)*8*(shakeT/0.3);
     const sy=(Math.random()-0.5)*8*(shakeT/0.3);
     c.translate(sx,sy);
-  }
-
-  if(state==='start'){
-    // Draw animated start screen shapes
-    startBgShapes.forEach(s=>{
-      drawShape(s.x,s.y,s.shape,s.size,s.color,0.12+Math.sin(frameCount*0.02+s.x)*0.03,s.rot);
-    });
-    // Draw grid behind start screen
-    c.globalAlpha=0.06;
-    for(let x=-gridOffset%GRID_SPACING;x<W+GRID_SPACING;x+=GRID_SPACING){
-      c.strokeStyle='#fff';c.lineWidth=1;c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();
-    }
-    for(let y=0;y<H;y+=GRID_SPACING){
-      c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();
-    }
-    c.globalAlpha=1;
-    c.restore();
-    return;
   }
 
   drawGrid();
@@ -851,37 +821,36 @@ document.querySelectorAll('.dpad-btn').forEach(btn=>{
 
 canvas.addEventListener('touchstart',e=>{
   e.preventDefault();
-  if(state==='start'){doStart();return;}
   if(state==='gameover'||state==='win'){doRestart();return;}
   touchActive=true;
   touchX=e.touches[0].clientX;
   touchY=e.touches[0].clientY;
-  player.targetX=touchX;
-  player.targetY=touchY;
+  if(player){ player.targetX=touchX; player.targetY=touchY; }
+  // In start: allow piloting the runner immediately (core verb demo) without auto-start; use START button or SPACE to commit
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
   e.preventDefault();
   touchActive=true;
   touchX=e.touches[0].clientX;
   touchY=e.touches[0].clientY;
-  player.targetX=touchX;
-  player.targetY=touchY;
+  if(player){ player.targetX=touchX; player.targetY=touchY; }
 },{passive:false});
 canvas.addEventListener('touchend',e=>{e.preventDefault();touchActive=false;});
 
 canvas.addEventListener('mousedown',e=>{
-  if(state==='start'){doStart();return;}
   if(state==='gameover'||state==='win'){doRestart();return;}
   touchActive=true;
   touchX=e.clientX;
   touchY=e.clientY;
-  player.targetX=touchX;
-  player.targetY=touchY;
+  if(player){ player.targetX=touchX; player.targetY=touchY; }
+  // start-state mousedown sets target for live demo control; explicit START button commits the run
 });
 canvas.addEventListener('mousemove',e=>{
-  if(state!=='playing')return;
-  player.targetX=e.clientX;
-  player.targetY=e.clientY;
+  if(!player) return;
+  if(state==='playing' || state==='start'){
+    player.targetX=e.clientX;
+    player.targetY=e.clientY;
+  }
 });
 canvas.addEventListener('mouseup',()=>{touchActive=false;});
 
@@ -948,8 +917,15 @@ initStartBgShapes();
 initPlayer();
 spawnTimer=0;
 collectTimer=0;
+// Seed a few hazards and collectibles so the very first frame shows live arcade motion (grid + runner + hazards + harmonies)
+for(let i=0;i<2;i++){ spawnHazard(); }
+for(let i=0;i<3;i++){ spawnCollectible(); }
+// Nudge a couple hazards further in view for instant readability
+hazards.forEach((h,i)=>{ if(i===0) h.x = W*0.55; if(i===1) h.x=W*0.78; });
+// Seed speed lines for immediate forward-motion cue on first paint
+for(let i=0;i<5;i++){ spawnSpeedLine(); speedLines[speedLines.length-1].x = 40 + i* (W/6); }
 lastTime=performance.now();
-document.getElementById('hint').textContent='Press SPACE or tap START to play';
+document.getElementById('hint').textContent='';
 document.getElementById('high-score').textContent='BEST: '+highScore;
 requestAnimationFrame(gameLoop);
 </script>

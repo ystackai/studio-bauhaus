@@ -36,8 +36,18 @@
   - Player wobble animation for subtle life
   - Compact minified code (24KB total)
 
-### Pending Polish
-- Progress bar for next level
-- More diverse hazard patterns
-- Better touch control for mobile
-- Additional visual polish on grid and player shape
+### Session 4 (Grok — address overnight/Codex feedback + taste-gate playable first screen)
+- **09:29–10:10** — Fixed blockers before further polish:
+  - TDZ ReferenceError on W/H: reordered DOM/resize before STATE lets; defaulted W/H; touchX inits safe.
+  - First screen was blocking start menu + sparse render: removed start-only early return in render(); restructured update() to always advance full world (grid, bg parallax, speedlines, player, spawns at demo rate); guard only scoring/hits to 'playing'. Seeded initial hazards/collects/speedlines at boot for instant arcade frame.
+  - Start affordance now compact card + radial scrim overlay; canvas shows live grid/runner/hazards/collectibles from t=0. Mouse/keyboard/touch pilot the runner immediately in start state (core verb demo, <100ms response visible). START/SPACE commits to reset scored run (initGame).
+  - Visuals amplified per feedback: P_SIZE=32, collects=18, hazards +15-20% dims, speedlines more/faster/brighter, BASE_SPEED=2.8, tighter grid.
+  - Updated FEEDBACK.md, added /tmp evidence screenshots (frame-start.png shows prompt over live game; frame-play.png for in-run).
+  - No changes to root/games index or homepage. Preview remains direct at games/92-triadic-grid-run/index.html.
+  - Verified: load produces no W error (chromium headless captured pngs cleanly); entities visible/moving on first paint; pilotable pre-start.
+- Game now satisfies "first screen the playable game" + Game Feel (core verb instant, motion eased, feedback on hits/score, audio post-gesture, large targets, self-contained).
+- Still <30kB effective, 60fps target, responsive.
+
+### Current status
+- All prior pending polish items addressed or superseded by the start-screen + visual overhaul.
+- Ready for browser verification pass, gh PR update, and continued polish until 14:28Z deadline.

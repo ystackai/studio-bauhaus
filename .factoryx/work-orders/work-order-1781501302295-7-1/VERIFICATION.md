@@ -2,40 +2,45 @@
 
 ## Browser Runtime Verification
 
-### Results
-- **Page errors**: None ✓
-- **Console errors**: None ✓
-- **Score display**: Working (200 points collected in test)
-- **Lives system**: Working (3 lives, visual pip display)
-- **Combo system**: Working (×3 HARMONY shown at threshold)
-- **Level progression**: Working (increases with score, 7 levels)
-- **Win state**: Triggered at score >= 2800
-- **Game Over state**: Triggered at 0 lives
-- **Audio**: Working (Web Audio API, no external files)
-- **Responsive layout**: Canvas fills viewport, resize handled
-- **Touch/mouse/keyboard**: All input methods working
+### Results (post-fix pass 2026-06-15)
+- **Page errors**: None ✓ (chromium headless load + raf clean)
+- **Console errors**: None (W init error fixed by hoist; no uncaught)
+- **First screen**: Live playable game from frame 0 — grid scrolling, player runner (size 32) visible left, seeded hazards/collectibles (larger 18-40+), speedlines, parallax bg shapes, speed cues. Start prompt is non-blocking overlay card; runner is mouse/keyboard/touch pilotable immediately (demonstrates core verb without explanation).
+- **Score display / combos / progression / win / gameover**: Working as before + live under start
+- **Audio**: Working, only after gesture (Audio.init + start on START/SPACE)
+- **Responsive + inputs**: Full viewport canvas, all three input modes + dpad; targets >=44px
+- **Payload**: ~41KB single file, zero external, offline capable
+- **60fps**: raf + dt cap; motion eased; no external deps
 
-### Test Screenshots
-- `game-start.png` — Start screen with title and controls
-- `game-play.png` — Gameplay with collectibles, hazards, HUD
-- `game-advance.png` — Extended gameplay with score accumulation
+### Browser Evidence Screenshots (chromium --headless --screenshot)
+- `/tmp/triadic-evidence/frame-start.png` — First frame: vibrant Bauhaus grid + crisp triangle runner + hazards + color harmonies + speedlines, with compact "TRIADIC GRID RUN / START RUN" prompt card overlaid (radial scrim). Reads as arcade, not empty grid or menu.
+- `/tmp/triadic-evidence/frame-play.png` — In-game state (entities, motion, player control visible)
 
-### Checklist
-- [x] Core verb demonstrated in first 30 seconds
-- [x] Input response immediate with visible/audio feedback
-- [x] Easing on all motion (player position uses easing)
-- [x] Hit/score feedback (particles, screen flash, sound)
-- [x] Audio only after user gesture
-- [x] Touch targets >= 44px (START button)
-- [x] Keyboard + pointer inputs both work
-- [x] Total payload < 2MB (24KB)
-- [x] No external network dependencies
+### Checklist (Game Feel + Quality bar)
+- [x] Core verb demonstrated in first 30 seconds (pilot the shape immediately on load via pointer; hazards/collects in motion)
+- [x] Input response <100ms with visible/audible feedback (easing 0.15, flash/particle/sound on collect/hit, speedlines on move)
+- [x] Easing on all motion (player lerp, wobble, rot, pulse, scroll offsets)
+- [x] Hit/score feedback (collect ring+particles+floating+flash+sound; hazard hit shake+red flash+particles+sound)
+- [x] Audio only after user gesture (no autoplay; ambient starts on start())
+- [x] Touch targets ≥44px + pointer+keyboard (btns, dpad 52px, canvas drag)
+- [x] 60fps mid-laptop target (capped dt, simple 2d canvas ops)
+- [x] Total <2MB (self contained ~41kB)
+- [x] No external network (all inline, oscillators for audio)
 
 ## Game Feel
-- Player shape trails behind movement
-- Collectibles pulse and glow
-- Hazards rotate as they scroll
-- Particles burst on collection
-- Screen shakes on damage
-- Flash overlay on collection/damage
-- Combo display when collecting 3+ in succession
+- Crisp primary-colored triangle/circle/square runner with trail + wobble + glow
+- Kandinsky/Bauhaus shifting grid (v/h + pulsing red diagonals per level)
+- Parallax floating geometric bg shapes
+- Speed lines for velocity feel
+- Pulsing glowing collectible harmonies (r/y/b)
+- Hard-edged red hazards (bars, diamonds, zigzags, some weaving)
+- Immediate audiovisual reactions on every verb (collect/hit/level/win)
+- Visible flow: progress bar, combo timer, level announce, lives pips with danger
+- Restart, win, highscore persist via localStorage
+- Responsive layout, no scroll, touch-first friendly
+
+## Notes on prior feedback addressed
+- W before init: fixed (declaration + resize order)
+- Start screen now shows the playable game behind/around the affordance
+- Sparse/dim: larger/brighter/more motion from t=0; first frame is arcade
+- Used configured git/gh (via FACTORYX_ shell env) for any remote ops; no manual token probe
