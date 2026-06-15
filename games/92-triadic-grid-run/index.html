@@ -48,9 +48,10 @@
   .shape-icon svg{width:44px;height:44px}
   .controls-info{margin-top:1.2rem;font-size:0.7rem;color:#555;line-height:1.8;text-align:center}
   .controls-info span{background:#2a2a2a;padding:2px 7px;border-radius:3px;margin:0 2px;font-weight:600;font-size:0.65rem}
-  #progress-bar-container{position:absolute;bottom:0;left:0;width:100%;height:4px;z-index:5;display:none}
+  #progress-bar-container{position:absolute;bottom:0;left:0;width:100%;height:6px;z-index:5;display:none}
   #progress-bar-container.active{display:block}
-  #progress-bar{height:100%;background:linear-gradient(90deg,#E63946,#FFD60A,#4361EE);width:0%;transition:width 0.2s ease-out}
+  #progress-bar{height:100%;background:linear-gradient(90deg,#E63946,#FFD60A,#4361EE);width:0%;transition:width 0.2s ease-out;box-shadow:0 0 8px rgba(255,214,10,0.3)}
+  #score-display.pop,#combo-display.pop{transform:scale(1.18);color:#fff;transition:transform 80ms ease, color 80ms}
   #sound-btn{position:absolute;top:0.75rem;right:1rem;width:44px;height:44px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:50%;color:#aaa;font-size:1.1rem;cursor:pointer;display:none;z-index:6;transition:background 0.15s}
   #sound-btn.active{display:flex;align-items:center;justify-content:center}
   #sound-btn:hover{background:rgba(255,255,255,0.15)}
@@ -139,9 +140,9 @@
 // ═══════════════════════════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════════════════════════
-const P_SIZE = 32;
-const GRID_SPACING = 52;
-const BASE_SPEED = 2.8;
+const P_SIZE = 36;
+const GRID_SPACING = 44;
+const BASE_SPEED = 3.2;
 const MAX_LEVEL = 7;
 const LEVEL_SCORE = 400;
 const WIN_SCORE = MAX_LEVEL * LEVEL_SCORE;
@@ -284,11 +285,11 @@ const Audio = (() => {
 // ═══════════════════════════════════════════════════
 function initGrid() {
   gridLines=[];
-  for(let x=0;x<=W+GRID_SPACING;x+=GRID_SPACING) gridLines.push({x,type:'v',alpha:0.1+Math.random()*0.08});
-  for(let y=0;y<=H+GRID_SPACING;y+=GRID_SPACING) gridLines.push({y,type:'h',alpha:0.06+Math.random()*0.06});
-  const diagCount=3+level;
+  for(let x=0;x<=W+GRID_SPACING;x+=GRID_SPACING) gridLines.push({x,type:'v',alpha:0.26+Math.random()*0.12});
+  for(let y=0;y<=H+GRID_SPACING;y+=GRID_SPACING) gridLines.push({y,type:'h',alpha:0.16+Math.random()*0.09});
+  const diagCount=4+level;
   for(let i=0;i<diagCount;i++)
-    gridLines.push({x:Math.random()*W,y:Math.random()*H,angle:(Math.random()>0.5?1:-1)*(0.3+Math.random()*0.5),len:150+Math.random()*250,alpha:0.05+Math.random()*0.06,type:'d',pulseT:Math.random()*Math.PI*2});
+    gridLines.push({x:Math.random()*W,y:Math.random()*H,angle:(Math.random()>0.5?1:-1)*(0.3+Math.random()*0.5),len:140+Math.random()*280,alpha:0.14+Math.random()*0.12,type:'d',pulseT:Math.random()*Math.PI*2});
 }
 
 function initBgShapes() {
@@ -302,7 +303,7 @@ function initBgShapes() {
     rot:Math.random()*Math.PI*2,
     rotSpd:(Math.random()-0.5)*0.004,
     color:SHAPE_COL[Math.floor(Math.random()*3)],
-    alpha:0.04+Math.random()*0.06
+    alpha:0.09+Math.random()*0.07
   });
 }
 
@@ -330,18 +331,18 @@ function spawnHazard() {
   // Early levels: only crisp static bars + diamonds (predictable geometry). Level 3+ escalates with weaving/zigzag hard-edge hazards.
   if(r<0.35 || (level<3 && r<0.68)){
     const yBase=80+Math.random()*(H-160);
-    h={x:W+80,y:yBase,type:'bar',w:26+Math.random()*20,h:92+Math.random()*80,spd:speed*(0.7+Math.random()*0.6),rot:0,rotSpd:(Math.random()-0.5)*0.02};
+    h={x:W+80,y:yBase,type:'bar',w:30+Math.random()*22,h:98+Math.random()*82,spd:speed*(0.7+Math.random()*0.6),rot:0,rotSpd:(Math.random()-0.5)*0.02};
   } else if(r<0.55 || (level<3 && r<0.95)){
     const yBase=80+Math.random()*(H-160);
-    h={x:W+80,y:yBase,type:'diamond',w:40+Math.random()*14,h:40+Math.random()*14,spd:speed*(0.8+Math.random()*0.4),rot:0,rotSpd:(Math.random()>0.5?1:-1)*(0.03+Math.random()*0.03)};
+    h={x:W+80,y:yBase,type:'diamond',w:46+Math.random()*16,h:46+Math.random()*16,spd:speed*(0.8+Math.random()*0.4),rot:0,rotSpd:(Math.random()>0.5?1:-1)*(0.03+Math.random()*0.03)};
   } else if(r<0.8){
     const fromTop=Math.random()>0.5;
     const startY=fromTop?80:H-160;
     const dir=fromTop?1:-1;
-    h={x:W+80,y:startY,type:'bar',w:24+Math.random()*16,h:62+Math.random()*50,spd:speed*(0.85+Math.random()*0.35),rot:0,rotSpd:0,moveDir:dir,moveAmp:50+Math.random()*60,moveStart:startY,phase:Math.random()*Math.PI*2,warning:true,warnTimer:30};
+    h={x:W+80,y:startY,type:'bar',w:28+Math.random()*18,h:68+Math.random()*54,spd:speed*(0.85+Math.random()*0.35),rot:0,rotSpd:0,moveDir:dir,moveAmp:50+Math.random()*60,moveStart:startY,phase:Math.random()*Math.PI*2,warning:true,warnTimer:30};
   } else {
     const startY=80+Math.random()*(H-160);
-    h={x:W+80,y:startY,type:'zigzag',w:32+Math.random()*10,h:32+Math.random()*10,spd:speed*(0.9+Math.random()*0.3),rot:0,rotSpd:0.05+Math.random()*0.03,moveDir:1,moveAmp:55+Math.random()*45,moveStart:startY,phase:Math.random()*Math.PI*2};
+    h={x:W+80,y:startY,type:'zigzag',w:38+Math.random()*12,h:38+Math.random()*12,spd:speed*(0.9+Math.random()*0.3),rot:0,rotSpd:0.05+Math.random()*0.03,moveDir:1,moveAmp:55+Math.random()*45,moveStart:startY,phase:Math.random()*Math.PI*2};
   }
   hazards.push(h);
 }
@@ -350,7 +351,7 @@ function spawnCollectible() {
   const type=Math.floor(Math.random()*3);
   const spawnX=W*0.25+Math.random()*W*0.55;
   const spawnY=80+Math.random()*(H-160);
-  collectibles.push({x:spawnX,y:spawnY,type,size:18,spd:speed*0.8,pulse:Math.random()*Math.PI*2,rot:Math.random()*Math.PI*2});
+  collectibles.push({x:spawnX,y:spawnY,type,size:22,spd:speed*0.8,pulse:Math.random()*Math.PI*2,rot:Math.random()*Math.PI*2});
 }
 
 function spawnParticles(x,y,color,count) {
@@ -378,8 +379,8 @@ function spawnSpeedLine(force=false) {
     y:Math.random()*H,
     len:48+Math.random()*95,
     spd:speed*2.1+Math.random()*1.8,
-    alpha:0.18+Math.random()*0.22,
-    thickness:1.2+Math.random()*1.6
+    alpha:0.32+Math.random()*0.18,
+    thickness:1.6+Math.random()*1.8
   });
 }
 
@@ -516,9 +517,9 @@ function update(dt) {
   if(player.invincible>0) player.invincible-=dt;
 
   // Trail for fast geometric motion (crisp consistent runner silhouette; uses live player.shape so triad morph pops in trails)
-  for(let i=player.trail.length-1;i>=0;i--){ player.trail[i].alpha*=0.82; if(player.trail[i].alpha<0.06) player.trail.splice(i,1); }
-  player.trail.push({x:player.x,y:player.y,alpha:0.92});
-  if(player.trail.length>11) player.trail.shift();
+  for(let i=player.trail.length-1;i>=0;i--){ player.trail[i].alpha*=0.86; if(player.trail[i].alpha<0.05) player.trail.splice(i,1); }
+  player.trail.push({x:player.x,y:player.y,alpha:0.98});
+  if(player.trail.length>15) player.trail.shift();
 
   // Demo spawns + always move entities so start screen shows live hazards/collectibles/motion immediately
   const isPlaying = state==='playing';
@@ -576,12 +577,17 @@ function update(dt) {
       comboTimer=0;
       const pts=50*(1+Math.floor(combo/3));
       score+=pts;
-      spawnParticles(col.x,col.y,SHAPE_COL[col.type],16);
+      spawnParticles(col.x,col.y,SHAPE_COL[col.type],22); // stronger collection juice
       spawnCollectFlash(col.x,col.y,SHAPE_COL[col.type]);
       spawnFloatingScore(col.x,col.y-25,'+'+pts, SHAPE_COL[col.type]);
-      flashT=0.1;
+      // motion trail + speedline surge on every collect for "fast geometric motion" + visible chase pressure
+      for(let k=0;k<3;k++){ spawnSpeedLine(true); }
+      if(player && player.trail){ player.trail.push({x:player.x+4,y:player.y-6,alpha:0.9}); player.trail.push({x:player.x-6,y:player.y+4,alpha:0.82}); }
+      flashT=0.12;
       flashColor=SHAPE_COL[col.type];
-      player.glowT=0.25;
+      player.glowT=0.38;
+      // visible scoring pop (no giant UI)
+      var sc=document.getElementById('score-display'); if(sc){sc.classList.add('pop');setTimeout(function(){sc&&sc.classList.remove('pop');},90);}
       Audio.collect(combo);
       // Triadic harmony: collect one of each primary (r/y/b) for bonus — core "color harmonies" verb
       triad.push(col.type);
@@ -589,17 +595,19 @@ function update(dt) {
       if(new Set(triad).size===3){
         const bonus=150;
         score+=bonus;
-        spawnParticles(col.x,col.y,'#fff',10);
+        spawnParticles(col.x,col.y,'#fff',16);
         spawnFloatingScore(col.x,col.y-48,'TRIAD +'+bonus,'#fff');
-        flashT=0.22;
+        flashT=0.28;
         flashColor='#fff';
         Audio.triad();
         triad=[];
-        gridResonanceT=0.65; // the Bauhaus grid itself resonates — satisfying environmental reaction to color harmony
-        if(player){ player.shape = (player.shape + 1) % 3; player.glowT = 0.55; spawnParticles(player.x, player.y - 8, '#fff', 5); }
+        gridResonanceT=1.0; // the Bauhaus grid itself resonates — satisfying environmental reaction to color harmony
+        if(player){ player.shape = (player.shape + 1) % 3; player.glowT = 0.8; spawnParticles(player.x, player.y - 8, '#fff', 8); }
         // fast geometric motion payoff on harmony: force speedlines (visible surge) + extra trail using live shape so the crisp triadic runner "bursts" at color harmony moment
-        for(let k=0;k<5;k++){ spawnSpeedLine(true); }
-        if(player && player.trail) player.trail.push({x:player.x-8,y:player.y,alpha:0.82});
+        for(let k=0;k<7;k++){ spawnSpeedLine(true); }
+        if(player && player.trail){ for(let t=0;t<3;t++) player.trail.push({x:player.x-4+t*3,y:player.y+((t-1)*5),alpha:0.95}); }
+        var sc2=document.getElementById('score-display'); if(sc2){sc2.classList.add('pop');setTimeout(function(){sc2&&sc2.classList.remove('pop');},110);}
+        var cb=document.getElementById('combo-display'); if(cb){cb.classList.add('pop');setTimeout(function(){cb&&cb.classList.remove('pop');},140);}
         updateUI();
       }
       collectibles.splice(i,1);
@@ -615,9 +623,16 @@ function update(dt) {
         announceLevel(level);
         Audio.levelUp();
         Audio.update(level, speed); // immediate audible escalation on level gate
-        shakeT=0.15;
-        flashT=0.3;
+        // Stronger phase change: grid resonance + speedline burst + trail surge + flash + shake so level gate feels like a distinct arcade escalation (visible in first 10s of play)
+        gridResonanceT=1.35;
+        shakeT=0.22;
+        flashT=0.42;
         flashColor='#FFD60A';
+        for(let k=0;k<9;k++){ spawnSpeedLine(true); }
+        if(player && player.trail){ for(let t=0;t<4;t++) player.trail.push({x:player.x-2+t,y:player.y+(t%2?-7:5),alpha:0.92-t*0.1}); }
+        spawnParticles(player.x,player.y-4,'#E63946',6);
+        spawnParticles(player.x+6,player.y+2,'#FFD60A',5);
+        var sc3=document.getElementById('score-display'); if(sc3){sc3.classList.add('pop');setTimeout(function(){sc3&&sc3.classList.remove('pop');},130);}
         updateUI();
       }
       if(score>=WIN_SCORE){
@@ -730,18 +745,18 @@ function drawShape(x,y,shape,size,color,alpha=1,rot=0) {
 }
 
 function drawGrid() {
-  c.strokeStyle='#fff';c.lineWidth=1;
+  c.strokeStyle='#fff';c.lineWidth=1.8;
   for(let x=-gridOffset%GRID_SPACING;x<W+GRID_SPACING;x+=GRID_SPACING){
-    c.globalAlpha=0.1;c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();
+    c.globalAlpha=0.26;c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();
   }
   for(let y=0;y<H;y+=GRID_SPACING){
-    c.globalAlpha=0.06;c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();
+    c.globalAlpha=0.16;c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();
   }
-  c.strokeStyle='#E63946';c.lineWidth=1.5;
+  c.strokeStyle='#E63946';c.lineWidth=2.4;
   gridLines.filter(l=>l.type==='d').forEach(line=>{
     const lx=((line.x-gridOffset*0.4)%(W+line.len+(W+line.len))%(W+line.len)+W*0.5)%(W+line.len)-line.len*0.5;
-    let ga=line.alpha*(0.8+Math.sin(line.pulseT)*0.2);
-    if(gridResonanceT>0) ga *= (1.0 + gridResonanceT*2.2); // triad harmony makes the Kandinsky red diagonals resonate brighter — environmental AV payoff
+    let ga=line.alpha*(0.85+Math.sin(line.pulseT)*0.25);
+    if(gridResonanceT>0) ga *= (1.0 + gridResonanceT*2.8); // triad harmony makes the Kandinsky red diagonals resonate brighter — environmental AV payoff
     c.globalAlpha=ga;
     c.beginPath();c.moveTo(lx,line.y);c.lineTo(lx+Math.cos(line.angle)*line.len,line.y+Math.sin(line.angle)*line.len);c.stroke();
     line.pulseT+=0.02;
@@ -775,8 +790,8 @@ function render() {
   // Player trail — crisp consistent runner silhouette (emphasizes the piloted geometric shape in fast motion)
   player.trail.forEach((t,i)=>{
     if(t.alpha>0.03){
-      c.globalAlpha=t.alpha*0.2;
-      drawShape(t.x,t.y,player.shape,player.size*0.65,SHAPE_COL[player.shape]);
+      c.globalAlpha=t.alpha*0.38;
+      drawShape(t.x,t.y,player.shape,player.size*0.72,SHAPE_COL[player.shape]);
     }
   });
   c.globalAlpha=1;
@@ -792,14 +807,16 @@ function render() {
     c.restore();
   }
 
-  // Player glow
-  if(player.glowT>0){
-    c.save();
-    c.globalAlpha=player.glowT*0.4;
-    c.fillStyle=SHAPE_COL[player.shape];
-    c.beginPath();c.arc(player.x,player.y,player.size+16,0,Math.PI*2);c.fill();
-    c.restore();
-  }
+  // Player glow (stronger rim for instant obvious runner identity even in start/demo)
+  const baseRim = 0.18 + (player.glowT>0 ? player.glowT*0.32 : 0);
+  c.save();
+  c.globalAlpha=baseRim;
+  c.fillStyle=SHAPE_COL[player.shape];
+  c.beginPath();c.arc(player.x,player.y,player.size+18,0,Math.PI*2);c.fill();
+  // crisp high-contrast outer ring so the triadic runner pops against the grid immediately
+  c.globalAlpha=0.65;c.strokeStyle='#fff';c.lineWidth=2.5;
+  c.beginPath();c.arc(player.x,player.y,player.size+2.5,0,Math.PI*2);c.stroke();
+  c.restore();
 
   // Player — blink when invincible
   if(player.invincible>0&&Math.floor(player.invincible*10)%2===0) c.globalAlpha=0.25;
@@ -811,37 +828,38 @@ function render() {
   // Hazards
   hazards.forEach(hz=>{
     c.save();c.translate(hz.x,hz.y);c.rotate(hz.rot);
-    c.fillStyle='#E63946';c.strokeStyle='rgba(255,255,255,0.5)';c.lineWidth=1.5;
+    c.fillStyle='#E63946';c.strokeStyle='rgba(255,255,255,0.65)';c.lineWidth=2.2;
     if(hz.type==='bar'||hz.type==='zigzag'){
       c.fillRect(-hz.w/2,-hz.h/2,hz.w,hz.h);c.strokeRect(-hz.w/2,-hz.h/2,hz.w,hz.h);
       // Warning pulse for moving hazards
       if(hz.moveDir){
-        c.strokeStyle='rgba(255,255,255,0.15)';c.setLineDash([4,6]);
+        c.strokeStyle='rgba(255,255,255,0.22)';c.setLineDash([4,6]);
         c.beginPath();c.moveTo(0,-hz.h/2);c.lineTo(0,hz.h/2);c.stroke();c.setLineDash([]);
-        // Edge highlight
-        c.strokeStyle='rgba(255,200,100,0.3)';c.lineWidth=1;
-        c.strokeRect(-hz.w/2-1,-hz.h/2-1,hz.w+2,hz.h+2);
+        // Edge highlight for hard-edge clarity
+        c.strokeStyle='rgba(255,210,120,0.4)';c.lineWidth=1.2;
+        c.strokeRect(-hz.w/2-2,-hz.h/2-2,hz.w+4,hz.h+4);
       }
     } else {
       const s=hz.w;c.beginPath();c.moveTo(0,-s);c.lineTo(s,0);c.lineTo(0,s);c.lineTo(-s,0);c.closePath();c.fill();c.stroke();
-      // Inner cross
-      c.strokeStyle='rgba(26,26,26,0.5)';c.lineWidth=1.5;
-      c.beginPath();c.moveTo(-s*0.4,0);c.lineTo(s*0.4,0);c.moveTo(0,-s*0.4);c.lineTo(0,s*0.4);c.stroke();
+      // Inner cross for hard geometry pop
+      c.strokeStyle='rgba(26,26,26,0.65)';c.lineWidth=2;
+      c.beginPath();c.moveTo(-s*0.42,0);c.lineTo(s*0.42,0);c.moveTo(0,-s*0.42);c.lineTo(0,s*0.42);c.stroke();
     }
     c.restore();
   });
 
-  // Collectibles — enhanced with rotation and glow
+  // Collectibles — clearer triadic pickups with strong rings + inner geometry for immediate readability
   collectibles.forEach(col=>{
-    const ps=col.size+Math.sin(col.pulse)*3;
-    const al=0.8+Math.sin(col.pulse*2)*0.15;
+    const ps=col.size+Math.sin(col.pulse)*4.5;
+    const al=0.85+Math.sin(col.pulse*2)*0.12;
     drawShape(col.x,col.y,col.type,ps,SHAPE_COL[col.type],al,col.rot);
-    // Outer glow ring
-    c.save();c.globalAlpha=0.15+Math.sin(col.pulse*1.5)*0.08;c.strokeStyle=SHAPE_COL[col.type];c.lineWidth=2;
-    c.beginPath();c.arc(col.x,col.y,ps+10,0,Math.PI*2);c.stroke();
-    // Inner accent line
-    c.globalAlpha=0.2;c.beginPath();
-    c.moveTo(col.x-ps*0.6,col.y-ps*0.6);c.lineTo(col.x+ps*0.6,col.y+ps*0.6);c.stroke();
+    // Stronger outer glow ring (collection juice)
+    c.save();c.globalAlpha=0.22+Math.sin(col.pulse*1.6)*0.12;c.strokeStyle=SHAPE_COL[col.type];c.lineWidth=3.2;
+    c.beginPath();c.arc(col.x,col.y,ps+13,0,Math.PI*2);c.stroke();
+    // Secondary inner ring + small rotating tri-accent for "color harmony" clarity
+    c.globalAlpha=0.35;c.lineWidth=1.6;
+    c.beginPath();c.arc(col.x,col.y,ps*0.55,0,Math.PI*2);c.stroke();
+    c.globalAlpha=0.5; c.beginPath(); c.arc(col.x+Math.cos(col.rot*2.2)*ps*0.22, col.y+Math.sin(col.rot*2.2)*ps*0.22, ps*0.18,0,Math.PI*2); c.fillStyle=SHAPE_COL[col.type]; c.fill();
     c.restore();
   });
 
