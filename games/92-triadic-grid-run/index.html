@@ -102,6 +102,7 @@
     <div class="subtitle" id="final-level">Grid Level: I</div>
     <div class="subtitle" id="final-highscore" style="color:#666;font-size:clamp(0.6rem,1.4vw,0.85rem)">Best: 0</div>
     <button class="btn" id="restart-btn">RESTART</button>
+    <div class="controls-info" style="margin-top:0.8rem"><span>SPACE</span> to restart · <span>R</span> to restart</div>
   </div>
   <div id="win-screen" class="screen">
     <div class="title" style="color:#FFD60A">HARMONY<br>ACHIEVED</div>
@@ -109,6 +110,7 @@
     <div class="subtitle" id="win-highscore" style="color:#666;font-size:clamp(0.6rem,1.4vw,0.85rem)"></div>
     <div class="subtitle">You navigated all grid levels with precision and grace.</div>
     <button class="btn" id="play-again-btn">PLAY AGAIN</button>
+    <div class="controls-info" style="margin-top:0.8rem"><span>SPACE</span> to play again · <span>R</span> to restart</div>
   </div>
 </div>
 
@@ -299,9 +301,13 @@ function updateUI() {
   const pct=Math.min(100,(progressInLevel/LEVEL_SCORE)*100);
   document.getElementById('progress-bar').style.width=pct+'%';
   const pips=document.querySelectorAll('.pip');
-  pips.forEach((p,i)=>{p.className='pip '+(i<lives?'alive':'lost');});
+  pips.forEach((p,i)=>{
+    const cls=i<lives?'alive':'lost';
+    const danger=lives<=1&&i<lives?' danger':'';
+    p.className='pip '+cls+danger;
+  });
   const ce=document.getElementById('combo-display');
-  if(combo>=3){ce.textContent='×'+combo+' HARMONY';ce.classList.add('show');} else ce.classList.remove('show');
+  if(combo>=2){ce.textContent='×'+combo+' HARMONY';ce.classList.add('show');} else ce.classList.remove('show');
   document.getElementById('high-score').textContent='BEST: '+highScore;
 }
 
@@ -400,7 +406,7 @@ function update(dt) {
       score+=pts;
       spawnParticles(col.x,col.y,SHAPE_COL[col.type],14);
       spawnFloatingScore(col.x,col.y-20,pts);
-      flashT=0.08;
+      flashT=0.12;
       flashColor=SHAPE_COL[col.type];
       player.glowT=0.2;
       Audio.collect(combo);
