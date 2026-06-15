@@ -12,15 +12,15 @@ Single self-contained HTML file (24KB) with embedded CSS and JavaScript. No exte
 
 ### Rendering Pipeline
 1. Clear canvas with dark background (#1a1a1a)
-2. Draw scrolling grid (vertical, horizontal, diagonal lines)
-3. Draw background Kandinsky-style shapes (parallax scrolling)
-4. Draw player trail (last 12 positions, fading alpha)
-5. Draw player shape (triangle, circle, or square)
-6. Draw hazards (red bars and diamonds, rotating)
-7. Draw collectibles (colored circles, pulsing, with glow ring)
-8. Draw particles (burst on collection)
-9. Apply screen shake offset
-10. Apply flash overlay (collection/damage feedback)
+2. Draw scrolling grid (vertical, horizontal, diagonal lines) — *always, even under start overlay*
+3. Draw background Kandinsky-style shapes (parallax scrolling) — always
+4. Draw player trail, speedlines
+5. Draw player shape (triangle/circle/square, larger P_SIZE=32, wobble+angle+trail+optional glow)
+6. Draw hazards (enlarged hard-edged red bars/diamonds/zigzags, rotating/weaving)
+7. Draw collectibles (larger r/y/b harmonies, pulsing + glow ring + accent)
+8. Draw particles, floating scores, collect flash ring
+9. Apply screen shake offset + flash overlay
+Note: start state no longer early-returns a sparse view; full world is live from first frame with start affordance as non-blocking overlay. Simulation (motion, spawns, player target easing) runs for 'start' too; only scoring/hit side-effects gated to 'playing'. This satisfies "first screen the playable game".
 
 ### Input System
 - Keyboard: Arrow keys and WASD for movement
