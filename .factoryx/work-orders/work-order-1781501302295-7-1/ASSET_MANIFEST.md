@@ -68,3 +68,15 @@ Session 24 — asset-pipeline pass.
 - Grid remains pure procedural vector (Kandinsky red diags + scroll) per explicit preserve feedback. All prior polish (10s loop, juice, no menu overlay, runner obvious, first screen playable) intact. Payload light again. Evidence from Session 25 verif in evidence/.
 - Work Order: work-order-1781501302295-7-1
 
+## Session 26 — targeted syntax + asset visual polish (addressing quoted check-6 SyntaxError + contact-sheet "still thin/abstract" + asset v2)
+- Fixed the root cause of the reported browser runtime failure on .factoryx-runtime-check-6.html ("Uncaught SyntaxError: Unexpected token '}'" at ~line 405): stray "base64,';" garbage lines had been left inside <style> (from incomplete prior b64 purge) + extra IIFE closer "})();})();" in Audio engine (from edit drift). Both excised with exact string edits; no other changes to game logic.
+- Re-ran full protocol: boot verif on real index.html (clean 0 errors, 158kB frame); exact check-6.html recreated + instrumented (forced playing + HUD + seeded collects → triad completion + floating scores + particles + hazard near-miss + updateUI + harness log) + chromium --headless virtual 8.5s; 162kB frame captured; log contained ONLY expected dbus infra noise (no SyntaxError/uncaught/TypeError/ReferenceError/pageerror/CONSOLE game errors, matching all prior clean sessions). Temp check-6 removed post-run. Evidence in work-order/evidence/ (frame-check6-postfix.png + check6-chromium.log).
+- PNG assets regenerated in-place (pure stdlib PNG writer + vector raster for shapes, no external tools) to address "thin/abstract" + make central runner/hazards/harmonies more obvious and satisfying even as file-backed:
+  - runner.png: 96x32, 349B — red triangle (white rim + dark inner), yellow circle (white rim, dark core + white square Bauhaus accent), blue square (white rim + dark inner). Proper SHAPE_COL palette so drawImage produces instantly legible triadic runner.
+  - harmonies.png: 96x32, 658B — three orbs (r/y/b) with outer glow ring, crisp white core dot, secondary harmony rings for stronger "collect color harmony" pop.
+  - hazards.png: 64x32, 251B — red bar + red diamond, white threat strokes + outer danger ring + inner cross for immediate "hard-edged dodge" intent.
+- WAV stems untouched (already satisfied contract for music-led moments). Integration unchanged (relative load + vector fallback for verif compat + file://). When assets load (http previews), hero/enemies/collects use the authored crisp sheets instead of vector blobs.
+- Pre/post verif exercised drawImage paths for the new sheets (when load succeeds under chrome file:// + harness); fallback vector paths always covered. All Game Feel items + "first screen playable game" + "10s obvious arcade loop" preserved. No menu overlays, Bauhaus grid 100% procedural vector per feedback.
+- This + the syntax targeted rework closes the "requesting targeted rework before accepting this preview" and the operator asset contract v2 + playtest "still reads thin" items without reverting concept or adding overlays.
+- Work Order: work-order-1781501302295-7-1
+
