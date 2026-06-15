@@ -160,3 +160,12 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Post-edit re-verif (real + check-6): clean 0 errors; evidence in work-order/evidence/. Source index.html remains the direct playable preview (games/92-triadic-grid-run/index.html + assets/ subdir for the tree).
 - Re-validated: first screen the playable game (unmistakable runner via authored assets when loaded, obvious 10s arcade loop with threat/collect intent, stronger juice/impact, visible score/chase, no large overlay during play, Bauhaus grid preserved); all Game Feel + quality bar + "browser verification exercised real + exact quoted check-6 post-interaction before/after" hold. PR#84 will be refreshed (comment + note full prompt in committed WO memory) after push on canonical. Work Order: work-order-1781501302295-7-1
 
+
+## Session 26 update (targeted check-6 Syntax + asset visual)
+- Addressed the exact "browser runtime verification failed for .../.factoryx-runtime-check-6.html ... Uncaught SyntaxError: Unexpected token '}'" by cleaning the two sources of corruption (stray base64 text in CSS + extra IIFE paren).
+- Also regenerated the file-backed PNG assets (runner/harmonies/hazards) under games/92-triadic-grid-run/assets/ with correct triadic colors + stronger readable detail (rims, rings, cores, threat accents) per the operator asset contract v2 and "still reads thin/abstract" playtest notes.
+- Browser verif: real index boot clean (158kB frame); instrumented exact check-6 (forced playing + collect/triad/floating/score/impact paths) clean (162kB frame, 0 game errors of any class, only dbus noise).
+- Evidence + ASSET_MANIFEST + VERIFICATION + WORKLOG updated and pushed to canonical branch.
+- PR #84 (https://github.com/ystackai/studio-bauhaus/pull/84) updated via branch push. The full Work Order prompt/payload is preserved in .factoryx/work-orders/work-order-1781501302295-7-1/ (and was previously attached to PR).
+- All requirements: first screen playable game, Bauhaus grid preserved, 10s obvious loop with visible intent + juice, file-backed assets (not placeholders), no syntax/runtime errors, restart/win/scoring visible, responsive.
+- Work Order: work-order-1781501302295-7-1
