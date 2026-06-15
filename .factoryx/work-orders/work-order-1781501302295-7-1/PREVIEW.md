@@ -108,3 +108,9 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Re-validated: core verb (piloting) immediate, TRIAD collector with morph/trails/resonance/colored floats/pips + now stronger win celebration AV, escalation, responsive (52px dpad), post-gesture audio, eased 60fps, <2MB, no net. PR#84 will be updated (comment + body with full prompt) after commit/push on canonical.
 - Work Order: work-order-1781501302295-7-1
 
+
+## Session 16: Pre-edit targeted verif (pre-screenshot timeout repro) + fast geometric harmony surge polish (2026-06-15 ~10:52Z)
+- **Pre-edit verification** (real index + *exact* quoted `.factoryx-runtime-check-7.html` instrumented for post-interaction per "address before peripheral" + timeout note): boot clean 86kB; check-7 116kB with forced "+50"/"TRIAD +150" (colored) + particles + UI + Audio + morph/resonance exercised; **0 game errors** both passes. Evidence in work-order/evidence/ (session16-* + logs).
+- **Polish after clean verif**: On TRIAD harmony (core "color harmonies" payoff), force 5 speedlines + extra live-shape trail surge at the crisp runner position. Produces satisfying visible "burst of fast geometric motion" at the exact moment of harmony collection — reinforces pilot identity + triadic title without bloat or risk. Post-edit boot clean 89kB, 0 errors; payload ~48.7kB.
+- Re-validated: first screen = playable game (pilot verb live pre-START); TRIAD collector with morph/trails/resonance/colored floats/pips + new surge AV + stronger win celebration; escalation; responsive (52px dpad); post-gesture audio; eased 60fps; <2MB; self-contained. PR#84 will be updated (comment + body with full prompt) after commit/push on canonical.
+- Work Order: work-order-1781501302295-7-1

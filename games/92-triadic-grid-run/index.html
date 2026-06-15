@@ -582,6 +582,9 @@ function update(dt) {
         triad=[];
         gridResonanceT=0.65; // the Bauhaus grid itself resonates — satisfying environmental reaction to color harmony
         if(player){ player.shape = (player.shape + 1) % 3; player.glowT = 0.55; spawnParticles(player.x, player.y - 8, '#fff', 5); }
+        // fast geometric motion payoff on harmony: force speedlines (visible surge) + extra trail using live shape so the crisp triadic runner "bursts" at color harmony moment
+        for(let k=0;k<5;k++){ spawnSpeedLine(true); }
+        if(player && player.trail) player.trail.push({x:player.x-8,y:player.y,alpha:0.82});
         updateUI();
       }
       collectibles.splice(i,1);
