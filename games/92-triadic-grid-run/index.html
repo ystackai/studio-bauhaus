@@ -507,6 +507,11 @@ function update(dt) {
   if(player.glowT>0) player.glowT-=dt;
   if(player.invincible>0) player.invincible-=dt;
 
+  // Trail for fast geometric motion (crisp consistent runner silhouette; uses live player.shape so triad morph pops in trails)
+  for(let i=player.trail.length-1;i>=0;i--){ player.trail[i].alpha*=0.82; if(player.trail[i].alpha<0.06) player.trail.splice(i,1); }
+  player.trail.push({x:player.x,y:player.y,alpha:0.92});
+  if(player.trail.length>11) player.trail.shift();
+
   // Demo spawns + always move entities so start screen shows live hazards/collectibles/motion immediately
   const isPlaying = state==='playing';
   spawnTimer += dt;

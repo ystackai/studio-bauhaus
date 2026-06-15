@@ -59,3 +59,13 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - All prior claims re-validated: first screen = playable game (pilot verb live pre-START), responsive, 60fps motion, escalating, TRIAD collector with now-visible avatar evolution, post-gesture audio, <47kB, self-contained. PR#84 will be updated via comment + body (full prompt) after commit/push on canonical branch.
 - Work Order: work-order-1781501302295-7-1
 - New evidence + this update will drive preview redeploy when pushed.
+
+## Session 11: Watchdog re-verif (pre-change) + trail polish for geometric motion (2026-06-15 ~10:21Z)
+- **~10:21Z** — Full browser runtime re-verification (real index + exact `.factoryx-runtime-check-7.html` forced post-interaction) executed first to directly address "Previous run issue to address before peripheral polish: watchdog reset: status running but no agent child after verifier rollout". 
+  - Boot: clean 88kB frame-session11-boot.png, 0 game errors.
+  - Check-7 (instrumented: playing + triad complete + "+50"/"TRIAD +150" floating + r/y/b/white particles + pips + morph + Audio): clean 97kB frame-reverify-session11-7.png, 0 errors.
+  - Evidence in work-order/evidence/ (session11-boot + reverify-session11-7 + logs). Source pristine during verif.
+- **Polish (after re-verif)**: Added the trail population logic that had been initialized/rendered but unfed (now decay+push of current pos with live shape in update). Makes fast geometric motion of the crisp triadic runner (morphing on harmony) visible in trails — stronger "pilots a crisp triangle/circle/square runner" identity without any new systems or menus. Post-edit boot verif clean (87kB frame-post-trail-session11.png); evidence copied.
+- Re-validated: first screen = playable arcade (pilot verb live pre-START), TRIAD collector with morph + now-visible trails, escalation, responsive (kbd/pointer/touch/dpad 52px), post-gesture audio, eased 60fps motion, self-contained ~47kB. All Game Feel checklist ✓. New evidence will drive fresh preview redeploy on push.
+- PR#84 will be updated (comment + body refresh with full Work Order prompt in FactoryX Work Order Context) after commit/push on the canonical branch.
+- Work Order: work-order-1781501302295-7-1

@@ -105,3 +105,12 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
 - **Post-re-verif polish (runner morph on TRIAD)**: see WORKLOG. One guarded line in the harmony bonus block: player.shape cycles + glow + avatar-centered particles on successful color harmony. Re-exercises the "collecting color harmonies" core verb with stronger visual identity for the "crisp triangle/circle/square runner". Post-edit boot verif clean (84kB, 0 errors).
 - All Game Feel / quality bar items remain ✓ (core verb first 30s, <100ms response+easing+feedback, post-gesture audio, >=44px targets, 60fps target, <50kB self-contained, no net). Browser verification exercised the real runtime with interaction state. Payload 46.6kB.
 - Work Order: work-order-1781501302295-7-1
+
+### Session 11 — Watchdog re-verification (pre-edit) + trail activation (2026-06-15 ~10:21Z)
+- **Re-verif pass addressing "watchdog reset: status running but no agent child after verifier rollout" before any edit**:
+  - Real index.html boot (6200ms virtual): clean 88kB frame-session11-boot.png; full log: 0 game errors (no uncaught/TypeError/ReferenceError/setting-x/not-defined/pageerror from script).
+  - Exact `.factoryx-runtime-check-7.html` (instrumented only the copy): forced 'playing' + HUD + partial→full triad + direct calls to spawnFloatingScore / spawnParticles (r/y/b/white) / updateUI (harmony pips + morph) / Audio.triad. 7200ms; 97kB frame-reverify-session11-7.png; **0 game errors** in filtered scan; harness exercised the interaction-dependent paths without crash.
+  - Evidence durable in work-order/evidence/ (session11-* + reverify-session11-7.*); temp check removed.
+- **Trail polish (post clean verif)**: Activated missing trail population so the "crisp consistent runner shape in trails for clearer fast geometric motion" (Session 8) now actually renders. 4-line addition in update(); uses live player.shape (so triad morph visibly propagates into motion trails). Post-edit 5500ms boot verif: 87kB frame-post-trail-session11.png, 0 errors. Evidence copied.
+- Browser verification exercised the real runtime + post-interaction state as required. All Game Feel items remain ✓; quality bar met (playable first screen, coherent <1min eval, live preview no runtime errors, evidence current for rolled-out verifier). Payload 47.1kB. No blockers.
+- Work Order: work-order-1781501302295-7-1
