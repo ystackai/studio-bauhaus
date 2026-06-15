@@ -69,3 +69,14 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Re-validated: first screen = playable arcade (pilot verb live pre-START), TRIAD collector with morph + now-visible trails, escalation, responsive (kbd/pointer/touch/dpad 52px), post-gesture audio, eased 60fps motion, self-contained ~47kB. All Game Feel checklist ✓. New evidence will drive fresh preview redeploy on push.
 - PR#84 will be updated (comment + body refresh with full Work Order prompt in FactoryX Work Order Context) after commit/push on the canonical branch.
 - Work Order: work-order-1781501302295-7-1
+
+## Session 12: Watchdog reset re-verification (pre-polish, 2026-06-15 ~10:26Z)
+- **~10:26Z** — Full browser runtime re-verification (real index + exact `.factoryx-runtime-check-7.html` forced post-interaction) executed first to directly address the work order's "Previous run issue to address before peripheral polish: watchdog reset: status running but no agent child after verifier rollout". PR#84 inspected via gh first (OPEN, passing checks, no blocking reviews).
+  - Boot: clean 82kB frame-session12-boot.png, 0 game errors (strict log scan).
+  - Check-7 (instrumented copy only, forced 'playing' + HUD + partial→full triad + explicit spawnFloatingScore("+50"/"TRIAD +150") + spawnParticles(r/y/b/white) + updateUI(pips/morph) + Audio.triad + announce): clean 61kB frame-reverify-session12-7.png, 0 errors (harness exercised harmony/collect/floating/particle paths safely).
+  - Evidence in work-order/evidence/ (session12-boot + reverify-session12-7 + logs). Source index.html left pristine (no scaffolding).
+- All prior PREVIEW claims re-validated under current verifier: first screen = playable game (pilot verb live pre-START with visible fast geometric motion of crisp triadic runner via trails + morph on harmony); TRIAD collector with satisfying AV; escalation; responsive; post-gesture audio; eased 60fps; self-contained ~47kB. New evidence will drive fresh preview redeploy on push.
+- PR#84 will be updated (comment + body with full prompt) after commit/push on canonical branch.
+- Work Order: work-order-1781501302295-7-1
+- (No game payload change in this pass; verif + memory update only, per "address before peripheral".)
+- **Session 12 polish (post re-verif)**: Grid resonance — red diagonals of the Bauhaus grid briefly intensify on TRIAD harmony success. Environmental AV reaction to "collecting color harmonies" that makes the world feel alive and responsive. Clean post-edit boot verif. Work Order: work-order-1781501302295-7-1
