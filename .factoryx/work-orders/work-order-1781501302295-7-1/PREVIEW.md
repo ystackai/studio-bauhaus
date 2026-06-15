@@ -49,3 +49,13 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - All prior PREVIEW claims (playable first screen, core verb immediate, TRIAD collector, escalation, 60fps, <50kB, responsive, post-gesture audio) re-validated. No change to game payload or behavior.
 - Work Order: work-order-1781501302295-7-1
 - PR comment for Session 9 + evidence: https://github.com/ystackai/studio-bauhaus/pull/84#issuecomment-4706759287 (body refresh via gh may be eventual consistent; memory files + commit are authoritative).
+
+## Session 10: Re-verif + triadic runner morph (address redeploy/watchdog before polish)
+- **~10:13Z** — Full browser runtime re-verification executed on current verifier (real index + exact `.factoryx-runtime-check-7.html` forced post-interaction) to address "watchdog reset: status running but no agent child after verifier rollout" and "redeploy reset" note before any further work. 
+  - Boot: clean 88kB frame-session10-boot.png, 0 game errors.
+  - Check-7 (instrumented forced playing + triad complete + floating "+50"/"TRIAD +150" + particles): clean 103kB frame-reverify-session10-7.png, 0 errors (harness + game paths executed).
+  - Evidence in work-order/evidence/ (session10-*.png + chromium logs); source index pristine.
+- **Polish (after clean re-verif)**: Runner shape now morphs (triangle↔circle↔square) + extended glow + white particles centered on the player on every successful TRIAD harmony. Makes "Triadic" and the "crisp ... runner" identity pop at the exact moment of color collection payoff — more ambitious/satisfying without menus, bloat, or risk. 1-line guarded addition; boot re-verif clean post-edit.
+- All prior claims re-validated: first screen = playable game (pilot verb live pre-START), responsive, 60fps motion, escalating, TRIAD collector with now-visible avatar evolution, post-gesture audio, <47kB, self-contained. PR#84 will be updated via comment + body (full prompt) after commit/push on canonical branch.
+- Work Order: work-order-1781501302295-7-1
+- New evidence + this update will drive preview redeploy when pushed.
