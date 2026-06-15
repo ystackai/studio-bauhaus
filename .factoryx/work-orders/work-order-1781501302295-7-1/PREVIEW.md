@@ -48,3 +48,4 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Commit + push of evidence + these memory updates will trigger fresh preview redeploy on the canonical branch. PR#84 body will be refreshed with full original prompt embedded in FactoryX Work Order Context section.
 - All prior PREVIEW claims (playable first screen, core verb immediate, TRIAD collector, escalation, 60fps, <50kB, responsive, post-gesture audio) re-validated. No change to game payload or behavior.
 - Work Order: work-order-1781501302295-7-1
+- PR comment for Session 9 + evidence: https://github.com/ystackai/studio-bauhaus/pull/84#issuecomment-4706759287 (body refresh via gh may be eventual consistent; memory files + commit are authoritative).

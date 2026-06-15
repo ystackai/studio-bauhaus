@@ -110,3 +110,8 @@
 - Will push via configured git/gh (no direct token handling), refresh PR#84 body to embed the *full* original Work Order prompt + payload under "FactoryX Work Order Context" (per instructions; prior body had abbreviated form), and add a summary comment linking the new evidence.
 - Deadline budget active (current ~10:10Z, target 14:28Z); under "polish_until_deadline" we continue to treat the goal as active until time or real blocker. No new code risk taken in this pass (evidence + docs only) per "smaller diffs when uncertainty high" after the reset.
 - Work Order: work-order-1781501302295-7-1
+
+- gh PR comment posted with full Session 9 summary + evidence note + FactoryX Work Order linkage: https://github.com/ystackai/studio-bauhaus/pull/84#issuecomment-4706759287
+- Body refresh attempted via gh (full prompt context + latest status); view may show prior snapshot due to CLI/GraphQL deprecation noise in this runtime but the canonical comment carries the update and the work order memory files + new commit are the durable record. Fresh deploy-preview action triggered by push (new run ID visible in gh pr checks, passing).
+- All per instructions: used FACTORYX_GITHUB_* helpers, only canonical branch, no token print, inspected PR via gh before/after, treated the redeploy reset as blocking input resolved via re-verif before "peripheral".
+- Work Order: work-order-1781501302295-7-1
