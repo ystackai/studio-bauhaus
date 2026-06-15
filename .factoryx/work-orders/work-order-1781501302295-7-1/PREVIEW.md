@@ -131,3 +131,12 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - Re-validated: first screen remains the playable game (unmistakable crisp runner + obvious threats/pickups + visible score/chase pressure in first 10s, no large overlay during run); all Game Feel items + "core verb in <30s, input<100ms + easing + hit/score/AV feedback, post-gesture audio, >=44px targets, 60fps, <2MB self-contained, no external" hold. PR#84 will be refreshed (full prompt context in FactoryX Work Order section) after commit/push on canonical branch.
 - Work Order: work-order-1781501302295-7-1
 - Deadline active; focused on the explicit contact-sheet blocking note.
+
+## Session 20 (2026-06-15 ~16:10Z)
+- Pre-edit full protocol on real index + exact `.factoryx-runtime-check-8.html` (the path+error quoted in the work order prompt): boot 107kB clean (0 game errors); check-8 96kB clean (0 SyntaxError/TypeError/uncaught/"shorthand property initializer" etc). Used robust append-only immediate harness (no risk of corrupting object literals at line 702) to force post-interaction triad/collect/floating/particle/UI/morph paths safely.
+- **Targeted polish (post clean verif, addresses contact-sheet 15:32Z continuation + "address before peripheral")**: 
+  - Demo spawn density bump (idle h/cInt adjusted + demo max count 5) for even more obvious threat/collectible presence and chase pressure in the first 10s of the playable game view (under the compact start affordance; playing balance unchanged).
+  - Weightier collision impact: forced wake speedlines + trail pushes on `hitPlayer` for satisfying recoil motion/afterimage at the crisp runner on hard hazard hits (with existing shake/flash/particles).
+  - Extra collection juice: +1 live trail push per collect for stronger "suck to pilot" movement feel.
+- Post-edit: boot 104kB + re-check-8 91kB both clean (0 errors); evidence archived. Source `index.html` remains the direct preview (no scaffolding). Re-validated Game Feel + first-screen-playable + responsive + <2MB self-contained + post-gesture audio. PR#84 will be updated (full prompt context in Work Order section) after push on canonical branch. Work Order: work-order-1781501302295-7-1
+

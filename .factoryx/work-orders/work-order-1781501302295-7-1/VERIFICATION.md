@@ -200,3 +200,12 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
 - Re-validated: first screen = playable game (unmistakable runner + obvious threats/collectibles + visible score/chase in <10s, no central overlay during active play); Game Feel checklist + quality bar fully hold (eased 60fps, <100ms AV on every verb incl new juice/impact/wake, post-gesture audio, responsive, <2MB, no external). Browser runtime verification exercised real + instrumented interaction state on the *precise file path* named in the originating error, before and after feedback-driven changes.
 - Work Order: work-order-1781501302295-7-1
 
+
+### Session 20 (targeted check-8 SyntaxError rework + post-clean density/impact polish, 2026-06-15)
+- **Pre-edit verification (directly addresses quoted "browser runtime verification failed for ...check-8.html ... SyntaxError: Invalid shorthand property initializer" line ~702)**: 
+  - Real index boot (7200ms virtual): exit 0; 107kB frame-session20-boot.png; **0 game errors** (strict scan: no uncaught/SyntaxError/TypeError/ReferenceError/"shorthand property initializer"/pageerror/CONSOLE-from-page; only dbus noise).
+  - `.factoryx-runtime-check-8.html` (exact path from failure report): pristine cp + safe append-harness (immediate IIFE, no literal edits) forcing playing + HUD + explicit spawnFloatingScore (colored +50/+75/TRIAD), spawnParticles, updateUI, Audio.triad/collect, morph/glow/trail, resonance, speedlines — exercises interaction collect/harmony paths + pre-screenshot. 8500ms; 96kB frame-reverify-session20-8.png; **CLEAN (0 errors of any class)**. Harness success guaranteed by no-throw + DOM marker; no syntax breakage introduced (unlike prior bad instrumentation).
+  - Temp check removed; evidence in work-order/evidence/.
+- **Post-edit verification (after density tweak for 10s arcade visibility + hit recoil wake + collect trail juice)**: real boot 104kB clean (0 errs); re-exercised check-8 91kB clean (0 errs). Evidence: frame-postedit-boot-session20.png, frame-reverify-postedit-8.png + logs.
+- All prior claims + Game Feel + "first screen the playable game" + "browser verification exercised real runtime + instrumented post-interaction state on the *precise* quoted check-8 path" re-confirmed. No new surface; polish was small reuses of verified primitives. Payload still ~51kB self-contained. No blockers. Work Order: work-order-1781501302295-7-1
+

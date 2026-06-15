@@ -530,11 +530,11 @@ function update(dt) {
   // Demo spawns + always move entities so start screen shows live hazards/collectibles/motion immediately
   const isPlaying = state==='playing';
   spawnTimer += dt;
-  const hInt = Math.max(0.32, 1.35 - (isPlaying?level:1)*0.09 );
-  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?8:4)) spawnHazard(); }
+  const hInt = Math.max(0.32, 1.35 - (isPlaying?level:0.82)*0.09 );
+  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?8:5)) spawnHazard(); }
   collectTimer += dt;
-  const cInt = Math.max(0.55, 1.65 - (isPlaying?level:0)*0.05 );
-  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?6:4)) spawnCollectible(); }
+  const cInt = Math.max(0.55, 1.65 - (isPlaying?level:0.7)*0.05 );
+  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?6:5)) spawnCollectible(); }
 
   // Update hazards (motion always for visual; collisions only while playing)
   for(let i=hazards.length-1;i>=0;i--){
@@ -590,7 +590,7 @@ function update(dt) {
       spawnFloatingScore(col.x,col.y-25,'+'+pts, SHAPE_COL[col.type]);
       // motion trail + speedline surge on every collect for "fast geometric motion" + visible chase pressure
       for(let k=0;k<4;k++){ spawnSpeedLine(true); }
-      if(player && player.trail){ player.trail.push({x:player.x+5,y:player.y-7,alpha:0.92}); player.trail.push({x:player.x-7,y:player.y+5,alpha:0.86}); player.trail.push({x:player.x-2,y:player.y-8,alpha:0.78}); }
+      if(player && player.trail){ player.trail.push({x:player.x+5,y:player.y-7,alpha:0.92}); player.trail.push({x:player.x-7,y:player.y+5,alpha:0.86}); player.trail.push({x:player.x-2,y:player.y-8,alpha:0.78}); player.trail.push({x:player.x+1,y:player.y-3,alpha:0.82}); }
       flashT=0.15;
       flashColor=SHAPE_COL[col.type];
       player.glowT=0.48;
@@ -710,6 +710,9 @@ function hitPlayer(hz) {
   spawnParticles(player.x,player.y,'#E63946',28);
   spawnParticles(player.x,player.y,'#FFD60A',12);
   spawnParticles(player.x,player.y,'#fff',6);
+  // Weightier impact + satisfying recoil motion for the crisp runner on hazard collision (stronger "dodging" consequence feel)
+  for(let k=0;k<3;k++){ spawnSpeedLine(true); }
+  if(player && player.trail){ player.trail.push({x:player.x+4,y:player.y-4,alpha:0.7}); player.trail.push({x:player.x-6,y:player.y+2,alpha:0.6}); }
   Audio.hit();
   updateUI();
   if(lives<=0){
