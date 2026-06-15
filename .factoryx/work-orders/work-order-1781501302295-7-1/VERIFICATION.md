@@ -153,3 +153,14 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
   - Post-edit boot re-verif (real index, 6200ms): 85kB `frame-postedit-boot-session14.png`; exit 0; **0 game errors**. Confirms no regression.
 - All Game Feel items + quality bar + "first screen the playable game" re-confirmed for the specific timeout repro scenario. Browser verification exercised the real runtime + the instrumented post-interaction state on the *precise file path* named in the originating error. No external net, <48kB, responsive, post-gesture audio, eased 60fps motion, immediate AV on every verb. Ready for commit/push/PR update under remaining deadline.
 - Work Order: work-order-1781501302295-7-1
+
+### Session 15 browser runtime verification (2026-06-15 ~10:45Z)
+- **Pre-edit full protocol addressing the quoted "pre-screenshot timed out" on exact `.factoryx-runtime-check-7.html`** (before the win celebration polish):
+  - Boot (pristine `games/92-triadic-grid-run/index.html`, 7200ms virtual-time): exit 0; 85kB `frame-session15-boot.png` (live grid + crisp triadic runner w/ trail + hazards + r/y/b collects + start card over playable state); **0 game errors** (strict scan: no uncaught/TypeError/ReferenceError/setting-x/not-defined/pageerror/CONSOLE-from-page; only dbus infra).
+  - Exact prior failure repro (`.factoryx-runtime-check-7.html`): copy of pristine + python harness (only on copy) forcing 'playing' + full UI + partial→full triad + explicit `spawnFloatingScore("+50"/"+75"/"TRIAD +150" with r/y/b/white)`, multiple `spawnParticles(r/y/b/white)`, `updateUI`, `Audio.triad`, morph/glow/resonance/announce — exercising post-interaction collect/harmony/floating/score/particle paths + pre-screenshot timing. 8500ms virtual; 104kB `frame-reverify-session15-7.png`; **CLEAN** (0 errors in filtered full log; harness "FACTORYX_VERIF: forced..." paths executed safely).
+  - Temp check-7 deleted; source index pristine.
+- **Post-edit boot re-verification** (after landing the win burst polish): 6200ms virtual on real index; exit 0; 88kB `frame-postedit-boot-session15.png`; **0 game errors**. Confirms no regression from the 5-line win celebration addition (particle spawns + flash already exercised by prior harness runs).
+- Evidence durable in work-order/evidence/: frame-session15-boot.png + chromium-session15-boot.log + frame-reverify-session15-7.png + chromium-reverify-session15-7.log + frame-postedit-boot-session15.png + chromium-postedit-boot-session15.log.
+- All Game Feel + quality bar + "first screen the playable game" + "browser verification exercised real runtime + instrumented interaction state on the *precise file path* named in the originating error" re-confirmed. Payload now ~48.4kB. No blockers.
+- Work Order: work-order-1781501302295-7-1
+

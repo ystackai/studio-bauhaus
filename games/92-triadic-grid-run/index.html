@@ -606,6 +606,12 @@ function update(dt) {
         state='win';
         if(score>highScore){highScore=score;localStorage.setItem('triadicHS',highScore);}
         Audio.win();
+        // Stronger visible win/flow celebration: dense triadic geometric burst (r/y/b/white) at center while the Bauhaus grid + crisp runner + speedlines continue in update() under the overlay
+        spawnParticles(W/2, H/2 - 20, '#E63946', 18);
+        spawnParticles(W/2 + 30, H/2 + 10, '#FFD60A', 14);
+        spawnParticles(W/2 - 25, H/2 + 25, '#4361EE', 14);
+        spawnParticles(W/2, H/2, '#fff', 10);
+        flashT=0.35; flashColor='#FFD60A';
         document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
         document.getElementById('win-screen').classList.add('active');
         document.getElementById('win-score').textContent='Score: '+score;
