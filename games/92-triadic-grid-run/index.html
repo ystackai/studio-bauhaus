@@ -512,23 +512,29 @@ function update(dt) {
   const moveSpeed=Math.sqrt(dx*dx+dy*dy);
   player.speedAngle=Math.atan2(dy,dx);
   if(moveSpeed>10 && frameCount%3===0) spawnSpeedLine();
+  // Satisfying geometric wake / thrust lines when the crisp runner is in fast motion (visible chase pressure + movement feel)
+  if(moveSpeed>12 && frameCount%2===0 && player){
+    const bx=player.x - Math.cos(player.speedAngle)*14, by=player.y - Math.sin(player.speedAngle)*14;
+    speedLines.push({x:bx, y:by, len:22+Math.random()*18, spd:Math.max(4,speed*1.6), alpha:0.22+Math.random()*0.12, thickness:1.1+Math.random()*0.7});
+    if(moveSpeed>18 && frameCount%4===0) speedLines.push({x:bx-2, y:by+3, len:14+Math.random()*12, spd:speed*1.9, alpha:0.18, thickness:0.9});
+  }
 
   if(player.glowT>0) player.glowT-=dt;
   if(player.invincible>0) player.invincible-=dt;
 
   // Trail for fast geometric motion (crisp consistent runner silhouette; uses live player.shape so triad morph pops in trails)
-  for(let i=player.trail.length-1;i>=0;i--){ player.trail[i].alpha*=0.86; if(player.trail[i].alpha<0.05) player.trail.splice(i,1); }
-  player.trail.push({x:player.x,y:player.y,alpha:0.98});
-  if(player.trail.length>15) player.trail.shift();
+  for(let i=player.trail.length-1;i>=0;i--){ player.trail[i].alpha*=0.83; if(player.trail[i].alpha<0.04) player.trail.splice(i,1); }
+  player.trail.push({x:player.x,y:player.y,alpha:0.99});
+  if(player.trail.length>18) player.trail.shift();
 
   // Demo spawns + always move entities so start screen shows live hazards/collectibles/motion immediately
   const isPlaying = state==='playing';
   spawnTimer += dt;
-  const hInt = Math.max(0.45, 1.8 - (isPlaying?level:1)*0.1 );
-  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?6:3)) spawnHazard(); }
+  const hInt = Math.max(0.32, 1.35 - (isPlaying?level:1)*0.09 );
+  if(spawnTimer > hInt){ spawnTimer=0; if(hazards.length < (isPlaying?8:4)) spawnHazard(); }
   collectTimer += dt;
-  const cInt = Math.max(0.7, 2.1 - (isPlaying?level:0)*0.06 );
-  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?5:3)) spawnCollectible(); }
+  const cInt = Math.max(0.55, 1.65 - (isPlaying?level:0)*0.05 );
+  if(collectTimer > cInt){ collectTimer=0; if(collectibles.length < (isPlaying?6:4)) spawnCollectible(); }
 
   // Update hazards (motion always for visual; collisions only while playing)
   for(let i=hazards.length-1;i>=0;i--){
@@ -577,17 +583,19 @@ function update(dt) {
       comboTimer=0;
       const pts=50*(1+Math.floor(combo/3));
       score+=pts;
-      spawnParticles(col.x,col.y,SHAPE_COL[col.type],22); // stronger collection juice
+      spawnParticles(col.x,col.y,SHAPE_COL[col.type],28); // stronger collection juice + impact
+      // short inward "suck" particles toward player for satisfying collect feel
+      for(let s=0;s<5;s++){ const a=Math.random()*Math.PI*2, ss=2+Math.random()*3.5; particles.push({x:col.x+Math.cos(a)*6,y:col.y+Math.sin(a)*6,vx:Math.cos(a+Math.PI)*ss*0.9,vy:Math.sin(a+Math.PI)*ss*0.9,life:0.6,decay:0.035,size:2+Math.random()*3,color:SHAPE_COL[col.type],shape:col.type}); }
       spawnCollectFlash(col.x,col.y,SHAPE_COL[col.type]);
       spawnFloatingScore(col.x,col.y-25,'+'+pts, SHAPE_COL[col.type]);
       // motion trail + speedline surge on every collect for "fast geometric motion" + visible chase pressure
-      for(let k=0;k<3;k++){ spawnSpeedLine(true); }
-      if(player && player.trail){ player.trail.push({x:player.x+4,y:player.y-6,alpha:0.9}); player.trail.push({x:player.x-6,y:player.y+4,alpha:0.82}); }
-      flashT=0.12;
+      for(let k=0;k<4;k++){ spawnSpeedLine(true); }
+      if(player && player.trail){ player.trail.push({x:player.x+5,y:player.y-7,alpha:0.92}); player.trail.push({x:player.x-7,y:player.y+5,alpha:0.86}); player.trail.push({x:player.x-2,y:player.y-8,alpha:0.78}); }
+      flashT=0.15;
       flashColor=SHAPE_COL[col.type];
-      player.glowT=0.38;
+      player.glowT=0.48;
       // visible scoring pop (no giant UI)
-      var sc=document.getElementById('score-display'); if(sc){sc.classList.add('pop');setTimeout(function(){sc&&sc.classList.remove('pop');},90);}
+      var sc=document.getElementById('score-display'); if(sc){sc.classList.add('pop');setTimeout(function(){sc&&sc.classList.remove('pop');},95);}
       Audio.collect(combo);
       // Triadic harmony: collect one of each primary (r/y/b) for bonus — core "color harmonies" verb
       triad.push(col.type);
@@ -595,19 +603,20 @@ function update(dt) {
       if(new Set(triad).size===3){
         const bonus=150;
         score+=bonus;
-        spawnParticles(col.x,col.y,'#fff',16);
+        spawnParticles(col.x,col.y,'#fff',22);
         spawnFloatingScore(col.x,col.y-48,'TRIAD +'+bonus,'#fff');
-        flashT=0.28;
+        flashT=0.32;
         flashColor='#fff';
         Audio.triad();
         triad=[];
-        gridResonanceT=1.0; // the Bauhaus grid itself resonates — satisfying environmental reaction to color harmony
-        if(player){ player.shape = (player.shape + 1) % 3; player.glowT = 0.8; spawnParticles(player.x, player.y - 8, '#fff', 8); }
+        gridResonanceT=1.5; // the Bauhaus grid itself resonates — satisfying environmental reaction to color harmony
+        shakeT=0.09; // small satisfying impact kick on the harmony reward
+        if(player){ player.shape = (player.shape + 1) % 3; player.glowT = 0.9; spawnParticles(player.x, player.y - 8, '#fff', 10); }
         // fast geometric motion payoff on harmony: force speedlines (visible surge) + extra trail using live shape so the crisp triadic runner "bursts" at color harmony moment
-        for(let k=0;k<7;k++){ spawnSpeedLine(true); }
-        if(player && player.trail){ for(let t=0;t<3;t++) player.trail.push({x:player.x-4+t*3,y:player.y+((t-1)*5),alpha:0.95}); }
-        var sc2=document.getElementById('score-display'); if(sc2){sc2.classList.add('pop');setTimeout(function(){sc2&&sc2.classList.remove('pop');},110);}
-        var cb=document.getElementById('combo-display'); if(cb){cb.classList.add('pop');setTimeout(function(){cb&&cb.classList.remove('pop');},140);}
+        for(let k=0;k<11;k++){ spawnSpeedLine(true); }
+        if(player && player.trail){ for(let t=0;t<4;t++) player.trail.push({x:player.x-5+t*3,y:player.y+((t-1)*6),alpha:0.96}); }
+        var sc2=document.getElementById('score-display'); if(sc2){sc2.classList.add('pop');setTimeout(function(){sc2&&sc2.classList.remove('pop');},115);}
+        var cb=document.getElementById('combo-display'); if(cb){cb.classList.add('pop');setTimeout(function(){cb&&cb.classList.remove('pop');},145);}
         updateUI();
       }
       collectibles.splice(i,1);
@@ -695,11 +704,12 @@ function hitPlayer(hz) {
   triad=[]; // break harmony on hit — risk/reward in the flow
   gridResonanceT=0;
   player.invincible=1.5;
-  shakeT=0.3;
-  flashT=0.15;
+  shakeT=0.42;
+  flashT=0.18;
   flashColor='#E63946';
-  spawnParticles(player.x,player.y,'#E63946',22);
-  spawnParticles(player.x,player.y,'#FFD60A',10);
+  spawnParticles(player.x,player.y,'#E63946',28);
+  spawnParticles(player.x,player.y,'#FFD60A',12);
+  spawnParticles(player.x,player.y,'#fff',6);
   Audio.hit();
   updateUI();
   if(lives<=0){
@@ -828,38 +838,43 @@ function render() {
   // Hazards
   hazards.forEach(hz=>{
     c.save();c.translate(hz.x,hz.y);c.rotate(hz.rot);
-    c.fillStyle='#E63946';c.strokeStyle='rgba(255,255,255,0.65)';c.lineWidth=2.2;
+    c.fillStyle='#E63946';c.strokeStyle='rgba(255,255,255,0.72)';c.lineWidth=2.3;
     if(hz.type==='bar'||hz.type==='zigzag'){
       c.fillRect(-hz.w/2,-hz.h/2,hz.w,hz.h);c.strokeRect(-hz.w/2,-hz.h/2,hz.w,hz.h);
-      // Warning pulse for moving hazards
+      // Stronger threat accent for visible intent (hard red geometry reads "dodge" at a glance)
+      c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=1.1;
+      c.strokeRect(-hz.w/2-3.5,-hz.h/2-3.5,hz.w+7,hz.h+7);
       if(hz.moveDir){
-        c.strokeStyle='rgba(255,255,255,0.22)';c.setLineDash([4,6]);
+        c.strokeStyle='rgba(255,210,120,0.55)';c.setLineDash([3,5]);
         c.beginPath();c.moveTo(0,-hz.h/2);c.lineTo(0,hz.h/2);c.stroke();c.setLineDash([]);
-        // Edge highlight for hard-edge clarity
-        c.strokeStyle='rgba(255,210,120,0.4)';c.lineWidth=1.2;
-        c.strokeRect(-hz.w/2-2,-hz.h/2-2,hz.w+4,hz.h+4);
       }
     } else {
       const s=hz.w;c.beginPath();c.moveTo(0,-s);c.lineTo(s,0);c.lineTo(0,s);c.lineTo(-s,0);c.closePath();c.fill();c.stroke();
-      // Inner cross for hard geometry pop
-      c.strokeStyle='rgba(26,26,26,0.65)';c.lineWidth=2;
-      c.beginPath();c.moveTo(-s*0.42,0);c.lineTo(s*0.42,0);c.moveTo(0,-s*0.42);c.lineTo(0,s*0.42);c.stroke();
+      // Stronger inner cross + outer threat ring for diamond clarity
+      c.strokeStyle='rgba(255,255,255,0.4)';c.lineWidth=1.4;
+      c.beginPath();c.moveTo(-s*0.52,0);c.lineTo(s*0.52,0);c.moveTo(0,-s*0.52);c.lineTo(0,s*0.52);c.stroke();
+      c.strokeStyle='rgba(255,255,255,0.28)';c.lineWidth=1.0;
+      c.beginPath();c.arc(0,0,s*1.18,0,Math.PI*2);c.stroke();
     }
     c.restore();
   });
 
   // Collectibles — clearer triadic pickups with strong rings + inner geometry for immediate readability
   collectibles.forEach(col=>{
-    const ps=col.size+Math.sin(col.pulse)*4.5;
-    const al=0.85+Math.sin(col.pulse*2)*0.12;
+    const ps=col.size+Math.sin(col.pulse)*5.2;
+    const al=0.88+Math.sin(col.pulse*2)*0.1;
     drawShape(col.x,col.y,col.type,ps,SHAPE_COL[col.type],al,col.rot);
-    // Stronger outer glow ring (collection juice)
-    c.save();c.globalAlpha=0.22+Math.sin(col.pulse*1.6)*0.12;c.strokeStyle=SHAPE_COL[col.type];c.lineWidth=3.2;
-    c.beginPath();c.arc(col.x,col.y,ps+13,0,Math.PI*2);c.stroke();
-    // Secondary inner ring + small rotating tri-accent for "color harmony" clarity
-    c.globalAlpha=0.35;c.lineWidth=1.6;
-    c.beginPath();c.arc(col.x,col.y,ps*0.55,0,Math.PI*2);c.stroke();
-    c.globalAlpha=0.5; c.beginPath(); c.arc(col.x+Math.cos(col.rot*2.2)*ps*0.22, col.y+Math.sin(col.rot*2.2)*ps*0.22, ps*0.18,0,Math.PI*2); c.fillStyle=SHAPE_COL[col.type]; c.fill();
+    // Stronger multi-ring glow for visible "collect color harmony" intent (pops against grid)
+    c.save();c.globalAlpha=0.28+Math.sin(col.pulse*1.7)*0.14;c.strokeStyle=SHAPE_COL[col.type];c.lineWidth=3.6;
+    c.beginPath();c.arc(col.x,col.y,ps+15,0,Math.PI*2);c.stroke();
+    c.globalAlpha=0.22+Math.sin(col.pulse*2.1)*0.1;c.lineWidth=2.0;
+    c.beginPath();c.arc(col.x,col.y,ps+23,0,Math.PI*2);c.stroke();
+    // Secondary inner ring + prominent rotating tri-accent for "color harmony" clarity
+    c.globalAlpha=0.38;c.lineWidth=1.8;
+    c.beginPath();c.arc(col.x,col.y,ps*0.58,0,Math.PI*2);c.stroke();
+    c.globalAlpha=0.6; c.beginPath(); c.arc(col.x+Math.cos(col.rot*2.3)*ps*0.24, col.y+Math.sin(col.rot*2.3)*ps*0.24, ps*0.22,0,Math.PI*2); c.fillStyle=SHAPE_COL[col.type]; c.fill();
+    // Small crisp white core dot — instant "good pickup" signal
+    c.globalAlpha=0.85;c.fillStyle='#fff';c.beginPath();c.arc(col.x,col.y,ps*0.12,0,Math.PI*2);c.fill();
     c.restore();
   });
 
