@@ -174,3 +174,11 @@ __FACTORYX_BROWSER_RUNTIME_ERROR__{"kind":"pageerror","message":"Uncaught TypeEr
 - **Polish (post clean pre-edit verif)**: see WORKLOG. Added fast geometric surge on TRIAD harmony (5 forced speedlines + live-shape trail push at player). Makes "pilots a crisp triangle/circle/square runner" + "collecting color harmonies" produce immediate visible fast motion payoff. Post-edit boot (6200ms real index): 89kB `frame-postedit-boot-session16.png`; exit 0; **0 game errors**.
 - All prior + new claims re-validated: first screen = playable game (core verb immediate pre-START, with trails/morph/surge on harmony + grid resonance + colored floats + pips + win flow); Game Feel checklist ✓ (input<100ms + easing + AV feedback on collect/hit/triad/harmony including new surge, post-gesture audio, >=44px, 60fps, <2MB self-contained ~48.7kB, no net). Browser verification exercised real runtime + instrumented interaction state on the *precise file path* named in the originating error.
 - Work Order: work-order-1781501302295-7-1
+
+### Session 17 (2026-06-15 ~10:56Z)
+- Pre-edit full protocol (real index + exact `.factoryx-runtime-check-7.html` instrumented post-interaction harness forcing playing + triad complete + spawns/UI/Audio/morph/resonance): **CLEAN** (81kB boot + 103kB check-7 frames; 0 game errors in strict scans; harness exercised harmony/collect paths safely under virtual time covering pre-screenshot).
+- Post-clean-verif polish: precision near-miss dodge feedback — small white geometric particle sparks + crisp high tick (Audio.dodge) when hazards pass close-but-no-hit (throttled, reuses existing primitives, only in playing). Strengthens "dodging hard-edged hazards" + "satisfying audiovisual reactions" legibly in motion; no balance/score impact. Post-edit boot verif clean (88kB, 0 errors).
+- Evidence: session17-boot.png, reverify-session17-7.png, postedit-boot-session17.png + chromium logs in work-order/evidence/.
+- All Game Feel + quality bar + "first screen the playable game (core verb immediate)" + "browser verification exercised real runtime + instrumented interaction state on the *precise file path* named in the originating error" re-confirmed. Payload 49.5kB self-contained. No blockers. Ready for commit/push/PR#84 update.
+- Work Order: work-order-1781501302295-7-1
+

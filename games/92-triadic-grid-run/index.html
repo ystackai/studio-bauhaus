@@ -250,6 +250,11 @@ const Audio = (() => {
       tone(660,0.09,'triangle',0.09); setTimeout(()=>tone(880,0.11,'sine',0.07),65);
       setTimeout(()=>tone(1100,0.16,'sine',0.05),130);
     },
+    dodge: () => {
+      // crisp high geometric tick for precision near-miss on hard-edged hazards — immediate AV for the dodge verb
+      tone(1320,0.035,'sine',0.045);
+      setTimeout(()=>tone(1760,0.028,'triangle',0.028),18);
+    },
     update: (lvl, spd) => {
       if(ambientOsc && ambientGain && ctx){
         try{
@@ -546,6 +551,16 @@ function update(dt) {
         if((px-h.x)**2+(py-h.y)**2<(pr+h.w/2.5)**2) hit=true;
       }
       if(hit) hitPlayer(h);
+      else if(isPlaying && frameCount % 5 === 0){
+        // near-miss precision reaction: small white geometric sparks + crisp tick when hazard passes close but no hit
+        // makes "dodging hard-edged hazards" feel tactile and satisfying without balance or score change
+        const hr = (h.type==='bar'||h.type==='zigzag' ? Math.max(h.w,h.h)/2 : h.w/2.2);
+        const d2 = (px-h.x)**2 + (py-h.y)**2;
+        if(d2 < (pr + hr*1.7)**2 && d2 > (pr + hr*1.08)**2){
+          spawnParticles((px + h.x)*0.5, (py + h.y)*0.5, '#fff', 2);
+          if(Audio && Audio.dodge) Audio.dodge();
+        }
+      }
     }
   }
 

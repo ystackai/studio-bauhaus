@@ -34,6 +34,14 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - All evidence in work-order/evidence/ (reverify-final-7.png, chromium-reverify-final-7.log, frame-final-current-*.png). Source remains single self-contained index.html; preview entrypoint `games/92-triadic-grid-run/index.html` is the playable game (start overlay is non-blocking; core piloting verb live from t=0).
 - No code changes outside the game; no homepage mutation. PR#84 will be refreshed with full Work Order prompt in context section before deadline.
 
+
+
+## Session 17 polish (pre-deadline)
+- Added satisfying precision-dodge audiovisual reactions: when a hard-edged hazard weaves or slides close to the crisp triadic runner without collision (near-miss band), emit 2 small white geometric sparks at midpoint + a crisp high "tick" tone. Throttled to avoid spam; only audible/visual on successful tight dodges. Reinforces the pilot verb and "dodging" without changing scoring, difficulty curve, or adding panels. Fits Bauhaus clarity (white accent on red hazard tension) + immediate <100ms feedback.
+- Re-ran the complete pre-edit browser runtime verification (boot + exact check-7 repro with forced interaction state) before the edit; post-edit boot clean. Evidence in work-order/evidence/ (session17-* + postedit). Source remains the direct `games/92-triadic-grid-run/index.html` preview entrypoint.
+- All prior claims + Game Feel checklist re-validated under current verifier image. PR#84 will be refreshed (comment + full prompt body context) after commit/push on the canonical branch.
+- Work Order: work-order-1781501302295-7-1
+
 ## PR
 - Canonical branch pushed + PR#84 updated (https://github.com/ystackai/studio-bauhaus/pull/84)
 - FactoryX Work Order Context (full prompt + payload + workflow) attached as https://github.com/ystackai/studio-bauhaus/pull/84#issuecomment-4706711225 (and embedded in WORKLOG/VERIFICATION of this work order for durable record).
