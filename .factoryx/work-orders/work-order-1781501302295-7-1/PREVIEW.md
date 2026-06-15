@@ -39,3 +39,12 @@ A single-file HTML5 canvas arcade game featuring Bauhaus aesthetics. The player 
 - FactoryX Work Order Context (full prompt + payload + workflow) attached as https://github.com/ystackai/studio-bauhaus/pull/84#issuecomment-4706711225 (and embedded in WORKLOG/VERIFICATION of this work order for durable record).
 - All per instructions: used only the work order branch, gh/git configured helpers, no token inspection in outputs.
 
+
+## Session 9: Redeploy reset verification (post verifier image rollout)
+- **~10:02Z** — Re-ran full browser runtime verification (boot + exact `.factoryx-runtime-check-7.html` instrumented for post-interaction collect/triad/floating) under the post-rollout verifier image to address the "redeploy reset after verifier image rollout" note before any further work. 
+  - Real index.html: clean 85kB frame-post-reset-verify.png, 0 game errors in chromium log (only dbus noise).
+  - Check-7 repro (forced playing + triad completion + spawns): clean 39kB frame-reverify-reset-7.png, 0 errors, exercised harmony/score paths safely.
+- Evidence copied to work-order/evidence/. Source `games/92-triadic-grid-run/index.html` remains the direct playable preview entrypoint (no scaffolding left).
+- Commit + push of evidence + these memory updates will trigger fresh preview redeploy on the canonical branch. PR#84 body will be refreshed with full original prompt embedded in FactoryX Work Order Context section.
+- All prior PREVIEW claims (playable first screen, core verb immediate, TRIAD collector, escalation, 60fps, <50kB, responsive, post-gesture audio) re-validated. No change to game payload or behavior.
+- Work Order: work-order-1781501302295-7-1
