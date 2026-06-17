@@ -74,3 +74,10 @@ Work Order: work-order-1781658166323-6-31
 - PR body will be refreshed with full WO prompt + current status (rebase note, fresh verif, mergeable).
 
 Work Order: work-order-1781658166323-6-31
+
+## Session 2 continued — PR body update (2026-06-17)
+- Direct GitHub API PATCH used to set full body (gh edit had deprecation side-effect, did not apply large body). Body now 14.8kB including complete "FactoryX Work Order Context" section with the full original prompt, payload JSON, review_context, branch guard notes, and explicit callout of the rebase resolution for the changes_requested.
+- Confirmed via API: contains context marker, decision ids, rebase notes; head at 251f9ff; mergeable true.
+- All per instructions: PR updated with full prompt for reviewers; changes left in tree; no force on main; canonical WO branch/PR.
+
+Work Order: work-order-1781658166323-6-31
