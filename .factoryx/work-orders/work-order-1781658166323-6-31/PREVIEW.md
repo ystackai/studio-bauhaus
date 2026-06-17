@@ -39,3 +39,17 @@ Objective (visible <10s): Fill the three top triad pips (red/yellow/blue) by sta
 - Source feedback: deliverable-decision-1781627560778-1, -2, -3
 
 Work Order: work-order-1781658166323-6-31
+
+## Session 2 update (2026-06-17)
+- GitHub PR#86 merge conflicts resolved by rebase on main + merge of prior PR head (c15) to satisfy FactoryX pre-push hook. Pushed 8c339d4. gh now reports mergeable: MERGEABLE (head 8c339d41820b0ea4b9d0852f468ee9e5736c5f48).
+- mergeStateStatus: BLOCKED (on pending CI checks, per normal branch protection; not content conflict).
+- Fresh chromium verification (post-rebase): clean 0-error runs, updated screenshots in evidence/.
+- Preview entrypoint remains games/92-triadic-grid-run/index.html (correctly resolved during conflict merges).
+- PR body to be updated with full prompt + this rebase/evidence status.
+- No code changes to game/asset; only git history + memory + evidence refresh to unblock review.
+
+## Current Evidence
+- frame-boot.png (198.6kB), frame-interact.png (198.8kB), chromium-*.log (clean)
+- PR: https://github.com/ystackai/studio-bauhaus/pull/86 (now mergeable after addressing github-mergeability changes_requested)
+
+Work Order: work-order-1781658166323-6-31

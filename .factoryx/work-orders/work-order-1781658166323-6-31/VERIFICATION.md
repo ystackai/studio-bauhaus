@@ -29,3 +29,22 @@ Assets: inspect games/92-triadic-grid-run/assets/ (PNGs + WAVs) + ASSET_MANIFEST
 
 Work Order: work-order-1781658166323-6-31
 
+
+## Session 2 — Post-rebase verification (2026-06-17)
+- Re-ran full chromium verification after rebase+main-merge to confirm no breakage from main's changes (shared files, no impact on game).
+- Commands (file:// absolute, same as before):
+  /usr/bin/chromium --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=7000 --window-size=1280,720 --screenshot=.../frame-boot.png "file://.../games/92-triadic-grid-run/index.html" 2>&1 | tee .../chromium-boot.log
+  /usr/bin/chromium ... --virtual-time-budget=10000 ... --screenshot=.../frame-interact.png ... 2>&1 | tee .../chromium-interact.log
+- Results: both exit 0; frames 198608B (boot), 198781B (interact) — non-blank, grid + stamp elements visible in prior analysis.
+- Strict error grep (uncaught|ReferenceError|TypeError|SyntaxError|pageerror|...|failed to (fetch|load|decode)|__FACTORYX... etc) across both logs: 0 matches. Clean.
+- Assets: PNGs + 5 WAVs + manifest present, relative loads succeed in file: context.
+- Game feel / quality items still hold post rebase (no code change to game).
+- Updated evidence paths + this note. Ready for review now that PR is mergeable.
+
+## Evidence Paths (refreshed)
+- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/frame-boot.png (198.6kB)
+- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/frame-interact.png (198.8kB)
+- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/chromium-boot.log (clean)
+- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/chromium-interact.log (clean)
+
+Work Order: work-order-1781658166323-6-31

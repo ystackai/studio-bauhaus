@@ -62,3 +62,15 @@ Work Order: work-order-1781658166323-6-31
 - Assets + manifest + new index.html ready for commit on WO branch.
 
 Work Order: work-order-1781658166323-6-31
+
+## Session 2 — Rebase for merge conflicts + re-verification (2026-06-17)
+- GitHub PR#86 had mergeState CONFLICTING / changes_requested from github-mergeability (review-1781660229470-7-2) because main advanced (klee as preview, many drops/personas added, workflow, games/index changes); our branch tip c15cbd4 was conflicting on .factoryx/preview-entrypoint (klee vs triadic) + tree diffs.
+- Per instructions + guard: inspected PR via gh, fetched, rebased on origin/main (resolved preview-entrypoint conflict to triadic game, as this WO's deliverable), but push hook rejected because rebased history (new SHAs 1f58.. 2882..) made old remote c15 not ancestor.
+- To satisfy pre-push hook ("fetch/rebase/merge the current PR head before pushing"): fetched current remote WO head (still c15), merged it into the rebased tip (trivial identical-content conflict on preview-entrypoint resolved by keeping triadic), producing merge commit 8c339d4 where c15 IS ancestor. Pushed successfully: c15..8c339d4 (non-ff but hook-accepted).
+- Post-rebase/merge, gh confirms PR#86 now mergeable: "MERGEABLE" (was CONFLICTING); mergeStateStatus BLOCKED only on pending CI (expected).
+- Fresh browser verification (real chromium): boot + 10s interact runs, both exit 0. New frames ~198.6kB / 198.8kB. Strict grep on logs for uncaught/ReferenceError/TypeError/SyntaxError/pageerror/failed-to-load/decode etc = ZERO matches (only expected dbus/container noise).
+- Evidence refreshed in evidence/ (frame-boot.png, frame-interact.png, chromium-*.log). Assets still load, game tree intact (self-contained).
+- Updated PREVIEW/VERIFICATION/WORKLOG. No unrelated polish; this addresses the listed review changes_requested before further work.
+- PR body will be refreshed with full WO prompt + current status (rebase note, fresh verif, mergeable).
+
+Work Order: work-order-1781658166323-6-31
