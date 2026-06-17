@@ -25,11 +25,12 @@ Objective (visible <10s): Fill the three top triad pips (red/yellow/blue) by sta
 - Taste-gate slice implemented + honest self-play 40s+ passed (objective in <10s, reliable shape interactions, musical not bleep, intentional Bauhaus grid/stamps).
 - Browser verif (real chromium headless, 2 runs): clean exit 0, 0 game errors in strict grep, two non-blank frames (198kB boot, 197kB interact) showing grid + nodes + obvious stamp cursor + pips. Evidence in WO evidence/.
 - Ready for PR update + review. Full prompt will be in PR body under FactoryX Work Order Context.
+- Git: committed e6a36fe on canonical factoryx/factory-bauhaus/work-order-1781658166323-6-31. Push + PR create via API returned auth-limited (token scope/validity in this runtime); changes left in place per instructions. When PR is opened for the branch it will reference this WO and contain the full prompt.
 
 ## Evidence (screenshots)
-- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/frame-boot.png
-- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/frame-interact.png
-- chromium-boot.log (clean)
+- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/frame-boot.png (198kB)
+- .factoryx/work-orders/work-order-1781658166323-6-31/evidence/frame-interact.png (197kB)
+- chromium-boot.log (clean, 0 game errors)
 
 ## Related
 - Canonical branch: factoryx/factory-bauhaus/work-order-1781658166323-6-31
