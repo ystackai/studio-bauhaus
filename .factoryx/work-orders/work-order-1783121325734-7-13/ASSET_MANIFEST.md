@@ -1,28 +1,25 @@
-# Asset Manifest
+# Asset Manifest — work-order-1783121325734-7-13 (planner-4)
 
-FactoryX created this checkpoint template before the agent run so requested assets, paths, and evidence can be tracked immediately. This file is not a visual approval and does not prove any asset exists yet.
+This planner run generated **no new assets** (per planner scope: do not call foundry, blender, or generate; do not inspect/generate assets).
 
-## First Checkpoint Contract
+## Reference to prior attached evidence (on main)
+The last non-planner work for this deliverable (`work-order-1781658166323-6-31`, done) produced:
+- `games/92-triadic-grid-run/assets/stylus.png`
+- `games/92-triadic-grid-run/assets/nodes.png`
+- 5x `sfx-*.wav` (stamp-0/1/2, clash, triad)
+- `games/92-triadic-grid-run/assets/ASSET_MANIFEST.md` (local stdlib provenance)
+- Evidence frames in that work-order's `evidence/` dir
 
-- Do not reread boilerplate WORKLOG.md, PREVIEW.md, or VERIFICATION.md before making progress.
-- Read FEEDBACK.md only if it contains non-boilerplate reviewer feedback.
-- Within the first six shell commands, create one durable checkpoint: a script patch, a planned-ID/dry-run artifact, a generated asset file, or a blocker with exact missing prerequisite.
-- When Requested IDs are already listed below, use them as the startup source of truth; before searching old assets broadly, append planned source/export/render evidence paths for those IDs to this manifest or create an executable generator/list-mode patch.
-- For copied asset scripts, first prove the main spec list and output paths contain every requested ID and no stale IDs, then render.
+Those assets and the game using them are present at HEAD `656c74f5e06654c490e90ae90ac5e983828b3a15` on main.
 
-## Requested IDs
+## This run
+- Durable checkpoint: `.factoryx/deliverables/triadic-grid-run/WORK_PLAN.md`
+- No IDs rendered, no GLB, no contact sheets, no new foundry jobs.
+- The scheduled verification ticket will not generate assets either (it only exercises the existing browser artifact for evidence).
 
-- TODO: derive exact requested output IDs from the Work Order before any expensive render.
+If future tickets under this deliverable require asset refresh via Foundry, they must:
+- First `GET http://factoryx-bauhaus-asset-foundry:18113/healthz`
+- Use only `/api/recipes` + `/api/assets` contract.
+- Record job ids, request JSON, copied `/outputs/...` paths here.
 
-## Planned Outputs
-
-- TODO: source Blender files or generator scripts
-- TODO: GLB/GLTF exports
-- TODO: repeatable inspection renders and contact sheets
-- TODO: hero render or in-game proof shot
-
-## Verification
-
-- TODO: record cheap planned-ID/dry-run evidence before rendering
-- TODO: record visual review evidence after contact sheets render
-- TODO: record limitations without self-approving downstream visual gates
+Work Order: work-order-1783121325734-7-13
