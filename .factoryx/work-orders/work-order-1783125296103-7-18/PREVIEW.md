@@ -7,20 +7,18 @@
 ## Creative Intent (per spec)
 This should feel like a courier racing a living geometric grid to lock triads with a held precision stamp before the lattice frays.
 
-## Changes for embodied player subject
-- Replaced floating stamp primitive (red TRI / blue SQR as sole cursor) with authored courier figure: geometric bauhaus silhouette (head/torso/legs with stride posture, accent band), holding the stamp tool at aim point.
-- Player body lags pointer slightly for physical presence; lean + legPhase + bob for run motion; thrust pose on stamp/clash via actionT.
-- Stamp action performed *through* the subject (arm extends, body engages) while retaining pointer-aim + SPACE flip controls.
-- Idle/demo start screen now shows courier practicing movement and posture (not static vector blob).
-- De-emphasized mode HUD: moved to subtle top-right, reduced size/opacity; mode visible on courier torso band + held tool.
-- Player + nearest nodes kept readable: dedicated shadow, high-contrast strokes/fills, drawn after particles/nodes, body offset from tool tip.
-- Active-play visuals separate subject from grid lines, speedlines, particles, vignette, DOM overlays.
+## Changes for embodied player subject (recovery pass)
+- Authored courier: geometric bauhaus body (legs+boots stride, torso+accent+satchel strap, head+visor), holds small stamp tool; posture via lean/bob/legPhase/thrust.
+- Action through subject (arm extends on stamp); pointer aims courier+tool, SPACE flips mode (visible on band).
+- Vignette drawn before player (0.22 end alpha) + stronger limb strokes + boots/strap/visor so subject + nearest nodes stay high-contrast vs grid/particles during motion.
+- Demo idle and ?autostart playing both exercise live embodied presence (not placeholder rect only).
+- De-emphasized HUD; primary visual interest is the courier in the authored grid-run fantasy.
 
-## Browser evidence (real chromium headless)
-- boot: frame-boot.png (158kB) — start card + live grid + courier figure visible in idle demo drift/stride.
-- interact: frame-interact.png (87kB) — forced active state for evidence, shows courier body, held tool at nodes, triad progress, grid.
-- 0 game errors (pageerror/uncaught/TypeError/Reference/Syntax/asset-fail) in logs.
-- Same served URL pattern as prior (file:// absolute for harness).
+## Browser evidence (real chromium headless, served http URL)
+- boot: frame-boot.png (155kB) — http://127.0.0.1:17555/... start card + live grid + courier (with boots/satchel/visor) in idle demo.
+- interact: frame-interact.png (78kB) — ?autostart=1 playing state, courier body + held tool near nodes, readable separation.
+- 0 game errors after filtering dbus noise; assets served (png + wavs); no 4xx for game files.
+- Used real python http.server + chromium on http:// (not file://) per verification contract.
 
 ## Game feel checklist (this pass)
 - [x] Core verb in first 30s via embodied subject (move courier, space flip tool, click to thrust stamp).

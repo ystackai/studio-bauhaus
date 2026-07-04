@@ -541,11 +541,12 @@ function drawEmbodiedPlayer(p, toolX, toolY, mode){
   c.fillStyle = 'rgba(0,0,0,0.38)';
   c.beginPath(); c.ellipse(0, 19, 10, 3.2, 0, 0, Math.PI*2); c.fill();
 
-  // legs (posture, stride for run feel; bauhaus geometric)
-  c.strokeStyle = '#c8c8c8'; c.lineWidth = 2.6;
+  // legs (posture, stride for run feel; bauhaus geometric) + grounded boots
+  c.strokeStyle = '#c8c8c8'; c.lineWidth = 2.8;
   const step = Math.sin(legPh)*0.65;
   c.beginPath(); c.moveTo(-1.5,3); c.lineTo(-6-step*3.5,15+step*0.8); c.stroke();
   c.beginPath(); c.moveTo(1.5,3); c.lineTo(7+step*3.5,14-step*0.9); c.stroke();
+  c.fillStyle='#2a2a2a'; c.fillRect(-7.5,14.5,4.5,3.5); c.fillRect(4,13.5,4.5,3.5); // boots
 
   // torso (slight lean, clear silhouette)
   c.fillStyle = '#1c1c1c'; c.strokeStyle='#f4f4f4'; c.lineWidth=1.9;
@@ -553,12 +554,17 @@ function drawEmbodiedPlayer(p, toolX, toolY, mode){
   c.fillRect(-5, -1, 10, 12); c.strokeRect(-5, -1, 10, 12);
   // bauhaus accent band (shows mode)
   c.fillStyle = (mode===TRI ? SHAPE_COL[0] : SHAPE_COL[2]); c.fillRect(-5, 4, 10, 2.8);
+  // courier satchel strap (authored presence, not just primitive)
+  c.strokeStyle = '#555'; c.lineWidth=1.3;
+  c.beginPath(); c.moveTo(-3.5,0); c.lineTo(4,9); c.stroke();
   c.restore();
 
-  // head (geometric courier, bauhaus silhouette)
+  // head (geometric courier, bauhaus silhouette) + visor detail
   c.save(); c.translate(0, -7);
   c.fillStyle = '#0f0f0f'; c.strokeStyle = '#f0f0f0'; c.lineWidth=1.7;
   c.fillRect(-4, -4.5, 8, 7); c.strokeRect(-4,-4.5,8,7);
+  // visor/goggles for courier character
+  c.strokeStyle='#aaa'; c.lineWidth=1.1; c.beginPath(); c.moveTo(-3.2,-1.2); c.lineTo(3.2,-1.2); c.stroke();
   // inner cross for authored construction detail
   c.strokeStyle = '#666'; c.lineWidth=0.8;
   c.beginPath(); c.moveTo(-2,-2.5); c.lineTo(2,-2.5); c.moveTo(0,-3.8); c.lineTo(0,1); c.stroke();
@@ -665,16 +671,16 @@ function render(){
     c.fillText(f.txt, f.x, f.y); c.restore();
   });
 
+  // subtle vignette drawn before player so the embodied subject + nearest nodes stay crisp/readable
+  const gr = c.createRadialGradient(W*0.5,H*0.48, Math.min(W,H)*0.32, W*0.5,H*0.48, Math.max(W,H)*0.68);
+  gr.addColorStop(0,'rgba(0,0,0,0)'); gr.addColorStop(1,'rgba(0,0,0,0.22)');
+  c.fillStyle=gr; c.fillRect(0,0,W,H);
+
   // embodied courier subject (primary presence) + held stamp tool at pointer aim
-  // drawn after nodes so player silhouette stays readable over grid/particles
+  // drawn after nodes/vignette so player silhouette + nearest objectives remain separated and high-contrast
   const toolX = cursor.x, toolY = cursor.y;
   drawEmbodiedPlayer(player, toolX, toolY, stampMode);
   c.restore();
-
-  // subtle vignette for focus (honest, not decoration)
-  const gr = c.createRadialGradient(W*0.5,H*0.48, Math.min(W,H)*0.32, W*0.5,H*0.48, Math.max(W,H)*0.68);
-  gr.addColorStop(0,'rgba(0,0,0,0)'); gr.addColorStop(1,'rgba(0,0,0,0.28)');
-  c.fillStyle=gr; c.fillRect(0,0,W,H);
 }
 
 function gameLoop(ts){
@@ -796,6 +802,8 @@ requestAnimationFrame(gameLoop);
 
 // Expose tiny for verif harnesses
 window.__FACTORYX_TRIADIC = { stampAt, setMode:m=>{stampMode=m;updateUI();}, getState:()=>({state,score,level,misses,nodes:nodes.length}) };
+// Auto-start support for verification (non-player path: only activates on ?autostart=1; keeps normal start screen)
+if ((location.search||'').includes('autostart=1')) setTimeout(()=>{ if(state==='start' && typeof doStart==='function') doStart(); }, 620);
 </script>
 </body>
 </html>

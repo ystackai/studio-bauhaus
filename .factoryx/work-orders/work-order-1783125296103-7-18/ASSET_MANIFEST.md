@@ -17,9 +17,9 @@ This rework did not require new binary assets (no Asset Foundry job mandated by 
 - sfx WAVs — unchanged (post-gesture)
 
 ## Evidence
-- See PREVIEW.md + VERIFICATION.md for browser proof shots showing courier as focal readable subject.
-- No foundry submission (healthz was healthy but recipe use not triggered for this code-focused visual subject task).
-- If future visual gate requires sprite sheet, record here with job id + copied outputs.
+- See updated PREVIEW.md + VERIFICATION.md (served http smoke) for fresh proof shots of enhanced courier (boots/satchel/visor) as focal readable subject.
+- No foundry submission (healthz reachable via blender provider; this code polish of embodied subject used in-canvas authored figure only; existing stylus/nodes/sfx preserved).
+- If future requires sprite, record job+outputs here. Recovery: no new binary assets.
 
 Work Order: work-order-1783125296103-7-18
 No blockers on asset side for this ticket.
