@@ -32,8 +32,8 @@
   var player = {
     x: W * 0.5,
     y: H - 118,
-    w: 126,
-    h: 36,
+    w: 136,
+    h: 38,
     vx: 0
   };
 
@@ -190,20 +190,24 @@
     spools.length = 0;
     effects.length = 0;
 
-    // Initial spread so first paint (pre-input) is rich and non-uniform
-    spawnLoom(60);
-    spawnLoom(175);
-    spawnLoom(310);
+    // Initial spread so first paint (pre-input) is rich and non-uniform — many visible objects
+    spawnLoom(42);
+    spawnLoom(138);
+    spawnLoom(235);
+    spawnLoom(328);
     spawnLoom(455);
 
-    spawnGate(120);
-    spawnGate(395);
+    spawnGate(95);
+    spawnGate(265);
+    spawnGate(420);
 
-    spawnSpool(85);
-    spawnSpool(210);
-    spawnSpool(295);
-    spawnSpool(410);
-    spawnSpool(520);
+    spawnSpool(68);
+    spawnSpool(155);
+    spawnSpool(232);
+    spawnSpool(305);
+    spawnSpool(378);
+    spawnSpool(475);
+    spawnSpool(548);
   }
 
   function resetGame() {
@@ -296,7 +300,7 @@
     // Collisions — spools (collect)
     var px = player.x;
     var py = player.y;
-    var pr = 28; // generous read for embodied shuttle
+    var pr = 36; // larger embodied shuttle radius matching new visual size
     for (var si = spools.length - 1; si >= 0; si--) {
       var sp2 = spools[si];
       var dx = sp2.x - px;
@@ -368,64 +372,92 @@
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Subtle paper grid (textile drafting paper)
-    ctx.strokeStyle = COLORS.paper;
-    ctx.lineWidth = 1;
-    for (var gx = 40; gx < W; gx += 28) {
+    // Bold Bauhaus geometric world layers (high contrast, non-uniform from frame 1)
+    // Large primary blocks as "loom walls" and textile fields — visible variance
+    ctx.fillStyle = '#E8DFC8';
+    ctx.fillRect(0, 0, 52, H);
+    ctx.fillRect(W - 52, 0, 52, H);
+
+    ctx.fillStyle = COLORS.blue;
+    ctx.fillRect(8, 70, 28, 140);
+    ctx.fillStyle = COLORS.red;
+    ctx.fillRect(W - 38, 95, 24, 110);
+
+    ctx.fillStyle = COLORS.yellow;
+    ctx.fillRect(14, 310, 20, 95);
+    ctx.fillStyle = COLORS.teal;
+    ctx.fillRect(W - 34, 340, 18, 85);
+
+    ctx.fillStyle = COLORS.orange;
+    ctx.fillRect(6, 460, 32, 22);
+
+    // Stronger drafting grid for textile (higher contrast)
+    ctx.strokeStyle = '#C8BBA3';
+    ctx.lineWidth = 1.5;
+    for (var gx = 55; gx < W - 50; gx += 32) {
       ctx.beginPath();
       ctx.moveTo(gx, 0);
       ctx.lineTo(gx, H);
       ctx.stroke();
     }
-    for (var gy = 30; gy < H; gy += 28) {
+    for (var gy = 25; gy < H; gy += 32) {
       ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(W, gy);
+      ctx.moveTo(55, gy);
+      ctx.lineTo(W - 50, gy);
       ctx.stroke();
     }
 
-    // Bauhaus geometric accents (non-uniform, low opacity)
+    // Animated subtle color band (weft layer motion) — ensures frame variance pre-input
     ctx.save();
-    ctx.globalAlpha = 0.08;
+    ctx.globalAlpha = 0.18;
     ctx.fillStyle = COLORS.blue;
-    ctx.fillRect(40, 80, 18, 18);
+    var bandY = 85 + Math.sin(t * 0.9) * 7;
+    ctx.fillRect(60, bandY, W - 120, 11);
     ctx.fillStyle = COLORS.red;
-    ctx.fillRect(W - 70, 140, 22, 22);
-    ctx.fillStyle = COLORS.yellow;
-    ctx.beginPath();
-    ctx.arc(120, 420, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = COLORS.black;
-    ctx.fillRect(W - 55, 510, 14, 36);
+    ctx.fillRect(60, 215 + Math.cos(t * 0.6) * 5, W - 120, 7);
     ctx.restore();
   }
 
   function drawWarpThreads(t) {
-    // Vertical warp threads with animated wave
-    ctx.strokeStyle = COLORS.warp;
-    ctx.lineWidth = 1.5;
-    for (var w = 0; w < 9; w++) {
-      var baseX = 55 + w * 82;
+    // Vertical warp threads — BOLD black for high visual contrast + weave motion
+    ctx.strokeStyle = COLORS.black;
+    ctx.lineWidth = 2.5;
+    for (var w = 0; w < 11; w++) {
+      var baseX = 58 + w * 66;
       ctx.beginPath();
       ctx.moveTo(baseX, 0);
-      for (var yy = 0; yy < H; yy += 18) {
-        var wx = baseX + Math.sin((yy * 0.018) + t * 1.7 + w * 0.6) * (3.5 + (w % 2));
+      for (var yy = 0; yy < H; yy += 14) {
+        var wx = baseX + Math.sin((yy * 0.021) + t * 2.1 + w * 0.55) * (4.2 + (w % 3) * 0.8);
         ctx.lineTo(wx, yy);
+      }
+      ctx.stroke();
+    }
+    // Secondary colored accent warps (Bauhaus primaries)
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = COLORS.red;
+    for (var w2 = 0; w2 < 3; w2++) {
+      var bx = 92 + w2 * 210;
+      ctx.beginPath();
+      ctx.moveTo(bx, 12);
+      for (var y2 = 12; y2 < H - 8; y2 += 19) {
+        var wx2 = bx + Math.cos(y2 * 0.015 + t * 1.4 + w2) * 2.8;
+        ctx.lineTo(wx2, y2);
       }
       ctx.stroke();
     }
   }
 
   function drawWeftWaves(t) {
-    // Horizontal animated weft motion (thread being laid)
-    ctx.strokeStyle = COLORS.blue;
-    ctx.lineWidth = 1.25;
-    for (var r = 0; r < 4; r++) {
-      var baseY = 70 + r * 125 + Math.sin(t * 0.7 + r) * 4;
+    // Horizontal animated weft motion — thicker, multi-color for rich first paint
+    ctx.lineWidth = 2.0;
+    for (var r = 0; r < 5; r++) {
+      var baseY = 55 + r * 108 + Math.sin(t * 0.85 + r * 1.1) * 5;
+      var hue = (r % 3 === 0) ? COLORS.blue : (r % 3 === 1 ? COLORS.teal : COLORS.orange);
+      ctx.strokeStyle = hue;
       ctx.beginPath();
-      ctx.moveTo(25, baseY);
-      for (var xx = 25; xx < W - 20; xx += 14) {
-        var wy = baseY + Math.sin(xx * 0.022 + t * 2.6 + r * 1.3) * 6.5;
+      ctx.moveTo(48, baseY);
+      for (var xx = 48; xx < W - 48; xx += 11) {
+        var wy = baseY + Math.sin(xx * 0.019 + t * 3.1 + r * 0.9) * 7.5;
         ctx.lineTo(xx, wy);
       }
       ctx.stroke();
@@ -437,81 +469,96 @@
     ctx.translate(l.x, l.y);
     var hh = l.h * 0.5;
 
-    // Colored loom posts (Bauhaus primary blocks)
+    // Large embodied color loom block (Bauhaus bold primary) — major visual mass
     ctx.fillStyle = l.color;
-    ctx.fillRect(-26, -hh, 9, l.h);
-    ctx.fillRect(17, -hh, 9, l.h);
+    ctx.fillRect(-32, -hh, 14, l.h);
+    ctx.fillRect(18, -hh, 14, l.h);
 
-    // Cross members
-    ctx.fillRect(-27, -hh + 6, 54, 5);
-    ctx.fillRect(-27, hh - 11, 54, 5);
+    // Thick cross beams
+    ctx.fillStyle = COLORS.black;
+    ctx.fillRect(-34, -hh + 4, 68, 8);
+    ctx.fillRect(-34, hh - 14, 68, 8);
 
-    // Inner active threads (waving)
-    ctx.strokeStyle = COLORS.white;
-    ctx.lineWidth = 1.0;
-    for (var k = 0; k < 6; k++) {
-      var tx = -17 + k * 7.2;
-      var wave = Math.sin(t * 3.8 + k * 1.1 + l.y * 0.02) * 2.8;
+    // Inner active shed threads (waving strongly, high contrast)
+    ctx.strokeStyle = '#FFFEF5';
+    ctx.lineWidth = 1.8;
+    for (var k = 0; k < 7; k++) {
+      var tx = -20 + k * 6.8;
+      var wave = Math.sin(t * 4.4 + k * 0.95 + l.y * 0.015) * 4.2;
       ctx.beginPath();
-      ctx.moveTo(tx + wave, -hh + 14);
-      ctx.lineTo(tx - wave * 0.6, hh - 14);
+      ctx.moveTo(tx + wave, -hh + 12);
+      ctx.lineTo(tx - wave * 0.7, hh - 12);
       ctx.stroke();
     }
 
-    // Small geometric marker
+    // Loom head graphic accent
     ctx.fillStyle = COLORS.black;
-    ctx.fillRect(-4, -4, 8, 8);
+    ctx.fillRect(-7, -6, 14, 12);
+    ctx.fillStyle = COLORS.yellow;
+    ctx.fillRect(-3, -2, 6, 4);
 
     ctx.restore();
   }
 
   function drawGate(gt) {
-    var barH = 17;
+    var barH = 22;
     ctx.fillStyle = COLORS.black;
 
-    // Left clamp arm
-    ctx.fillRect(38, gt.y - barH * 0.5, gt.gapLeft - 38, barH);
-    // Right clamp arm
+    // Thick black clamp bars (dodge gates) — high contrast silhouettes
+    ctx.fillRect(28, gt.y - barH * 0.5, gt.gapLeft - 28, barH);
     var rightStart = gt.gapLeft + gt.gapW;
-    ctx.fillRect(rightStart, gt.y - barH * 0.5, W - 38 - rightStart, barH);
+    ctx.fillRect(rightStart, gt.y - barH * 0.5, W - 28 - rightStart, barH);
 
-    // Clamp detail teeth (Bauhaus graphic)
-    ctx.fillStyle = '#111';
-    ctx.fillRect(gt.gapLeft - 9, gt.y - 6, 6, 12);
-    ctx.fillRect(rightStart + 3, gt.y - 6, 6, 12);
+    // Clamp teeth / blocks
+    ctx.fillStyle = '#0D0D0D';
+    ctx.fillRect(gt.gapLeft - 12, gt.y - 8, 8, 16);
+    ctx.fillRect(rightStart + 4, gt.y - 8, 8, 16);
 
-    // Gap highlight (readable opening)
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(gt.gapLeft + 1, gt.y - 7, gt.gapW - 2, 14);
+    // Readable gap (inner light)
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(gt.gapLeft + 2, gt.y - 9, gt.gapW - 4, 18);
   }
 
   function drawSpool(sp, t) {
     ctx.save();
     ctx.translate(sp.x, sp.y);
 
-    // Bright thread spool body
+    // Larger bright thread spool (major pickup objective, high saturation)
     ctx.fillStyle = sp.color;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 13, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 16, 11, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Core
-    ctx.fillStyle = COLORS.white;
-    ctx.fillRect(-3.5, -11, 7, 22);
-
-    // Thread rings
+    // Strong black outline for separation
     ctx.strokeStyle = COLORS.black;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.ellipse(0, -4, 9, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(0, 5, 9, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.ellipse(0, 0, 16, 11, 0, 0, Math.PI * 2);
+    ctx.stroke();
 
-    // Wobble bob (pre-input motion visible)
-    var bob = Math.sin(sp.phase + t * 2.2) * 1.5;
+    // Core tube
+    ctx.fillStyle = '#FFFEF0';
+    ctx.fillRect(-4.5, -13, 9, 26);
+
+    // Bold thread layer rings
+    ctx.strokeStyle = COLORS.black;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(0, -5, 12, 4, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 12, 4, 0, 0, Math.PI * 2); ctx.stroke();
+
+    // Thread highlight stripe
+    ctx.fillStyle = '#FFF';
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(-2, -9, 4, 18);
+    ctx.globalAlpha = 1;
+
+    // Animated wobble (visible pre-input)
+    var bob = Math.sin(sp.phase + t * 2.8) * 2.2;
     ctx.fillStyle = COLORS.black;
-    ctx.fillRect(-1, -1 + bob, 2, 2);
+    ctx.fillRect(-1.5, -2 + bob, 3, 4);
 
     ctx.restore();
   }
@@ -520,187 +567,201 @@
     ctx.save();
     ctx.translate(x, y);
 
-    var tilt = firstInputDone ? Math.sin(t * 2.4) * 0.06 : Math.sin(t * 1.1) * 0.04;
+    var tilt = firstInputDone ? Math.sin(t * 2.4) * 0.065 : Math.sin(t * 1.3) * 0.05;
     ctx.rotate(tilt);
 
-    // Large embodied shuttle body (horizontal skater)
+    // Larger embodied shuttle skater body — focal subject, high contrast yellow
     ctx.fillStyle = COLORS.yellow;
-    ctx.fillRect(-62, -13, 124, 26);
+    ctx.fillRect(-68, -16, 136, 32);
 
-    // Pointed nose and tail (shuttle geometry)
+    // Pointed nose/tail for clear direction and "skate"
     ctx.beginPath();
-    ctx.moveTo(-62, -13);
-    ctx.lineTo(-78, 0);
-    ctx.lineTo(-62, 13);
+    ctx.moveTo(-68, -16);
+    ctx.lineTo(-88, 0);
+    ctx.lineTo(-68, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(68, -16);
+    ctx.lineTo(88, 0);
+    ctx.lineTo(68, 16);
     ctx.closePath();
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.moveTo(62, -13);
-    ctx.lineTo(78, 0);
-    ctx.lineTo(62, 13);
-    ctx.closePath();
-    ctx.fill();
-
-    // Black Bauhaus block stripes
+    // Bold Bauhaus graphic black blocks on body
     ctx.fillStyle = COLORS.black;
-    ctx.fillRect(-28, -9, 10, 18);
-    ctx.fillRect(18, -9, 10, 18);
+    ctx.fillRect(-32, -11, 12, 22);
+    ctx.fillRect(20, -11, 12, 22);
 
-    // Central thread eye (red accent)
+    // Central thread eye (bright red focal)
     ctx.fillStyle = COLORS.red;
-    ctx.fillRect(-5, -5, 10, 10);
-    ctx.fillStyle = COLORS.white;
-    ctx.fillRect(-2, -2, 4, 4);
+    ctx.fillRect(-6, -6, 12, 12);
+    ctx.fillStyle = '#FFFEF5';
+    ctx.fillRect(-3, -3, 6, 6);
 
-    // Skate rail / weft guide
+    // Skate rail + weft guide (thick black)
     ctx.strokeStyle = COLORS.black;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(-52, 15);
-    ctx.lineTo(52, 15);
+    ctx.moveTo(-58, 18);
+    ctx.lineTo(58, 18);
     ctx.stroke();
 
-    // Embodied "presence" — small shoulder detail
+    // Embodied "skater" accents — shoulder bar + side fins for presence
     ctx.fillStyle = COLORS.blue;
-    ctx.fillRect(-18, -16, 36, 4);
+    ctx.fillRect(-22, -20, 44, 5);
+    ctx.fillStyle = COLORS.teal;
+    ctx.fillRect(-48, 9, 18, 4);
+    ctx.fillRect(30, 9, 18, 4);
+
+    // Small motion "leg" skids under
+    ctx.fillStyle = COLORS.black;
+    ctx.fillRect(-40, 20, 9, 3);
+    ctx.fillRect(31, 20, 9, 3);
 
     ctx.restore();
   }
 
   function drawWeaveTrail(x, y, t) {
-    // Active thread trail behind the shuttle (shows motion and weaving)
+    // Active thread trail — bold animated weave showing motion pre and post input
     ctx.strokeStyle = COLORS.red;
-    ctx.lineWidth = 2.0;
+    ctx.lineWidth = 3.0;
     ctx.beginPath();
-    ctx.moveTo(x - 40, y + 9);
-    for (var i = 0; i < 5; i++) {
-      var tx = x - 40 - i * 18;
-      var ty = y + 9 + Math.sin(t * 3.1 + i) * (2.5 + i * 0.4);
+    ctx.moveTo(x - 46, y + 11);
+    for (var i = 0; i < 6; i++) {
+      var tx = x - 46 - i * 17;
+      var ty = y + 11 + Math.sin(t * 3.6 + i) * (3.5 + i * 0.5);
       ctx.lineTo(tx, ty);
     }
     ctx.stroke();
 
     ctx.strokeStyle = COLORS.blue;
-    ctx.lineWidth = 1.0;
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.moveTo(x + 10, y + 11);
-    for (var j = 0; j < 3; j++) {
-      ctx.lineTo(x + 10 - j * 22, y + 11 + Math.cos(t * 2.8 + j) * 3.5);
+    ctx.moveTo(x + 12, y + 14);
+    for (var j = 0; j < 4; j++) {
+      ctx.lineTo(x + 12 - j * 20, y + 14 + Math.cos(t * 3.2 + j) * 4.5);
     }
     ctx.stroke();
   }
 
   function drawFlash(tLeft) {
-    // Large high-contrast ring / foreground action (visible >=0.8s)
+    // Large high-contrast ring / foreground action (visible >=0.8s) — must dominate on first input
     var cx = player.x;
     var cy = player.y;
-    var expand = (0.85 - tLeft) * 210 + 18;
+    var expand = (0.85 - tLeft) * 240 + 22;
     ctx.save();
     ctx.strokeStyle = COLORS.red;
-    ctx.lineWidth = 5;
-    ctx.globalAlpha = Math.max(0.25, tLeft / 0.85);
+    ctx.lineWidth = 7;
+    ctx.globalAlpha = Math.max(0.3, tLeft / 0.85);
     ctx.beginPath();
     ctx.arc(cx, cy, expand, 0, Math.PI * 2);
     ctx.stroke();
 
     // Inner high contrast ring
     ctx.strokeStyle = COLORS.yellow;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.arc(cx, cy, expand * 0.6, 0, Math.PI * 2);
+    ctx.arc(cx, cy, expand * 0.58, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Bright thread cross through center (loom shed flash)
-    ctx.strokeStyle = COLORS.white;
-    ctx.lineWidth = 3;
+    // Bright thread cross + vertical through center (loom action flash)
+    ctx.strokeStyle = '#FFFEF5';
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(cx - expand * 0.9, cy);
-    ctx.lineTo(cx + expand * 0.9, cy);
+    ctx.moveTo(cx - expand * 0.92, cy);
+    ctx.lineTo(cx + expand * 0.92, cy);
+    ctx.moveTo(cx, cy - expand * 0.55);
+    ctx.lineTo(cx, cy + expand * 0.55);
     ctx.stroke();
     ctx.restore();
   }
 
   function drawEffect(ef, t) {
     if (ef.type === 'weaveRing') {
-      var r = 22 + (0.82 - ef.life) * 160;
+      var r = 26 + (0.82 - ef.life) * 180;
       ctx.save();
       ctx.strokeStyle = COLORS.black;
-      ctx.lineWidth = 4;
-      ctx.globalAlpha = Math.max(0.2, ef.life / 0.82);
+      ctx.lineWidth = 6;
+      ctx.globalAlpha = Math.max(0.28, ef.life / 0.82);
       ctx.beginPath();
       ctx.arc(ef.x, ef.y, r, 0, Math.PI * 2);
       ctx.stroke();
       ctx.strokeStyle = COLORS.yellow;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(ef.x, ef.y, r * 0.55, 0, Math.PI * 2);
+      ctx.arc(ef.x, ef.y, r * 0.52, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     } else if (ef.type === 'thread') {
       ctx.save();
       ctx.globalAlpha = ef.life / 0.7;
       ctx.strokeStyle = COLORS.red;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(ef.x, ef.y);
-      ctx.lineTo(ef.x - ef.vx * 0.012, ef.y - ef.vy * 0.012);
+      ctx.lineTo(ef.x - ef.vx * 0.014, ef.y - ef.vy * 0.014);
       ctx.stroke();
       ctx.restore();
     } else if (ef.type === 'spark') {
       ctx.save();
-      ctx.globalAlpha = ef.life / 0.45;
+      ctx.globalAlpha = ef.life / 0.5;
       ctx.fillStyle = ef.color || COLORS.yellow;
-      ctx.fillRect(ef.x - 1.5, ef.y - 1.5, 3, 3);
+      ctx.fillRect(ef.x - 2, ef.y - 2, 4, 4);
       ctx.restore();
     } else if (ef.type === 'hit') {
       ctx.save();
       ctx.strokeStyle = COLORS.red;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.globalAlpha = ef.life / 0.35;
       ctx.beginPath();
-      ctx.arc(ef.x, ef.y, 22 + (0.35 - ef.life) * 30, 0, Math.PI * 2);
+      ctx.arc(ef.x, ef.y, 24 + (0.35 - ef.life) * 32, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
   }
 
   function drawProgressTextile() {
-    // Non-HUD textile progress: left side thread stack / woven bar
+    // Non-HUD textile progress: left side woven bar (Bauhaus color blocks)
     var pct = Math.min(1, progress / 1100);
-    var barH = 260;
-    var bx = 22;
-    var by = 160;
+    var barH = 268;
+    var bx = 18;
+    var by = 148;
 
     ctx.fillStyle = COLORS.black;
-    ctx.fillRect(bx, by, 7, barH);
+    ctx.fillRect(bx, by, 9, barH);
 
-    // Woven segments (primary colors)
-    var segs = Math.floor(pct * 11);
+    // Woven color segments — stacked primary blocks
+    var segs = Math.floor(pct * 12);
     for (var i = 0; i < segs; i++) {
-      var cols = [COLORS.red, COLORS.yellow, COLORS.blue, COLORS.teal];
+      var cols = [COLORS.red, COLORS.yellow, COLORS.blue, COLORS.teal, COLORS.orange];
       ctx.fillStyle = cols[i % cols.length];
-      ctx.fillRect(bx - 1, by + barH - (i + 1) * 23, 9, 18);
+      ctx.fillRect(bx - 2, by + barH - (i + 1) * 21, 13, 16);
     }
 
-    // Current shuttle marker on the "warp"
+    // Current shuttle marker
     ctx.fillStyle = COLORS.yellow;
-    ctx.fillRect(bx - 3, by + barH - pct * barH - 3, 13, 6);
+    ctx.fillRect(bx - 4, by + barH - pct * barH - 4, 17, 8);
   }
 
   function drawScoreSpools() {
-    // Embodied score: small spools drawn near top-right, not a number dashboard
-    var sx = W - 52;
-    var sy = 46;
+    // Embodied score: bright spools drawn top-right (no numeric HUD)
+    var sx = W - 48;
+    var sy = 38;
     for (var i = 0; i < Math.min(score, 9); i++) {
       ctx.save();
-      ctx.translate(sx - (i % 3) * 17, sy + Math.floor(i / 3) * 18);
-      ctx.fillStyle = (i < score) ? COLORS.red : COLORS.warp;
+      ctx.translate(sx - (i % 3) * 18, sy + Math.floor(i / 3) * 19);
+      ctx.fillStyle = (i < score) ? COLORS.red : '#D8CBB0';
       ctx.beginPath();
-      ctx.ellipse(0, 0, 5, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, 6.5, 4.5, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = COLORS.white;
-      ctx.fillRect(-1.5, -3.5, 3, 7);
+      ctx.strokeStyle = COLORS.black;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 6.5, 4.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#FFFEF5';
+      ctx.fillRect(-1.5, -4, 3, 8);
       ctx.restore();
     }
   }
@@ -783,16 +844,19 @@
     // Embodied collected spools (visual counter)
     drawScoreSpools();
 
-    // Minimal tension threads on right (health)
+    // Tension thread health (right) — graphic not label
     ctx.strokeStyle = COLORS.black;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     for (var h = 0; h < 4; h++) {
-      var hy = 520 + h * 14;
-      ctx.globalAlpha = (h < health) ? 1 : 0.15;
+      var hy = 515 + h * 16;
+      ctx.globalAlpha = (h < health) ? 1 : 0.12;
       ctx.beginPath();
-      ctx.moveTo(W - 46, hy);
-      ctx.lineTo(W - 28, hy + 3);
+      ctx.moveTo(W - 50, hy);
+      ctx.lineTo(W - 26, hy + 4);
       ctx.stroke();
+      // bobbin dots
+      ctx.fillStyle = (h < health) ? COLORS.red : '#C8BBA3';
+      ctx.fillRect(W - 23, hy - 1, 5, 5);
     }
     ctx.globalAlpha = 1;
 
@@ -801,10 +865,13 @@
       drawDebrief();
     }
 
-    // Tiny footer motion indicator (no label-heavy console)
-    ctx.fillStyle = COLORS.black;
-    ctx.globalAlpha = 0.25;
-    ctx.fillRect(0, H - 3, W * (0.2 + Math.sin(t * 2) * 0.03), 3);
+    // Footer motion weave indicator (animated bar, no text console)
+    ctx.fillStyle = COLORS.red;
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(0, H - 4, W * (0.18 + Math.sin(t * 2.6) * 0.04), 4);
+    ctx.fillStyle = COLORS.blue;
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(0, H - 2, W * (0.09 + Math.cos(t * 1.8) * 0.025), 2);
     ctx.globalAlpha = 1;
   }
 
