@@ -44,11 +44,11 @@
   #sound-btn{position:absolute;top:0.7rem;right:1rem;width:42px;height:42px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:50%;color:#999;font-size:1rem;cursor:pointer;display:none;z-index:6;align-items:center;justify-content:center;transition:background 0.12s}
   #sound-btn.active{display:flex}
   #sound-btn:hover{background:rgba(255,255,255,0.13)}
-  #mode-hud{position:absolute;top:0.7rem;left:50%;transform:translateX(-50%);display:none;gap:6px;z-index:7}
+  #mode-hud{position:absolute;top:0.5rem;right:0.6rem;display:none;gap:3px;z-index:7;opacity:0.75}
   #mode-hud.active{display:flex}
-  .mode-btn{min-width:52px;min-height:42px;padding:0 10px;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;border:1px solid rgba(255,255,255,0.18);background:rgba(18,18,18,0.82);color:#ccc;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
-  .mode-btn.active{border-color:#f0f0f0;color:#fff;background:rgba(32,32,32,0.9)}
-  .mode-btn .icon{width:16px;height:16px}
+  .mode-btn{min-width:32px;min-height:22px;padding:0 4px;font-size:0.6rem;font-weight:600;letter-spacing:0.04em;border:1px solid rgba(255,255,255,0.12);background:rgba(18,18,18,0.6);color:#aaa;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:2px}
+  .mode-btn.active{border-color:#ccc;color:#ddd;background:rgba(28,28,28,0.75)}
+  .mode-btn .icon{width:10px;height:10px;font-size:0.7em}
   #level-announce{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);font-size:clamp(1.35rem,3.8vw,2.5rem);font-weight:900;color:#FFD60A;text-shadow:0 0 26px rgba(255,214,10,0.45),0 1px 6px rgba(0,0,0,0.7);opacity:0;transition:opacity 0.25s;pointer-events:none;z-index:8;letter-spacing:0.08em}
   #level-announce.show{opacity:1}
   #high-score{position:absolute;top:2.8rem;left:1rem;font-size:0.62rem;color:#555;z-index:5;display:none}
@@ -58,7 +58,7 @@
   @media(max-width:620px){
     #hud{padding:0.5rem 0.7rem 0.3rem}
     .pip{width:13px;height:13px}
-    .mode-btn{min-width:48px;min-height:38px;font-size:0.7rem}
+    .mode-btn{min-width:28px;min-height:18px;font-size:0.55rem}
   }
 </style>
 </head>
@@ -113,11 +113,12 @@
 
 <script>
 // ═══════════════════════════════════════════════════
-//  TRIADIC GRID RUN — REWORK (work-order-1781658166323-6-31)
+//  TRIADIC GRID RUN — REWORK (work-order-1783125296103-7-18)
 //  Core verb (taste-gate slice): Stamp with TRI or SQR on matching nodes to compose triads.
-//  One space. Real file-backed assets + manifest. Musical WAV direction (no bleep fallback as primary).
-//  First 10s: live grid + obvious stamp cursor + 2-3 nodes with clear shape telegraph; pointer already pilots.
-//  Square/triangle: the entire point — generous reliable match, unmistakable inner geom, dedicated mode UI.
+//  One space. Embodied courier subject performs the stamp verb. Real file-backed assets + manifest.
+//  This should feel like a courier racing a living geometric grid to lock triads with a held precision stamp before the lattice frays.
+//  First 10s: live grid + courier figure (posture + tool) + 2-3 nodes; pointer pilots the subject.
+//  Square/triangle: the entire point — generous reliable match, unmistakable inner geom via held tool.
 // ═══════════════════════════════════════════════════
 const canvas = document.getElementById('game-canvas');
 const c = canvas.getContext('2d', { alpha: true });
@@ -142,7 +143,8 @@ const WIN_TRIADS = 12;
 let state = 'start'; // start | playing | gameover | win
 let score=0, level=1, misses=0, triad=[], stampMode=TRI, frameCount=0;
 let nodes=[], particles=[], speedLines=[], floating=[], gridLines=[];
-let cursor = {x:W*0.5, y:H*0.55, tx:W*0.5, ty:H*0.55, wobble:0};
+let cursor = {x:W*0.5, y:H*0.55, tx:W*0.5, ty:H*0.55, wobble:0}; // tool tip target
+let player = {x:W*0.5, y:H*0.58, tx:W*0.5, ty:H*0.58, lean:0, actionT:0, legPhase:0, wobble:0}; // embodied courier subject
 let gridResT=0, flashT=0, flashCol='#fff', levelAnnT=0, levelAnnTxt='';
 let lastT=0, spawnT=0, spawnInt=BASE_SPAWN;
 let highScore = parseInt(localStorage.getItem('triadicHS')||'0',10);
@@ -262,6 +264,7 @@ function initPlay(){
   nodes=[]; particles=[]; speedLines=[]; floating=[]; 
   gridResT=0; flashT=0; levelAnnT=0; spawnT=0; spawnInt=BASE_SPAWN;
   cursor.x = W*0.48; cursor.y = H*0.52; cursor.tx=cursor.x; cursor.ty=cursor.y; cursor.wobble=0;
+  player.x = cursor.x - 6; player.y = cursor.y + 8; player.tx = player.x; player.ty = player.y; player.lean=0; player.actionT=0; player.legPhase=0;
   initGrid();
   // seed 3 nodes for instant obvious objective in first 10s (one tri, one sqr, one mixed)
   spawnNode(true); nodes[nodes.length-1].x = W*0.32; nodes[nodes.length-1].y = H*0.38; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=0;
@@ -334,6 +337,7 @@ function stampAt(x,y){
     const rad = 38 + (n.shapeReq===TRI ? 4:0); // generous reliable feel
     if(d < rad){
       hit = true;
+      player.actionT = 1.0; // courier performs the stamp through held tool
       const match = (n.shapeReq === stampMode);
       if(match){
         // success: fill pip, juice, score, advance triad
@@ -382,6 +386,7 @@ function stampAt(x,y){
       } else {
         // clash: recoverable, clear telegraph
         n.shake = 0.38;
+        player.actionT = 0.7;
         spawnParticle(n.x, n.y, '#888', 6, 0, 0.5);
         Audio.clash();
         flashT=0.07; flashCol='#555';
@@ -407,6 +412,15 @@ function update(dt){
   const e = 0.18;
   cursor.x += (cursor.tx - cursor.x) * e;
   cursor.y += (cursor.ty - cursor.y) * e;
+  // embodied player body follows with slight lag + posture response (separate from tool tip)
+  player.tx = cursor.tx - 4; player.ty = cursor.ty + 11;
+  const pe = 0.12;
+  player.x += (player.tx - player.x) * pe;
+  player.y += (player.ty - player.y) * pe;
+  player.lean = (cursor.x - player.x) * 0.018;
+  player.legPhase += dt * (2.8 + Math.min(4, Math.hypot(cursor.tx-cursor.x, cursor.ty-cursor.y)*0.03));
+  player.wobble += dt * 4.1;
+  if (player.actionT > 0) player.actionT -= dt * 2.6;
 
   // world always moves for live first-screen feel
   for(let i=speedLines.length-1;i>=0;i--){
@@ -426,8 +440,11 @@ function update(dt){
   }
 
   if(state==='start'){
-    // gentle idle demo: cursor drifts, nodes pulse in place, spawn a couple more for obviousness
+    // gentle idle demo: embodied courier drifts and 'practices' with posture for visual interest (not just floating stamp)
     cursor.ty = H*0.48 + Math.sin(frameCount*0.019)*68;
+    player.ty = cursor.ty + 11; player.tx = cursor.tx - 4;
+    player.lean = Math.sin(frameCount*0.023)*0.6;
+    player.legPhase += dt*1.6;
     spawnT += dt;
     if(spawnT > 0.9){ spawnT=0; if(nodes.length<4) spawnNode(); }
   }
@@ -506,6 +523,61 @@ function drawStamp(x,y, mode, sz){
     c.strokeRect(-sz*0.4,-sz*0.4,sz*0.8,sz*0.8);
   }
   c.restore();
+}
+
+// Embodied player subject: courier with posture/silhouette, holds the stamp tool.
+// Distinct from floating primitive; provides active-play visual interest + readable presence.
+function drawEmbodiedPlayer(p, toolX, toolY, mode){
+  const t = Math.max(0, Math.min(1, p.actionT || 0)); // 1=thrusting
+  const thrust = t * 0.9;
+  const bodyX = p.x, bodyY = p.y;
+  const lean = p.lean || 0;
+  const legPh = p.legPhase || 0;
+  const runBob = Math.sin(p.wobble||0)*0.6;
+  c.save();
+  c.translate(bodyX, bodyY + runBob);
+
+  // shadow for separation from grid/particles
+  c.fillStyle = 'rgba(0,0,0,0.38)';
+  c.beginPath(); c.ellipse(0, 19, 10, 3.2, 0, 0, Math.PI*2); c.fill();
+
+  // legs (posture, stride for run feel; bauhaus geometric)
+  c.strokeStyle = '#c8c8c8'; c.lineWidth = 2.6;
+  const step = Math.sin(legPh)*0.65;
+  c.beginPath(); c.moveTo(-1.5,3); c.lineTo(-6-step*3.5,15+step*0.8); c.stroke();
+  c.beginPath(); c.moveTo(1.5,3); c.lineTo(7+step*3.5,14-step*0.9); c.stroke();
+
+  // torso (slight lean, clear silhouette)
+  c.fillStyle = '#1c1c1c'; c.strokeStyle='#f4f4f4'; c.lineWidth=1.9;
+  c.save(); c.rotate(lean*0.55);
+  c.fillRect(-5, -1, 10, 12); c.strokeRect(-5, -1, 10, 12);
+  // bauhaus accent band (shows mode)
+  c.fillStyle = (mode===TRI ? SHAPE_COL[0] : SHAPE_COL[2]); c.fillRect(-5, 4, 10, 2.8);
+  c.restore();
+
+  // head (geometric courier, bauhaus silhouette)
+  c.save(); c.translate(0, -7);
+  c.fillStyle = '#0f0f0f'; c.strokeStyle = '#f0f0f0'; c.lineWidth=1.7;
+  c.fillRect(-4, -4.5, 8, 7); c.strokeRect(-4,-4.5,8,7);
+  // inner cross for authored construction detail
+  c.strokeStyle = '#666'; c.lineWidth=0.8;
+  c.beginPath(); c.moveTo(-2,-2.5); c.lineTo(2,-2.5); c.moveTo(0,-3.8); c.lineTo(0,1); c.stroke();
+  c.restore();
+
+  // arm + held tool (the action is performed by subject)
+  const armReach = 9 + thrust*12;
+  const armDown = 3 + thrust*8;
+  c.strokeStyle = '#d0d0d0'; c.lineWidth=2.0;
+  // shoulder to elbow (attached to torso)
+  c.beginPath(); c.moveTo(4,2); c.lineTo(8 + lean*2.5, 5 + thrust*1.5); c.stroke();
+  // elbow to hand (tool grip)
+  c.beginPath(); c.moveTo(8+lean*2.5,5+thrust*1.5); c.lineTo(armReach+3, armDown+2); c.stroke();
+
+  c.restore(); // back to world
+
+  // draw the stamp tool at hand position (smaller, as held implement not giant floating primitive)
+  const toolSz = (state==='playing' ? 11 : 10) + (t>0.2 ? 1.5 : Math.sin((p.wobble||0)*0.6)*0.4);
+  drawStamp(toolX, toolY, mode, toolSz);
 }
 
 function drawNode(n){
@@ -593,16 +665,10 @@ function render(){
     c.fillText(f.txt, f.x, f.y); c.restore();
   });
 
-  // the stamp cursor — always obvious, large, shows mode
-  const sz = (state==='playing'? 19 : 17) + Math.sin(cursor.wobble)*0.8;
-  // soft outer halo for instant "this is you"
-  c.save(); c.globalAlpha = 0.16; c.fillStyle = (stampMode===TRI? SHAPE_COL[0]:SHAPE_COL[2]);
-  c.beginPath(); c.arc(cursor.x, cursor.y, sz+22, 0, Math.PI*2); c.fill(); c.restore();
-  // white construction ring
-  c.globalAlpha=0.65; c.strokeStyle='#fff'; c.lineWidth=2.6;
-  c.beginPath(); c.arc(cursor.x, cursor.y, sz+7, 0, Math.PI*2); c.stroke();
-  c.globalAlpha=1;
-  drawStamp(cursor.x, cursor.y, stampMode, sz);
+  // embodied courier subject (primary presence) + held stamp tool at pointer aim
+  // drawn after nodes so player silhouette stays readable over grid/particles
+  const toolX = cursor.x, toolY = cursor.y;
+  drawEmbodiedPlayer(player, toolX, toolY, stampMode);
   c.restore();
 
   // subtle vignette for focus (honest, not decoration)
@@ -717,6 +783,7 @@ document.getElementById('play-again-btn').addEventListener('click', doRestart);
 // Boot: live world immediately (core verb visible <3s, playable demo before start)
 initGrid();
 cursor.x = W*0.46; cursor.y = H*0.5; cursor.tx = W*0.52; cursor.ty = H*0.44;
+player.x = cursor.x - 8; player.y = cursor.y + 10; player.tx=player.x; player.ty=player.y; player.lean=0; player.actionT=0; player.legPhase = 1.2;
 spawnNode(true); nodes[0].x=W*0.31; nodes[0].y=H*0.36; nodes[0].shapeReq=TRI; nodes[0].col=0;
 spawnNode(true); nodes[1].x=W*0.64; nodes[1].y=H*0.33; nodes[1].shapeReq=SQR; nodes[1].col=2;
 spawnNode(true); nodes[2].x=W*0.49; nodes[2].y=H*0.61; nodes[2].shapeReq=TRI; nodes[2].col=1;
