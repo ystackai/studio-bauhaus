@@ -1,51 +1,50 @@
-[2026-07-04T01:47:25.175071] START verif. artifact=games/92-triadic-grid-run/index.html
-[2026-07-04T01:47:25.175137] serving at exact URL (localhost emulation of preview serve): http://localhost:18476/games/92-triadic-grid-run/index.html?verif=1
-[2026-07-04T01:47:25.175159] chromium: /usr/bin/chromium  PIL available for post if needed
-[2026-07-04T01:47:25.776181] LAUNCH: /usr/bin/chromium --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --virtual-time-budget=5800 --window-size=1280,820 --user-data-dir=/tmp/chromium-verif-triadic-5655 --enable-logging=stderr --log-level=1 --screenshot=.factoryx/work-orders/work-order-1783129017720-7-14/active-play-screenshot.png http://localhost:18476/games/92-triadic-grid-run/index.html?verif=1
+[2026-07-04T01:59:14.957719] START verif. artifact=games/92-triadic-grid-run/index.html
+[2026-07-04T01:59:14.957803] serving at exact URL (localhost emulation of preview serve): http://localhost:18476/games/92-triadic-grid-run/index.html?verif=1
+[2026-07-04T01:59:14.957825] chromium: /usr/bin/chromium  PIL available for post if needed
+[2026-07-04T01:59:15.558595] LAUNCH: /usr/bin/chromium --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --virtual-time-budget=5800 --window-size=1280,820 --user-data-dir=/tmp/chromium-verif-triadic-2156 --enable-logging=stderr --log-level=1 --screenshot=.factoryx/work-orders/work-order-1783129017720-7-14/active-play-screenshot.png http://localhost:18476/games/92-triadic-grid-run/index.html?verif=1
 
 === CHROMIUM OUTPUT ===
-[5660:5688:0704/014725.935510:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[5660:5688:0704/014725.948907:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5688:0704/014725.948979:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[5660:5688:0704/014725.949003:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[5660:5688:0704/014725.949010:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5703:5703:0704/014725.962045:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1643] drmGetDevices2() has not found any devices
-[5703:5703:0704/014725.964045:WARNING:sandbox/policy/linux/sandbox_linux.cc:404] InitializeSandbox() called with multiple threads in process gpu-process.
-[5660:5688:0704/014725.984726:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5688:0704/014726.038788:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5660:0704/014726.224905:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5660:0704/014726.224967:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
-[5660:5660:0704/014726.224980:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5688:0704/014726.225007:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5688:0704/014726.225028:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5660:0704/014726.228029:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5660:0704/014726.254316:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5660:0704/014726.291855:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5660:0704/014726.292201:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5688:0704/014726.292926:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[5660:5688:0704/014726.292955:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[5660:5688:0704/014726.295596:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5660:0704/014726.308896:WARNING:dbus/property.cc:94] Failed to connect to PropertiesChangedsignal.
-[5660:5660:0704/014726.308971:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
-[5660:5660:0704/014726.309151:WARNING:dbus/property.cc:174] GetAll request failed for: org.freedesktop.UPower.Device
-[5660:5660:0704/014726.309553:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5688:0704/014726.313477:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5660:0704/014726.339878:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5688:0704/014726.340049:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[5660:5660:0704/014726.374372:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[5660:5660:0704/014726.374394:WARNING:ui/base/idle/idle_linux.cc:111] None of the known D-Bus ScreenSaver services could be used.
-227022 bytes written to file .factoryx/work-orders/work-order-1783129017720-7-14/active-play-screenshot.png
-[5712:5727:0704/014727.360682:WARNING:net/extras/sqlite/sqlite_persistent_store_backend_base.cc:179] Failed to post task from FlushAndNotifyInBackground@net/extras/sqlite/sqlite_persistent_store_backend_base.cc:229 to client_task_runner_.
-[5712:5727:0704/014727.360762:WARNING:net/extras/sqlite/sqlite_persistent_store_backend_base.cc:179] Failed to post task from FlushAndNotifyInBackground@net/extras/sqlite/sqlite_persistent_store_backend_base.cc:229 to client_task_runner_.
+[2159:2187:0704/015915.686491:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2159:2187:0704/015915.690069:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2187:0704/015915.690117:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2159:2187:0704/015915.690135:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2159:2187:0704/015915.690142:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2187:0704/015915.701513:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2202:2202:0704/015915.705608:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1643] drmGetDevices2() has not found any devices
+[2202:2202:0704/015915.709771:WARNING:sandbox/policy/linux/sandbox_linux.cc:404] InitializeSandbox() called with multiple threads in process gpu-process.
+[2159:2187:0704/015915.736021:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2159:0704/015915.854638:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2187:0704/015915.854941:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2159:0704/015915.855028:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+[2159:2159:0704/015915.855090:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2187:0704/015915.855160:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2159:0704/015915.855545:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2159:0704/015915.860239:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2187:0704/015915.869270:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2159:2187:0704/015915.869457:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2159:2159:0704/015915.869555:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2159:0704/015915.869987:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2187:0704/015915.870344:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2159:0704/015915.873977:WARNING:dbus/property.cc:94] Failed to connect to PropertiesChangedsignal.
+[2159:2159:0704/015915.874034:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
+[2159:2159:0704/015915.874055:WARNING:dbus/property.cc:174] GetAll request failed for: org.freedesktop.UPower.Device
+[2159:2159:0704/015915.874439:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2187:0704/015915.874524:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2159:0704/015915.895612:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2187:0704/015915.898081:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2159:2159:0704/015915.906040:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[2159:2159:0704/015915.906058:WARNING:ui/base/idle/idle_linux.cc:111] None of the known D-Bus ScreenSaver services could be used.
+[2263:2263:0704/015916.288193:WARNING:media/audio/linux/audio_manager_linux.cc:53] Falling back to ALSA for audio output. PulseAudio is not available or could not be initialized.
+118223 bytes written to file .factoryx/work-orders/work-order-1783129017720-7-14/active-play-screenshot.png
 
 === EXIT CODE: 0 ===
-[2026-07-04T01:47:27.419136] CHROMIUM DONE exit=0
-[2026-07-04T01:47:27.831696] SUCCESS: active-play screenshot captured size=227022 at .factoryx/work-orders/work-order-1783129017720-7-14/active-play-screenshot.png
-[2026-07-04T01:47:27.832498] OBSERVED LOG HITS (possible issues):
-[2026-07-04T01:47:27.832581]   [5660:5688:0704/014725.935510:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[2026-07-04T01:47:27.833806]   [5660:5688:0704/014725.948907:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[2026-07-04T01:47:27.833882]   [5660:5688:0704/014725.948979:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[2026-07-04T01:47:27.833942]   [5660:5688:0704/014725.949003:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[2026-07-04T01:47:27.833995]   [5660:5688:0704/014725.949010:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[2026-07-04T01:47:27.834046]   [5703:5703:0704/014725.964045:WARNING:sandbox/policy/linux/sandbox_linux.cc:404] InitializeSandbox() called with multiple threads in process gpu-process.
-[2026-07-04T01:47:27.834095] VERIF RUN COMPLETE. See active-play-screenshot.png and browser-verif.log
+[2026-07-04T01:59:16.736782] CHROMIUM DONE exit=0
+[2026-07-04T01:59:16.808446] SUCCESS: active-play screenshot captured size=118223 at .factoryx/work-orders/work-order-1783129017720-7-14/active-play-screenshot.png
+[2026-07-04T01:59:16.809164] OBSERVED LOG HITS (possible issues):
+[2026-07-04T01:59:16.809241]   [2159:2187:0704/015915.686491:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2026-07-04T01:59:16.809305]   [2159:2187:0704/015915.690069:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2026-07-04T01:59:16.809388]   [2159:2187:0704/015915.690117:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2026-07-04T01:59:16.809450]   [2159:2187:0704/015915.690135:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[2026-07-04T01:59:16.809508]   [2159:2187:0704/015915.690142:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2026-07-04T01:59:16.809563]   [2159:2187:0704/015915.701513:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[2026-07-04T01:59:16.809619] VERIF RUN COMPLETE. See active-play-screenshot.png and browser-verif.log
