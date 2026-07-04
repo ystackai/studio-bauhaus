@@ -86,9 +86,9 @@
   <div id="start-screen" class="screen active">
     <div id="start-card">
       <div class="title" style="color:#E63946;font-size:clamp(1.3rem,3.6vw,1.95rem);margin-bottom:0.06rem;letter-spacing:0.05em">TRIADIC GRID RUN</div>
-      <div class="subtitle" style="margin-bottom:0.4rem;font-size:clamp(0.6rem,1.3vw,0.76rem)">Stamp the right shape · Compose the triad · Feel the grid</div>
+      <div class="subtitle" style="margin-bottom:0.4rem;font-size:clamp(0.6rem,1.3vw,0.76rem)">Run the grid · Stamp shapes on the rail · Compose the triad</div>
       <button class="btn" id="start-btn">STAMP THE GRID</button>
-      <div class="subtitle" style="margin:0.55rem 0 0;font-size:clamp(0.58rem,1.25vw,0.7rem);color:#555">Move pointer to aim · SPACE flips TRI/SQR · Click near node to stamp</div>
+      <div class="subtitle" style="margin:0.55rem 0 0;font-size:clamp(0.58rem,1.25vw,0.7rem);color:#555">Aim on flowing nodes at the rail · SPACE flips TRI/SQR · Click or tap to stamp</div>
     </div>
   </div>
 
@@ -113,11 +113,11 @@
 
 <script>
 // ═══════════════════════════════════════════════════
-//  TRIADIC GRID RUN — REWORK (work-order-1781658166323-6-31)
-//  Core verb (taste-gate slice): Stamp with TRI or SQR on matching nodes to compose triads.
-//  One space. Real file-backed assets + manifest. Musical WAV direction (no bleep fallback as primary).
-//  First 10s: live grid + obvious stamp cursor + 2-3 nodes with clear shape telegraph; pointer already pilots.
-//  Square/triangle: the entire point — generous reliable match, unmistakable inner geom, dedicated mode UI.
+//  TRIADIC GRID RUN — REWORK follow-up (work-order-1783175474647-followup)
+//  Operator feedback: rework the run loop for stronger forward motion + timing.
+//  Core verb: Run the grid (nodes flow left across rail), switch TRI/SQR, stamp matching shape at the right time to collect triad colors.
+//  Real file-backed assets under games/92-triadic-grid-run/assets/ + ASSET_MANIFEST. Post-gesture audio.
+//  First 10s: visible scrolling grid/speedlines + rail + 3 right-side flowing nodes + obvious cursor.
 // ═══════════════════════════════════════════════════
 const canvas = document.getElementById('game-canvas');
 const c = canvas.getContext('2d', { alpha: true });
@@ -142,9 +142,9 @@ const WIN_TRIADS = 12;
 let state = 'start'; // start | playing | gameover | win
 let score=0, level=1, misses=0, triad=[], stampMode=TRI, frameCount=0;
 let nodes=[], particles=[], speedLines=[], floating=[], gridLines=[];
-let cursor = {x:W*0.5, y:H*0.55, tx:W*0.5, ty:H*0.55, wobble:0};
+let cursor = {x:W*0.5, y:H*0.55, tx:W*0.5, ty=H*0.55, wobble:0};
 let gridResT=0, flashT=0, flashCol='#fff', levelAnnT=0, levelAnnTxt='';
-let lastT=0, spawnT=0, spawnInt=BASE_SPAWN;
+let lastT=0, spawnT=0, spawnInt=BASE_SPAWN, runScroll=0; // run motion accumulator for grid flow
 let highScore = parseInt(localStorage.getItem('triadicHS')||'0',10);
 let keys={};
 
@@ -247,26 +247,29 @@ function initGrid(){
 
 function spawnNode(force){
   const margin=48;
-  const x = margin + Math.random()*(W-margin*2);
+  // Rework: spawn from RIGHT for "grid run" flow (nodes scroll left like forward motion)
+  const x = W - margin - Math.random()*40;
   const y = 70 + Math.random()*(H*0.72);
   const col = Math.floor(Math.random()*3);
   // bias toward clear telegraph: 50/50 tri vs sqr required, independent of color
   const shapeReq = (Math.random()<0.5 ? TRI : SQR);
-  const life = 2.8 + Math.random()*1.1 - (level-1)*0.12;
-  nodes.push({x,y,col,shapeReq, pulse:Math.random()*Math.PI*2, life, maxLife:life, shake:0, rot: (shapeReq===TRI? -0.2:0.1)+Math.random()*0.3});
+  const baseSpd = 92 + (level-1)*14 + (force ? 10 : Math.random()*18);
+  const vx = -baseSpd;
+  const life = 3.6 + Math.random()*0.9 - (level-1)*0.08;
+  nodes.push({x,y,col,shapeReq, vx, pulse:Math.random()*Math.PI*2, life, maxLife:life, shake:0, rot: (shapeReq===TRI? -0.2:0.1)+Math.random()*0.3});
   if(nodes.length > 11) nodes.shift();
 }
 
 function initPlay(){
   score=0; level=1; misses=0; triad=[]; stampMode=TRI; frameCount=0;
   nodes=[]; particles=[]; speedLines=[]; floating=[]; 
-  gridResT=0; flashT=0; levelAnnT=0; spawnT=0; spawnInt=BASE_SPAWN;
+  gridResT=0; flashT=0; levelAnnT=0; spawnT=0; spawnInt=BASE_SPAWN; runScroll=0;
   cursor.x = W*0.48; cursor.y = H*0.52; cursor.tx=cursor.x; cursor.ty=cursor.y; cursor.wobble=0;
   initGrid();
-  // seed 3 nodes for instant obvious objective in first 10s (one tri, one sqr, one mixed)
-  spawnNode(true); nodes[nodes.length-1].x = W*0.32; nodes[nodes.length-1].y = H*0.38; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=0;
-  spawnNode(true); nodes[nodes.length-1].x = W*0.61; nodes[nodes.length-1].y = H*0.31; nodes[nodes.length-1].shapeReq=SQR; nodes[nodes.length-1].col=2;
-  spawnNode(true); nodes[nodes.length-1].x = W*0.48; nodes[nodes.length-1].y = H*0.58; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=1;
+  // seed 3 nodes for instant obvious objective in first 10s (one tri, one sqr, one mixed) — positioned from right for run flow
+  spawnNode(true); nodes[nodes.length-1].x = W*0.78; nodes[nodes.length-1].y = H*0.38; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=0; nodes[nodes.length-1].vx = -98;
+  spawnNode(true); nodes[nodes.length-1].x = W*0.91; nodes[nodes.length-1].y = H*0.31; nodes[nodes.length-1].shapeReq=SQR; nodes[nodes.length-1].col=2; nodes[nodes.length-1].vx = -86;
+  spawnNode(true); nodes[nodes.length-1].x = W*0.84; nodes[nodes.length-1].y = H*0.58; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=1; nodes[nodes.length-1].vx = -104;
   updateUI();
   announce('GRID I');
 }
@@ -328,6 +331,7 @@ function stampAt(x,y){
   if(state!=='playing') return;
   Audio.startGesture();
   let hit = false;
+  const railX = Math.floor(W * 0.22);
   for(let i=nodes.length-1; i>=0; i--){
     const n = nodes[i];
     const d = Math.hypot(n.x-x, n.y-y);
@@ -337,7 +341,10 @@ function stampAt(x,y){
       const match = (n.shapeReq === stampMode);
       if(match){
         // success: fill pip, juice, score, advance triad
-        score += 38 + level*6;
+        let base = 38 + level*6;
+        const timing = Math.abs(n.x - railX);
+        if(timing < 55){ base += 18; spawnParticle(n.x, n.y, '#fff', 3, 1, 0); } // run-timing bonus
+        score += base;
         triad.push(n.col);
         if(triad.length>3) triad.shift();
         spawnParticle(n.x, n.y, SHAPE_COL[n.col], 14, 0, -0.8);
@@ -433,18 +440,21 @@ function update(dt){
   }
 
   if(state==='playing'){
+    runScroll += dt * (82 + (level-1)*11); // advance run "distance"
     spawnT += dt;
     if(spawnT > spawnInt){
       spawnT = 0;
       if(nodes.length < 5 + Math.min(3,level)) spawnNode();
     }
-    // node life + expiry (miss)
+    // node life + expiry (miss) — run flow: nodes scroll left; miss if pass left or timeout
     for(let i=nodes.length-1;i>=0;i--){
       const n=nodes[i];
+      if(n.vx) n.x += n.vx * dt;
       n.pulse += dt*3.8;
       n.life -= dt;
       if(n.shake>0) n.shake -= dt*1.8;
-      if(n.life <= 0){
+      const passed = (n.x < -18);
+      if(n.life <= 0 || passed){
         // expire = miss (clear telegraph via life fade in draw)
         misses++;
         spawnParticle(n.x, n.y, '#666', 5);
@@ -537,10 +547,11 @@ function drawNode(n){
 
 function drawGrid(){
   c.strokeStyle='#e8e8e8'; c.lineWidth=1.6;
+  const scroll = runScroll || 0;
   gridLines.forEach(l=>{
     c.globalAlpha = l.a * (gridResT>0 ? (1+gridResT*1.8) : 1);
     if(l.t==='v'){
-      const xx = ((l.x - (gridResT>0?gridResT*6:0)) % (W+38) + W+38) % (W+38) - 20;
+      const xx = ((l.x - scroll - (gridResT>0?gridResT*6:0)) % (W+38) + W+38) % (W+38) - 20;
       c.beginPath(); c.moveTo(xx,0); c.lineTo(xx,H); c.stroke();
     } else if(l.t==='h'){
       c.beginPath(); c.moveTo(0,l.y); c.lineTo(W,l.y); c.stroke();
@@ -571,6 +582,18 @@ function render(){
     c.beginPath(); c.moveTo(sl.x,sl.y); c.lineTo(sl.x-sl.len,sl.y); c.stroke();
   });
   c.globalAlpha=1;
+
+  // run rail / stamp plane (embodied run position — nodes flow across this for timing)
+  const railX = Math.floor(W * 0.22);
+  c.save();
+  c.globalAlpha = 0.18; c.strokeStyle = '#f0f0f0'; c.lineWidth = 2;
+  c.setLineDash([3,7]);
+  c.beginPath(); c.moveTo(railX, 38); c.lineTo(railX, H-28); c.stroke();
+  c.setLineDash([]);
+  // small "body" marker on rail
+  c.globalAlpha=0.35; c.fillStyle='#E63946';
+  c.fillRect(railX-2, cursor.y-7, 5, 14);
+  c.restore();
 
   // nodes (under cursor for clear targeting)
   nodes.forEach(n=> drawNode(n));
@@ -717,11 +740,11 @@ document.getElementById('play-again-btn').addEventListener('click', doRestart);
 // Boot: live world immediately (core verb visible <3s, playable demo before start)
 initGrid();
 cursor.x = W*0.46; cursor.y = H*0.5; cursor.tx = W*0.52; cursor.ty = H*0.44;
-spawnNode(true); nodes[0].x=W*0.31; nodes[0].y=H*0.36; nodes[0].shapeReq=TRI; nodes[0].col=0;
-spawnNode(true); nodes[1].x=W*0.64; nodes[1].y=H*0.33; nodes[1].shapeReq=SQR; nodes[1].col=2;
-spawnNode(true); nodes[2].x=W*0.49; nodes[2].y=H*0.61; nodes[2].shapeReq=TRI; nodes[2].col=1;
+spawnNode(true); nodes[0].x=W*0.78; nodes[0].y=H*0.36; nodes[0].shapeReq=TRI; nodes[0].col=0; nodes[0].vx=-96;
+spawnNode(true); nodes[1].x=W*0.89; nodes[1].y=H*0.33; nodes[1].shapeReq=SQR; nodes[1].col=2; nodes[1].vx=-84;
+spawnNode(true); nodes[2].x=W*0.83; nodes[2].y=H*0.61; nodes[2].shapeReq=TRI; nodes[2].col=1; nodes[2].vx=-102;
 for(let i=0;i<6;i++) spawnSpeed(30+i*(W/7), 120+Math.random()*40, 2.4);
-document.getElementById('hint').textContent = 'move • space flips • stamp matching shapes';
+document.getElementById('hint').textContent = 'nodes scroll left across the rail — run the grid · space flips shape · stamp on the move';
 document.getElementById('high-score').textContent='BEST: '+highScore; document.getElementById('high-score').classList.add('active');
 const sb = document.getElementById('sound-btn'); sb.classList.add('active'); sb.textContent='♪';
 render();

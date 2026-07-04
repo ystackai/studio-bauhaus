@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Pure-stdlib asset generator for Triadic Grid Run rework (work-order-1781658166323-6-31).
-Produces reviewable file-backed PNG + WAV under this dir + documents provenance.
+Pure-stdlib asset generator for Triadic Grid Run (follow-up rework work-order-1783175474647-followup).
+Run-loop canary: nodes flow for "run the grid". Assets refreshed for motion readability (stronger rims, high contrast at speed).
 
 Palette (Bauhaus primary as moral stance):
   RED   #E63946  (229,57,70)
@@ -11,7 +11,7 @@ Palette (Bauhaus primary as moral stance):
   WHT   #f0f0f0 / #fff for highlights
 
 Intent: crisp, ruler-constructed geometry. Stamps and nodes carry inner "construction" marks
-so they feel intentionally drawn, not flat icons. No gradients, no blurs.
+so they feel intentionally drawn, not flat icons. No gradients, no blurs. Rim + ticks improved for scrolling motion.
 
 WAVs: additive + simple percussive envelopes for musical stabs and a short resolving cadence.
 Not bleeps: multi-partial tones, slight detune for life, rhythmic spacing for the cadence.
@@ -19,7 +19,7 @@ Not bleeps: multi-partial tones, slight detune for life, rhythmic spacing for th
 import struct, zlib, wave, math, os, array, random
 
 OUT = os.path.dirname(__file__) or "."
-random.seed(1781658166323)  # reproducible for this WO
+random.seed(1783175474647)  # reproducible for this follow-up WO
 
 # --- PNG writer (stdlib only) ---
 def _png_chunk(typ, data):
@@ -151,8 +151,8 @@ def write_stylus_png():
 def node_tri_draw(x, y, cx, cy, r, accent):
     dx,dy = x-cx,y-cy; dist=math.hypot(dx,dy)
     if dist > r+2: return DK
-    # outer ring always
-    if r+0.6 < dist < r+1.8: return WHT
+    # outer ring stronger for run motion readability
+    if r+0.5 < dist < r+2.1: return WHT
     # fill if inside tri
     tx = [0, 0.866*r, -0.866*r]
     ty = [-r*0.9, r*0.48, r*0.48]
@@ -162,25 +162,25 @@ def node_tri_draw(x, y, cx, cy, r, accent):
     if not inside: 
         if dist < r+0.5: return (accent[0]//3,accent[1]//3,accent[2]//3)
         return DK
-    # inner construction tri (smaller)
+    # inner construction tri (smaller) — thicker ticks
     r2 = r*0.55
     tx2=[0,0.866*r2,-0.866*r2]; ty2=[-r2*0.9,r2*0.48,r2*0.48]
     d1=sign(dx,dy,tx2[0],ty2[0],tx2[1],ty2[1]); d2=sign(dx,dy,tx2[1],ty2[1],tx2[2],ty2[2]); d3=sign(dx,dy,tx2[2],ty2[2],tx2[0],ty2[0])
     in2 = not ((d1<0 or d2<0 or d3<0) and (d1>0 or d2>0 or d3>0))
-    if in2 and dist > r*0.28:
+    if in2 and dist > r*0.26:
         # 3 ticks
         for k in range(3):
             a = -math.pi/2 + k*2*math.pi/3
             proj = dx*math.cos(a) + dy*math.sin(a)
-            if 0.18*r < proj < 0.48*r:
-                if abs(-dx*math.sin(a)+dy*math.cos(a)) < 1.1: return WHT
-    if 0.72*r < dist < 0.78*r: return WHT
+            if 0.16*r < proj < 0.52*r:
+                if abs(-dx*math.sin(a)+dy*math.cos(a)) < 1.4: return WHT
+    if 0.70*r < dist < 0.80*r: return WHT
     return accent
 
 def node_sqr_draw(x, y, cx, cy, r, accent):
     dx,dy = x-cx,y-cy
     if max(abs(dx),abs(dy)) > r+2: return DK
-    if r+0.6 < max(abs(dx),abs(dy)) < r+1.8: return WHT
+    if r+0.5 < max(abs(dx),abs(dy)) < r+2.1: return WHT  # stronger rim for motion
     inside = abs(dx)<=r and abs(dy)<=r
     if not inside: return DK
     # 2x2 sub squares construction
@@ -188,7 +188,7 @@ def node_sqr_draw(x, y, cx, cy, r, accent):
     if abs(dx)<1.2 or abs(dy)<1.2: return (accent[0]//2+20, accent[1]//2+20, accent[2]//2+20)
     if abs(dx)<s and abs(dy)<s: return accent
     # inner square
-    if r*0.58 < max(abs(dx),abs(dy)) < r*0.64: return WHT
+    if r*0.56 < max(abs(dx),abs(dy)) < r*0.66: return WHT
     return accent
 
 def write_nodes_png():
@@ -283,21 +283,23 @@ def write_audio_assets():
     print("audio assets done")
 
 def write_manifest():
-    m = """# ASSET_MANIFEST.md — Triadic Grid Run (work-order-1781658166323-6-31)
+    m = """# ASSET_MANIFEST.md — Triadic Grid Run (work-order-1783175474647-followup)
 
-Generated: 2026-06-17 by gen_assets.py (pure stdlib: zlib/struct for PNG, wave/math for WAV).
+Generated: 2026-07-04 by gen_assets.py (pure stdlib: zlib/struct for PNG, wave/math for WAV).
+Follow-up rework for run-loop canary feedback. Nodes now scroll; assets refreshed with stronger rims/ticks for readability in motion.
+
 No external images or samples. All committed files are reviewable binaries.
 
 ## Visuals
 - stylus.png (64x32 sheet)
-  Left 32x32: TRIANGLE stamp, red accent (#E63946), white construction rim + 3 inner radial ticks at 120deg + thin inner tri line. "Ruler" geometry.
+  Left 32x32: TRIANGLE stamp, red accent (#E63946), white construction rim + 3 inner radial ticks at 120deg + thin inner tri line. "Ruler" geometry. (rims tuned for scrolling visibility)
   Right 32x32: SQUARE stamp, blue accent (#4361EE), white rim + 2x2 sub-square cross construction.
   Purpose: current tool cursor (large, obvious, mode-dependent). Loaded as Image, drawn via drawImage slices.
 - nodes.png (96x32 sheet)
-  Cols 0-2: TRIANGLE nodes (red, yellow, blue) — outer white ring, inner tri construction ticks, core fill.
+  Cols 0-2: TRIANGLE nodes (red, yellow, blue) — thicker outer white ring, inner tri construction ticks, core fill.
   Cols 3-5: SQUARE nodes (red, yellow, blue) — outer ring, 2x2 inner construction, cross.
   Purpose: the things you stamp. Inner geometry telegraphs required stamp mode (TRI vs SQR) at a glance; color for triad pips.
-  All use Bauhaus primary + black/white only. Flat, high-contrast, precise. No gradients.
+  All use Bauhaus primary + black/white only. Flat, high-contrast, precise. No gradients. Rims boosted for run motion.
 
 ## Audio (musical direction, not bleeps)
 - sfx-stamp-0.wav (red, ~0.38s): low C-area + 1.5 + 2.0 partials + light square edge + envelope. Success for TRI or color-0.
@@ -314,7 +316,7 @@ All post-gesture only. Slight rate/gain variation in player for life. Authored t
 - Repro: run `python3 gen_assets.py` (seed pinned to WO id).
 - Size target: small geometric PNGs + short musical WAVs keep payload <<2MB.
 
-Work Order: work-order-1781658166323-6-31
+Work Order: work-order-1783175474647-followup
 """
     with open(os.path.join(OUT, "ASSET_MANIFEST.md"), "w") as f:
         f.write(m)
