@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bauhaus Loom Runner</title>
+  <style>
+    :root { --bg: #F5F0E6; --ink: #1A1A1A; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .wrap { position: relative; }
+    canvas { display: block; border: 4px solid #1A1A1A; background: #F5F0E6; image-rendering: crisp-edges; }
+    .label { position: absolute; top: -28px; left: 4px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #1A1A1A; opacity: 0.6; }
+    .hint { margin-top: 10px; font-size: 12px; opacity: 0.65; text-align: center; }
+    .hint kbd { font-family: inherit; background: #1A1A1A; color: #F5F0E6; padding: 1px 5px; border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="label">Q3 • blocks-2d • used-arm</div>
+    <canvas id="game" width="800" height="600" aria-label="Bauhaus textile loom runner game canvas"></canvas>
+  </div>
+  <div class="hint">Arrows / A D — weave the shuttle • Space / Enter — engage first weave • Pointer — tap to drive</div>
+
+  <script src="game-loop.js"></script>
+  <script src="input.js"></script>
+  <script src="webaudio-kit.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
