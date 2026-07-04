@@ -1,43 +1,42 @@
 # WORK_PLAN.md — triadic-grid-run-loop-canary-v3
 
 **Deliverable**: Triadic Grid Run Loop Canary v3  
-**Branch**: factoryx/factory-bauhaus/triadic-grid-run-loop-canary-v3-planner-1 (HEAD 656c74f)  
-**Base**: main (e19d169)  
+**Current WO branch**: factoryx/factory-bauhaus/triadic-grid-run-loop-canary-v3-planner-8  
+**Integration / plan base HEAD**: 0e5ab8ebe04ce993d96589a8ffc45e0c054ec4e0 (commit "chore(plan): schedule next verification for triadic-grid-run-loop-canary-v3 (planner-1)")  
 **Design**: games/92-triadic-grid-run/index.html  
-**Created**: planner run after deliverable record 1783128581268
+**Updated by**: planner-8 (after planner-7 PR failure and prior attached verify)
 
-## What was learned (lightweight read only)
-- Current implementation at branch HEAD is a full single-file canvas browser game implementing the core "stamp matching TRI/SQR shapes on color nodes to compose 3-color triads" verb.
-- Includes: immediate idle demo on boot, pointer aim + click/tap stamp (mouse/touch), SPACE mode flip (TRI<->SQR), onscreen mode buttons, lives (3 misses=over), score, levels, progress, particles/flash/grid-res feedback, win at high level+score, highscore localStorage, real file assets (stylus.png, nodes.png sprites, stamp/clash WAVs; triad WAV referenced but absent on disk → tone fallback).
-- Assets integrated in main loop (cursor, nodes, post-gesture sfx). No external net. Responsive, large targets, easing on motion.
-- No .factoryx/foundry/blocks-2d present; game uses custom RAF+dt update/render (not blocks fixed-timestep).
-- No music loop/stem; 4 sfx present (one load target missing).
-- Prior rework commit message references "make it fun after rejection".
-- No .factoryx/deliverables/triadic-grid-run-loop-canary-v3/ existed before this plan.
-- No mentions of deliverable id in repo; attached WO state for this run is boilerplate only.
-- Zero completed non-planner Work Orders attached to `triadic-grid-run-loop-canary-v3` (post created_at_ms). Per rules, inherited assets/game on main or branches do NOT count as completion proof for v3; fresh attached evidence required.
-- No reviewer/playtest feedback or open PR comments readable in local lightweight metadata for this deliverable.
+## What was learned (lightweight read + DB state + current tree; no broad history)
+- At 0e5ab8e the tree contains the full single-file browser game (index.html) + the prior planner-1 WORK_PLAN scheduling verification. No uncommitted changes on WO branch at start.
+- Authoritative attached Work Order state (FactoryX DB, preferred over local folders):
+  - verify-triadic-grid-run-canary-v3 (non-planner) -> work-order-1783129017720-7-14: `done`, verdict=`accepted`. Browser runtime verification passed for the served artifact, audio activity during interaction: true, verification screenshot recorded, FactoryX preview published.
+  - rework-embodied-subject-triadic (non-planner tickets): multiple WOs `cancelled`. This node id is spent — MUST NOT reuse.
+  - planner-7 (this node kind): `failed` (agent ok but no GitHub PR URL reported; PR create hit 422 invalid base + rate limit).
+  - Earlier planners: cancelled.
+- Game at HEAD implements the specified verb: pointer/touch aim + stamp matching TRI or SQR shapes (mode flip via SPACE or buttons) on colored nodes to fill triad pips (R/Y/B). Score, 3 lives (miss on expiry or wrong shape), levels I-VI, win at high score+level, particles, flashes, grid resonance, easing on cursor, post-gesture audio (real WAVs for stamp/clash + triad fallback), local highscore, responsive large targets. Idle demo on start screen. preview-entrypoint points at the game. Assets under games/92-triadic-grid-run/assets/ (sprites + 3 stamp + clash WAV committed; triad WAV referenced in manifest+code but absent on disk at this HEAD — code falls back to tones and verify still saw audio).
+- No .factoryx/foundry/blocks-2d/ in tree; game uses its own RAF/dt loop (documented in prior notes as "none" + reason).
+- No open PR visible for current head in lightweight metadata. No reviewer comments or FEEDBACK.md content inspected per startup rules.
+- Zero code changes between the verify run and 0e5ab8e (the verify confirmed the implementation that exists here).
 
 ## Assessment / adaptation
-The taste-gate slice + assets + controls + states appear implemented post-rework. The creative intent ("Stamp the right shape · Compose the triad · Feel the grid") is expressed in the playable loop, though it remains an abstract grid mechanic rather than strong embodied fantasy. Game feel elements (feedback, post-gesture audio, readable active play) are present in code.
+The taste-gate slice (one verb in one space, 30-60s playable, authored creative intent "Stamp the right shape · Compose the triad · Feel the grid") exists, uses real file assets in the main loop, has immediate visible feedback, easing, large touch targets + keyboard, outcome screens coherent with state, audio only after gesture.
 
-Because this is a fresh validation/canary run with only planner + requirements evidence, do NOT mark done. Per rules 8/9: plan at least one fresh implementation or verification ticket; do not schedule PR/merge/build-artifact work until a fresh verification (analogous to visual-gate) produces attached non-planner evidence.
+The attached verify (post created_at_ms) provides the required non-planner completion proof for the playable slice on the deliverable. Per rules 7/9, do not treat only-inherited files as done without the attached WO; here the attached verify supplies it.
 
-No accepted dependency evidence missing from main was identifiable without further history; the verification ticket below will produce the required attached evidence on the canonical branch (which will drive any later promotion via PR).
+The rework-embodied-subject-triadic direction was cancelled (spent); do not plan or depend on it. No new requirements or failing feedback observed in local metadata. The abstract grid is the verified experience.
 
-Dropped: any rediscovery of old history, asset generation (not in scope for planner), broad exploration. Kept batch to 1 ready verification ticket so we can adapt after results.
+Prior planner-7 completed its agent work but failed the "report GitHub PR URL" gate due to PR creation error (base invalid — likely sha vs branch name). The current planner-8 branch is at the same 0e5ab8e commit as the old plan.
 
-## Next tickets (small batch)
+Adaptation: drop stale "zero completed" text and the old verify ticket (id now spent; evidence already attached). Do not schedule new asset work, broad polish, or PR-creation as a ticket (system publishes reviewable PR from the WO branch after planner commits the plan). Since verification gate complete via attached evidence and no pending changes, mark the deliverable complete.
+
+Kept batch to zero new tickets (done). This is the auditable next: close via PR on this branch.
+
+## Status for this deliverable
 
 ```yaml
-tickets:
-  - id: verify-triadic-grid-run-canary-v3
-    title: Fresh verification of Triadic Grid Run playable slice for canary v3
-    goal: >
-      Treat games/92-triadic-grid-run/index.html (current .factoryx/preview-entrypoint) as the artifact for deliverable triadic-grid-run-loop-canary-v3. Use available browser runtime tooling to load the exact served preview URL (no port mismatches). Perform start gesture, pointer/touch/keyboard interaction to aim and stamp both TRI and SQR modes on several nodes, complete at least one triad (score + flash + audio + grid res), observe level/score/lives/pip updates, reach a terminal state (gameover or win). Capture at least one active-play screenshot after motion where cursor, nearest nodes/hazards, and feedback remain readable and separated. Verify: zero uncaught pageerrors or console errors during play, all referenced assets load and are used in main loop (or documented fallback), audio starts only post-gesture, input <100ms response with visible feedback, easing on motion, hit/clash/triad feedback present, outcome copy (win/gameover) matches actual score/state, touch targets large + keyboard works, 60fps feel on mid hardware. Cross-check WORKFLOW.md game-feel checklist and authored-experience bar. Record concrete results, pass/fail per item, screenshot/log paths, and any blockers into FACTORYX_WORK_ORDER_CONTEXT_DIR/VERIFICATION.md (and PREVIEW.md if new preview info). Commit the evidence notes on the canonical work-order branch. This is the first non-planner Work Order to attach fresh verification evidence to triadic-grid-run-loop-canary-v3 after deliverable created_at.
-    profile: grok-build
-    depends_on: []
+done: true
+tickets: []
 ```
 
-## Follow-up note
-After the verification ticket completes and pushes evidence, the next planner run can judge results, adapt (e.g. schedule targeted polish or asset fixes if gate fails, or PR closeout if passes), and keep the batch small. Single lowest-waste follow-up after this plan: the verification ticket above.
+## Follow-up note (lowest-waste)
+Commit this updated WORK_PLAN.md (with `git add -f` if needed) on the canonical WO branch, then exit. The worker will publish the github_pr reviewable artifact (with FactoryX Work Order Context) for the deliverable. If base-branch errors recur on PR create, note that the integration target should be the branch name (e.g. main) rather than a raw commit sha. After PR, human review or further planner can adapt if new feedback arrives. This avoids re-running verification (already accepted) or any cancelled rework.
