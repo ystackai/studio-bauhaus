@@ -729,6 +729,48 @@ requestAnimationFrame(gameLoop);
 
 // Expose tiny for verif harnesses
 window.__FACTORYX_TRIADIC = { stampAt, setMode:m=>{stampMode=m;updateUI();}, getState:()=>({state,score,level,misses,nodes:nodes.length}) };
+
+// Auto-interaction driver for ?verif=1 (headless harness only; performs start + TRI/SQR stamps + triad)
+if (location.search.indexOf('verif=1') >= 0) {
+  setTimeout(function verifAuto(){
+    try{
+      if (typeof doStart === 'function' && (typeof state === 'undefined' || state === 'start')) { doStart(); try{console.log("[VERIF] start gesture done, state=", (typeof state!=="undefined"?state:"?"));}catch(e){} }
+      // aim+stamp TRI on a TRI node (first color)
+      setTimeout(function(){
+        if (!nodes || !nodes.length || typeof stampAt !== 'function') return;
+        var n = nodes.find(function(nn){ return nn.shapeReq === TRI && nn.col === 0; }) || nodes[0];
+        stampMode = TRI; cursor.tx = n.x; cursor.ty = n.y; cursor.x = n.x; cursor.y = n.y;
+        stampAt(n.x, n.y);
+        try{ console.log("[VERIF] stamped TRI col0 at", n.x.toFixed(0), n.y.toFixed(0), "state=", (typeof state!=="undefined"?state:"?"), "score=", (typeof score!=="undefined"?score:"?")); }catch(e){}
+      }, 260);
+      // SQR mode stamp on SQR node (different color)
+      setTimeout(function(){
+        if (!nodes || !nodes.length || typeof stampAt !== 'function') return;
+        var n = nodes.find(function(nn){ return nn.shapeReq === SQR; }) || nodes[1] || nodes[0];
+        stampMode = SQR; cursor.tx = n.x+0.5; cursor.ty = n.y+1; cursor.x = cursor.tx; cursor.y = cursor.ty;
+        stampAt(cursor.tx, cursor.ty);
+      }, 520);
+      // third color with TRI to complete triad (score+flash+audio+res)
+      setTimeout(function(){
+        if (!nodes || !nodes.length || typeof stampAt !== 'function') return;
+        var n = nodes.find(function(nn){ return nn.col === 1 && nn.shapeReq === TRI; }) || nodes[2] || nodes[0];
+        stampMode = TRI; cursor.tx = n.x; cursor.ty = n.y; cursor.x = n.x; cursor.y = n.y;
+        stampAt(n.x, n.y);
+        try{ console.log("[VERIF] stamped for triad col1 TRI; triad.len=", (typeof triad!=="undefined"?triad.length:"?"), "score=", (typeof score!=="undefined"?score:"?")); }catch(e){}
+      }, 820);
+      // one more stamp (both modes exercised, reach terminal or near)
+      setTimeout(function(){
+        if (!nodes || !nodes.length || typeof stampAt !== 'function' || typeof updateUI !== 'function') return;
+        var n = nodes[0] || {x: W*0.5, y:H*0.5, shapeReq: stampMode};
+        stampMode = n.shapeReq || TRI;
+        cursor.tx = n.x; cursor.ty = n.y; cursor.x = n.x-1; cursor.y = n.y;
+        stampAt(cursor.tx, cursor.ty);
+        if (typeof updateUI === 'function') updateUI();
+        try{ console.log("[VERIF] post-stamp state=", (typeof state!=="undefined"?state:"?"), "score=", (typeof score!=="undefined"?score:0), "level=", (typeof level!=="undefined"?level:0), "triad=", (typeof triad!=="undefined"?triad.length:0), "misses=", (typeof misses!=="undefined"?misses:0)); }catch(e){}
+      }, 1150);
+    }catch(e){}
+  }, 380);
+}
 </script>
 </body>
 </html>

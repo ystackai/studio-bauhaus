@@ -6,6 +6,7 @@ Uses only stdlib + available chromium. No installs.
 """
 import http.server
 import socketserver
+import socket
 import threading
 import subprocess
 import time
@@ -17,7 +18,7 @@ from datetime import datetime
 WO_DIR = ".factoryx/work-orders/work-order-1783129017720-7-14"
 os.makedirs(WO_DIR, exist_ok=True)
 
-PORT = 18476  # chosen non-standard to avoid mismatch with any other
+PORT = 18481  # chosen non-standard to avoid mismatch with any other (reuseaddr TIME_WAIT workaround)
 ENTRY = "games/92-triadic-grid-run/index.html"
 # Use a served-style path under /factoryx/bauhaus/previews style emulation (no port mismatch to runtime preview intent)
 # But localhost for this runtime execution; the path segment matches what preview deploys use.
@@ -50,11 +51,25 @@ def start_http_server(port, directory, logf):
                 with open(logf, "a", encoding="utf-8") as lf:
                     lf.write(f"{datetime.utcnow().isoformat()} - {fmt % args}\n")
             except: pass
-    httpd = socketserver.TCPServer(("", port), QuietHandler)
-    httpd.allow_reuse_address = True
-    th = threading.Thread(target=httpd.serve_forever, daemon=True)
-    th.start()
-    return httpd, th
+    for attempt in range(4):
+        try:
+            httpd = socketserver.TCPServer(("", port), QuietHandler, bind_and_activate=False)
+            httpd.allow_reuse_address = True
+            try:
+                httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                if hasattr(socket, "SO_REUSEPORT"):
+                    httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            except Exception:
+                pass
+            httpd.server_bind()
+            httpd.server_activate()
+            th = threading.Thread(target=httpd.serve_forever, daemon=True)
+            th.start()
+            return httpd, th
+        except OSError as e:
+            if attempt == 3: raise
+            time.sleep(1.2 + attempt * 0.6)
+    return None, None
 
 def main():
     root = os.getcwd()
@@ -86,7 +101,7 @@ def main():
         "--disable-background-timer-throttling",
         "--disable-renderer-backgrounding",
         "--disable-backgrounding-occluded-windows",
-        "--virtual-time-budget=5800",
+        "--virtual-time-budget=9200",
         "--window-size=1280,820",
         "--user-data-dir=/tmp/chromium-verif-triadic-{}".format(os.getpid()),
         "--enable-logging=stderr",
