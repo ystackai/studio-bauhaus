@@ -86,26 +86,26 @@
   <div id="start-screen" class="screen active">
     <div id="start-card">
       <div class="title" style="color:#E63946;font-size:clamp(1.3rem,3.6vw,1.95rem);margin-bottom:0.06rem;letter-spacing:0.05em">TRIADIC GRID RUN</div>
-      <div class="subtitle" style="margin-bottom:0.4rem;font-size:clamp(0.6rem,1.3vw,0.76rem)">Stamp the right shape · Compose the triad · Feel the grid</div>
+      <div class="subtitle" style="margin-bottom:0.4rem;font-size:clamp(0.6rem,1.3vw,0.76rem)">Drive the probe · Lock the triad · Outrun the lattice</div>
       <button class="btn" id="start-btn">STAMP THE GRID</button>
-      <div class="subtitle" style="margin:0.55rem 0 0;font-size:clamp(0.58rem,1.25vw,0.7rem);color:#555">Move pointer to aim · SPACE flips TRI/SQR · Click near node to stamp</div>
+      <div class="subtitle" style="margin:0.55rem 0 0;font-size:clamp(0.58rem,1.25vw,0.7rem);color:#555">Pilot the probe · SPACE flips TRI/SQR · Click near anchor to seat</div>
     </div>
   </div>
 
   <div id="gameover-screen" class="screen">
-    <div class="title" style="color:#E63946">GRID<br>COLLAPSED</div>
+    <div class="title" style="color:#E63946">LATTICE<br>SEALED</div>
     <div class="subtitle" id="final-score">Score: 0</div>
-    <div class="subtitle" id="final-level">Grid Level: I</div>
+    <div class="subtitle" id="final-level">Sector: I</div>
     <div class="subtitle" id="final-highscore" style="color:#666;font-size:clamp(0.58rem,1.25vw,0.8rem)">Best: 0</div>
     <button class="btn" id="restart-btn">RESTART</button>
     <div class="subtitle" style="margin-top:0.6rem;font-size:clamp(0.58rem,1.2vw,0.7rem);color:#555"><span>SPACE</span> or <span>R</span> to retry</div>
   </div>
 
   <div id="win-screen" class="screen">
-    <div class="title" style="color:#FFD60A">HARMONY<br>ACHIEVED</div>
+    <div class="title" style="color:#FFD60A">LATTICE<br>BREACHED</div>
     <div class="subtitle" id="win-score">Score: 0</div>
     <div class="subtitle" id="win-highscore" style="color:#666;font-size:clamp(0.58rem,1.25vw,0.8rem)">Best: 0</div>
-    <div class="subtitle">You composed the grid with precision.</div>
+    <div class="subtitle">The anchors hold. You slipped through.</div>
     <button class="btn" id="play-again-btn">PLAY AGAIN</button>
     <div class="subtitle" style="margin-top:0.6rem;font-size:clamp(0.58rem,1.2vw,0.7rem);color:#555"><span>SPACE</span> or <span>R</span> to play</div>
   </div>
@@ -113,11 +113,11 @@
 
 <script>
 // ═══════════════════════════════════════════════════
-//  TRIADIC GRID RUN — REWORK (work-order-1781658166323-6-31)
+//  TRIADIC GRID RUN — REWORK (work-order-1783129480124-7-27)
 //  Core verb (taste-gate slice): Stamp with TRI or SQR on matching nodes to compose triads.
-//  One space. Real file-backed assets + manifest. Musical WAV direction (no bleep fallback as primary).
-//  First 10s: live grid + obvious stamp cursor + 2-3 nodes with clear shape telegraph; pointer already pilots.
-//  Square/triangle: the entire point — generous reliable match, unmistakable inner geom, dedicated mode UI.
+//  Creative intent: This should feel like a conduit saboteur racing the contraction of a living defense lattice, planting phase-locked probes into resonant nodes to carve an exit before the grid collapses around you.
+//  Embodied subject: operative body + held probe (stylus asset) with posture and trailing silhouette; tactical world: layered reactive lattice that responds to stamps/expiries.
+//  One space. Real file-backed assets + manifest. Preserve all verbs, input, lives, easing, audio rules.
 // ═══════════════════════════════════════════════════
 const canvas = document.getElementById('game-canvas');
 const c = canvas.getContext('2d', { alpha: true });
@@ -143,6 +143,7 @@ let state = 'start'; // start | playing | gameover | win
 let score=0, level=1, misses=0, triad=[], stampMode=TRI, frameCount=0;
 let nodes=[], particles=[], speedLines=[], floating=[], gridLines=[];
 let cursor = {x:W*0.5, y:H*0.55, tx:W*0.5, ty:H*0.55, wobble:0};
+let bodyX = W*0.5, bodyY = H*0.6; // embodied operative trails the probe tip for posture
 let gridResT=0, flashT=0, flashCol='#fff', levelAnnT=0, levelAnnTxt='';
 let lastT=0, spawnT=0, spawnInt=BASE_SPAWN;
 let highScore = parseInt(localStorage.getItem('triadicHS')||'0',10);
@@ -243,6 +244,16 @@ function initGrid(){
   for(let i=0;i<5;i++){
     gridLines.push({x:Math.random()*W, y:Math.random()*H*0.9+20, ang:(Math.random()-0.5)*0.9, len:120+Math.random()*160, a:0.12+Math.random()*0.08, pulse:Math.random()*Math.PI*2, t:'d'});
   }
+  // tactical world framing: containment ribs + overhead lattice (separates playfield, feels inside structure)
+  for(let i=0;i<3;i++){
+    const y = 18 + i*11;
+    gridLines.push({x:12, y, t:'rib', len: W-24, a:0.09 + i*0.03});
+    const y2 = H-22 - i*9;
+    gridLines.push({x:18, y:y2, t:'rib', len: W-30, a:0.07 + i*0.02});
+  }
+  // side struts (verticals at edges for "walls")
+  gridLines.push({x:14, y:40, t:'strut', h:H-80, a:0.18});
+  gridLines.push({x:W-14, y:40, t:'strut', h:H-80, a:0.18});
 }
 
 function spawnNode(force){
@@ -262,19 +273,20 @@ function initPlay(){
   nodes=[]; particles=[]; speedLines=[]; floating=[]; 
   gridResT=0; flashT=0; levelAnnT=0; spawnT=0; spawnInt=BASE_SPAWN;
   cursor.x = W*0.48; cursor.y = H*0.52; cursor.tx=cursor.x; cursor.ty=cursor.y; cursor.wobble=0;
+  bodyX = cursor.x; bodyY = cursor.y + 11;
   initGrid();
   // seed 3 nodes for instant obvious objective in first 10s (one tri, one sqr, one mixed)
   spawnNode(true); nodes[nodes.length-1].x = W*0.32; nodes[nodes.length-1].y = H*0.38; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=0;
   spawnNode(true); nodes[nodes.length-1].x = W*0.61; nodes[nodes.length-1].y = H*0.31; nodes[nodes.length-1].shapeReq=SQR; nodes[nodes.length-1].col=2;
   spawnNode(true); nodes[nodes.length-1].x = W*0.48; nodes[nodes.length-1].y = H*0.58; nodes[nodes.length-1].shapeReq=TRI; nodes[nodes.length-1].col=1;
   updateUI();
-  announce('GRID I');
+  announce('LATTICE I');
 }
 
 function updateUI(){
   document.getElementById('score-display').textContent = score;
   const roman = ['I','II','III','IV','V','VI'];
-  document.getElementById('level-display').textContent = 'GRID '+roman[Math.min(level-1,5)];
+  document.getElementById('level-display').textContent = 'LATTICE '+roman[Math.min(level-1,5)];
   const pips = document.querySelectorAll('#triad-display .triad-pip');
   const have = new Set(triad);
   pips.forEach((p,i)=>{
@@ -321,7 +333,7 @@ function spawnParticle(x,y,col, n=9, vx=0, vy=0){
 }
 
 function spawnSpeed(x,y, spd=3.2){
-  speedLines.push({x,y, len:18+Math.random()*22, spd:spd+Math.random()*1.6, a:0.28+Math.random()*0.16, th:1.1+Math.random()*0.7});
+  speedLines.push({x,y, len:18+Math.random()*22, spd:spd+Math.random()*1.6, a:0.28+Math.random()*0.16, th:1.1+Math.random()*0.7, surge: spd<0 });
 }
 
 function stampAt(x,y){
@@ -360,7 +372,7 @@ function stampAt(x,y){
             level++;
             spawnInt = Math.max(0.38, BASE_SPAWN - (level-1)*0.07);
             initGrid();
-            announce('GRID ' + ['I','II','III','IV','V','VI'][Math.min(level-1,5)]);
+            announce('LATTICE ' + ['I','II','III','IV','V','VI'][Math.min(level-1,5)]);
           }
           if(level >= MAX_LEVEL && score >= WIN_TRIADS*140){
             state='win';
@@ -405,13 +417,20 @@ function update(dt){
   cursor.wobble += dt * 3.2;
   // aim easing (snappy but not teleport)
   const e = 0.18;
+  const prevCx = cursor.x, prevCy = cursor.y;
   cursor.x += (cursor.tx - cursor.x) * e;
   cursor.y += (cursor.ty - cursor.y) * e;
+  // embodied body trails probe tip for readable posture/silhouette during motion
+  const bx = cursor.x - (cursor.x - prevCx) * 18;
+  const by = cursor.y + 11 + (cursor.y - prevCy) * 6;
+  bodyX += (bx - bodyX) * 0.22;
+  bodyY += (by - bodyY) * 0.22;
 
   // world always moves for live first-screen feel
   for(let i=speedLines.length-1;i>=0;i--){
     const s=speedLines[i]; s.x -= s.spd; s.a *= 0.94;
-    if(s.a<0.02 || s.x < -30) speedLines.splice(i,1);
+    const off = (s.spd < 0 ? (s.x > W+40) : (s.x < -30));
+    if(s.a<0.02 || off) speedLines.splice(i,1);
   }
   for(let i=particles.length-1;i>=0;i--){
     const p=particles[i];
@@ -448,6 +467,9 @@ function update(dt){
         // expire = miss (clear telegraph via life fade in draw)
         misses++;
         spawnParticle(n.x, n.y, '#666', 5);
+        // environmental response: lattice surge arcs + tension (world reacts, no new rules)
+        for(let k=0;k<2;k++) spawnSpeed(n.x + (k-1)*7, n.y-2, -2.2 - Math.random());
+        gridResT = Math.max(gridResT, 0.18);
         if(misses >= 3){
           state='gameover';
           if(score>highScore){ highScore=score; localStorage.setItem('triadicHS',highScore); }
@@ -457,7 +479,7 @@ function update(dt){
           document.getElementById('final-score').textContent='Score: '+score;
           document.getElementById('final-highscore').textContent='Best: '+highScore;
           const roman=['I','II','III','IV','V','VI'];
-          document.getElementById('final-level').textContent='Grid Level: '+roman[Math.min(level-1,5)];
+          document.getElementById('final-level').textContent='Sector: '+roman[Math.min(level-1,5)];
           document.getElementById('hud').classList.remove('active');
           document.getElementById('lives-display').classList.remove('active');
           document.getElementById('mode-hud').classList.remove('active');
@@ -508,6 +530,61 @@ function drawStamp(x,y, mode, sz){
   c.restore();
 }
 
+// embodied operative + held probe: readable posture, silhouette, tool-in-hand (uses stylus asset)
+function drawOperative(x, y, mode, probeX, probeY, wobble){
+  // x,y is body center; probeX,probeY is stamp tip (cursor)
+  const dx = probeX - x, dy = probeY - y;
+  const dist = Math.max(6, Math.hypot(dx, dy));
+  const ux = dx / dist, uy = dy / dist;
+  const lean = Math.min(0.9, dist / 38); // lean into the probe action
+
+  // shadow on the lattice floor (separates subject from bg)
+  c.save();
+  c.globalAlpha = 0.22;
+  c.fillStyle = '#000';
+  c.beginPath();
+  c.ellipse(x + 3, y + 13, 13, 5, 0, 0, Math.PI*2);
+  c.fill();
+  c.restore();
+
+  // legs (stance, slight spread with wobble for motion life)
+  const legSpread = 3.5 + Math.sin(wobble*1.7)*0.8 + lean*1.2;
+  c.save(); c.strokeStyle = '#ddd'; c.lineWidth = 4.0; c.lineCap='round';
+  c.beginPath(); c.moveTo(x-2, y+2); c.lineTo(x - legSpread, y+14); c.stroke();
+  c.beginPath(); c.moveTo(x+2, y+2); c.lineTo(x + legSpread*0.7, y+14); c.stroke();
+  c.restore();
+
+  // torso (crouched operative silhouette, readable against grid)
+  c.save(); c.translate(x, y);
+  c.rotate(ux * 0.12 * lean); // subtle posture lean toward action
+  c.fillStyle = '#2a2a2a'; c.strokeStyle = '#f0f0f0'; c.lineWidth = 1.8;
+  c.fillRect(-5.5, -8, 11, 12);
+  c.strokeRect(-5.5, -8, 11, 12);
+  // gear pack (brighter for separation)
+  c.fillStyle = '#3a3a3a'; c.fillRect(-4, -5, 8, 6);
+  c.restore();
+
+  // hooded head (clear top of silhouette)
+  c.save(); c.translate(x - ux*2, y - 9 - uy*1.5);
+  c.fillStyle = '#151515'; c.beginPath(); c.arc(0,0,4.8,0,Math.PI*2); c.fill();
+  c.strokeStyle = '#e8e8e8'; c.lineWidth=1.6; c.beginPath(); c.arc(0,-0.5,3.4,0,Math.PI*2); c.stroke();
+  // visor accent
+  c.fillStyle = '#555'; c.fillRect(-2.2, -1.5, 4.4, 1.4);
+  c.restore();
+
+  // arm + probe (tool in hand, primary affordance kept)
+  c.save(); c.strokeStyle = '#c8c8c8'; c.lineWidth = 2.8; c.lineCap='round';
+  const shoulderX = x + ux*1 - uy*3, shoulderY = y - 3 - ux*3;
+  c.beginPath(); c.moveTo(shoulderX, shoulderY);
+  c.lineTo(probeX - ux*4, probeY - uy*4);
+  c.stroke();
+  c.restore();
+
+  // the stylus at the tip (preserve asset usage and stamp point)
+  const sz = 10 + Math.sin(wobble)*0.4;
+  drawStamp(probeX, probeY, mode, sz);
+}
+
 function drawNode(n){
   const use = imgNodes && imgNodes.complete && imgNodes.naturalWidth>0;
   const r = 15 + Math.sin(n.pulse)*1.8;
@@ -536,6 +613,11 @@ function drawNode(n){
 }
 
 function drawGrid(){
+  // subtle floor plane (tactical traversable space under subject, not void)
+  c.save(); c.globalAlpha=0.07; c.fillStyle='#222';
+  c.fillRect(10, 36, W-20, H-70);
+  c.restore();
+
   c.strokeStyle='#e8e8e8'; c.lineWidth=1.6;
   gridLines.forEach(l=>{
     c.globalAlpha = l.a * (gridResT>0 ? (1+gridResT*1.8) : 1);
@@ -548,6 +630,12 @@ function drawGrid(){
       const px = (l.x + (gridResT>0?gridResT*22:0)) % (W+140) - 40;
       c.beginPath(); c.moveTo(px, l.y); c.lineTo(px + Math.cos(l.ang)*l.len, l.y + Math.sin(l.ang)*l.len); c.stroke();
       l.pulse += 0.016;
+    } else if(l.t==='rib'){
+      c.beginPath(); c.moveTo(l.x, l.y); c.lineTo(l.x + l.len, l.y); c.stroke();
+    } else if(l.t==='strut'){
+      c.lineWidth = 2.8;
+      c.beginPath(); c.moveTo(l.x, l.y); c.lineTo(l.x, l.y + l.h); c.stroke();
+      c.lineWidth = 1.6;
     }
   });
   c.globalAlpha=1;
@@ -565,10 +653,13 @@ function render(){
   }
   drawGrid();
 
-  // speed lines (forward run cue)
+  // speed lines (forward run cue); surge arcs from expiries read as lattice threat response
   speedLines.forEach(sl=>{
-    c.globalAlpha=sl.a; c.strokeStyle='#FFD60A'; c.lineWidth=sl.th;
-    c.beginPath(); c.moveTo(sl.x,sl.y); c.lineTo(sl.x-sl.len,sl.y); c.stroke();
+    c.globalAlpha=sl.a;
+    c.strokeStyle = sl.surge ? '#c33' : '#FFD60A';
+    c.lineWidth=sl.th;
+    const dx = sl.spd < 0 ? sl.len : -sl.len;
+    c.beginPath(); c.moveTo(sl.x,sl.y); c.lineTo(sl.x + dx, sl.y); c.stroke();
   });
   c.globalAlpha=1;
 
@@ -593,16 +684,9 @@ function render(){
     c.fillText(f.txt, f.x, f.y); c.restore();
   });
 
-  // the stamp cursor — always obvious, large, shows mode
-  const sz = (state==='playing'? 19 : 17) + Math.sin(cursor.wobble)*0.8;
-  // soft outer halo for instant "this is you"
-  c.save(); c.globalAlpha = 0.16; c.fillStyle = (stampMode===TRI? SHAPE_COL[0]:SHAPE_COL[2]);
-  c.beginPath(); c.arc(cursor.x, cursor.y, sz+22, 0, Math.PI*2); c.fill(); c.restore();
-  // white construction ring
-  c.globalAlpha=0.65; c.strokeStyle='#fff'; c.lineWidth=2.6;
-  c.beginPath(); c.arc(cursor.x, cursor.y, sz+7, 0, Math.PI*2); c.stroke();
-  c.globalAlpha=1;
-  drawStamp(cursor.x, cursor.y, stampMode, sz);
+  // embodied primary subject (operative body + probe tip); body trails for motion posture/silhouette
+  // nodes/hazards remain nearest focal read; subject separated by shadow + layering
+  drawOperative(bodyX, bodyY, stampMode, cursor.x, cursor.y, cursor.wobble);
   c.restore();
 
   // subtle vignette for focus (honest, not decoration)
@@ -717,11 +801,12 @@ document.getElementById('play-again-btn').addEventListener('click', doRestart);
 // Boot: live world immediately (core verb visible <3s, playable demo before start)
 initGrid();
 cursor.x = W*0.46; cursor.y = H*0.5; cursor.tx = W*0.52; cursor.ty = H*0.44;
+bodyX = cursor.x - 6; bodyY = cursor.y + 12;
 spawnNode(true); nodes[0].x=W*0.31; nodes[0].y=H*0.36; nodes[0].shapeReq=TRI; nodes[0].col=0;
 spawnNode(true); nodes[1].x=W*0.64; nodes[1].y=H*0.33; nodes[1].shapeReq=SQR; nodes[1].col=2;
 spawnNode(true); nodes[2].x=W*0.49; nodes[2].y=H*0.61; nodes[2].shapeReq=TRI; nodes[2].col=1;
 for(let i=0;i<6;i++) spawnSpeed(30+i*(W/7), 120+Math.random()*40, 2.4);
-document.getElementById('hint').textContent = 'move • space flips • stamp matching shapes';
+document.getElementById('hint').textContent = 'pilot probe • space flips • seat in matching anchors';
 document.getElementById('high-score').textContent='BEST: '+highScore; document.getElementById('high-score').classList.add('active');
 const sb = document.getElementById('sound-btn'); sb.classList.add('active'); sb.textContent='♪';
 render();
