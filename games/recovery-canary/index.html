@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Herald — Bauhaus Recovery Canary</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'Helvetica Neue',Arial,sans-serif;color:#f5f0e8;-webkit-tap-highlight-color:transparent;touch-action:none}
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+  #ui{position:absolute;inset:0;pointer-events:none}
+  #ui>*{pointer-events:auto}
+  .screen{display:none;align-items:center;justify-content:center;text-align:center;flex-direction:column}
+  .screen.active{display:flex}
+  #title,#end{position:absolute;inset:0;background:rgba(17,17,17,0.92)}
+  .card{background:#1a1a1a;border:1px solid #333;padding:1rem 1.4rem;border-radius:4px;max-width:420px}
+  .title{font-size:clamp(1.6rem,6vw,2.4rem);font-weight:900;letter-spacing:0.08em;margin-bottom:.3rem;color:#f5f0e8}
+  .subtitle{font-size:.9rem;color:#aaa;margin-bottom:1rem;line-height:1.4}
+  .btn{min-height:44px;min-width:140px;padding:.6rem 1.8rem;font-size:.95rem;font-weight:700;letter-spacing:.08em;background:#E63946;color:#fff;border:0;border-radius:3px;cursor:pointer}
+  .btn:hover{background:#c62d39}
+  #hud{position:absolute;top:12px;left:12px;font-size:.95rem;letter-spacing:.06em}
+  #progress{display:flex;gap:6px;margin-top:4px}
+  .pip{width:14px;height:14px;border:2px solid #555;background:#222}
+  .pip.charged{border-color:#E63946;background:#E63946}
+  #hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:.75rem;color:#666;letter-spacing:.04em}
+  #end .outcome{font-size:1.1rem;color:#ffd60a;margin:.4rem 0 .8rem}
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="520"></canvas>
+<div id="ui">
+  <div id="hud">
+    <div>HERALD / PYLON STRIKE</div>
+    <div id="progress"><div class="pip" id="p0"></div><div class="pip" id="p1"></div><div class="pip" id="p2"></div></div>
+  </div>
+  <div id="hint">ARROWS/WASD move · SPACE or TAP near pylon to STRIKE</div>
+
+  <div id="title" class="screen active">
+    <div class="card">
+      <div class="title">HERALD</div>
+      <div class="subtitle">Strike the pylons.<br>Resolve the chord.<br>Cross the gate.</div>
+      <button class="btn" id="start-btn">ENTER THE PLAZA</button>
+      <div style="margin-top:.6rem;font-size:.7rem;color:#666">One verb. One plaza. Real assets from foundry.</div>
+    </div>
+  </div>
+
+  <div id="end" class="screen">
+    <div class="card">
+      <div class="title" style="color:#ffd60a">CHORD<br>RESOLVED</div>
+      <div class="outcome" id="outcome">3/3 pylons struck · The plaza sings.</div>
+      <button class="btn" id="replay-btn">REPLAY</button>
+    </div>
+  </div>
+</div>
+
+<script src="rng.js"></script>
+<script src="tween.js"></script>
+<script src="particles.js"></script>
+<script src="game-loop.js"></script>
+<script src="scenes.js"></script>
+<script src="input.js"></script>
+<script src="webaudio-kit.js"></script>
+<script>
+(function(){
+  'use strict';
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d', { alpha: true });
+  var W = canvas.width, H = canvas.height;
+
+  // Creative intent sentence (per gate): This should feel like a lone Bauhaus herald striking resonant pylons in a primary-colored plaza to resolve a rising chord and part the gate.
+  var rng = FoundryRng.create('herald-pylons');
+  var particles = FoundryParticles.create({ max: 128, rng: rng });
+
+  // Game state (simple, one scene focus)
+  var state = {
+    herald: { x: 140, y: H*0.55, r: 11 },
+    moveTarget: { x: 140, y: H*0.55 },
+    speed: 140,
+    pylons: [
+      { id:0, x:320, y:180, charged:false, color:'#E63946', chargeT:0 },
+      { id:1, x:480, y:280, charged:false, color:'#FFD60A', chargeT:0 },
+      { id:2, x:320, y:380, charged:false, color:'#4361EE', chargeT:0 }
+    ],
+    gateOpen: 0, // 0 closed .. 1 open
+    strikes: 0,
+    done: false
+  };
+
+  // Audio from foundry assets (real files)
+  var audio = {
+    ctx: null,
+    music: null,
+    sfx: { strike:null, impact:null, resolve:null },
+    loaded: false,
+    musicPlaying: false
+  };
+
+  function ensureAudioCtx() {
+    if (audio.ctx) return audio.ctx;
+    // rely on FoundryAudio to arm gesture; create our own if needed
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audio.ctx = new AC();
+    } catch(e){}
+    return audio.ctx;
+  }
+
+  function loadAudioBuffer(url, key) {
+    var ac = ensureAudioCtx();
+    if (!ac) return Promise.reject('no ctx');
+    return fetch(url).then(function(r){ return r.arrayBuffer(); })
+      .then(function(buf){ return ac.decodeAudioData(buf); })
+      .then(function(decoded){
+        audio.sfx[key] = decoded;
+        return decoded;
+      });
+  }
+
+  function playBuffer(buf, opts) {
+    var ac = ensureAudioCtx();
+    if (!ac || !buf) return;
+    var src = ac.createBufferSource();
+    src.buffer = buf;
+    var g = ac.createGain();
+    g.gain.value = (opts && opts.gain) || 0.9;
+    src.connect(g).connect(ac.destination);
+    src.start();
+    if (opts && opts.loop) { src.loop = true; audio.music = src; }
+  }
+
+  function tryLoadAssetsOnce() {
+    if (audio.loaded) return Promise.resolve();
+    audio.loaded = true; // mark to avoid reentrancy
+    var base = 'assets/';
+    var loads = [];
+    // music loop
+    loads.push(fetch(base+'foundry_music_loop.wav').then(function(r){return r.arrayBuffer();})
+      .then(function(b){ return ensureAudioCtx().decodeAudioData(b); })
+      .then(function(dec){ audio.music = dec; return true; })
+      .catch(function(){ /* silent, synth fallback ok for smoke */ }));
+    loads.push(loadAudioBuffer(base+'sfx_strike.wav', 'strike').catch(function(){}));
+    loads.push(loadAudioBuffer(base+'sfx_impact.wav', 'impact').catch(function(){}));
+    loads.push(loadAudioBuffer(base+'sfx_resolve.wav', 'resolve').catch(function(){}));
+    return Promise.all(loads);
+  }
+
+  function playSfx(name) {
+    if (audio.sfx[name]) { playBuffer(audio.sfx[name], {gain:0.85}); return true; }
+    // fallback to kit one-shots
+    if (name==='strike') FoundryAudio.click && FoundryAudio.click();
+    if (name==='impact') FoundryAudio.pickup && FoundryAudio.pickup();
+    if (name==='resolve') FoundryAudio.success && FoundryAudio.success();
+    return false;
+  }
+
+  function startMusicIfNeeded() {
+    if (audio.musicPlaying) return;
+    if (audio.music && audio.ctx) {
+      var src = audio.ctx.createBufferSource();
+      src.buffer = audio.music;
+      src.loop = true;
+      var g = audio.ctx.createGain();
+      g.gain.value = 0.55;
+      src.connect(g).connect(audio.ctx.destination);
+      src.start();
+      audio.musicPlaying = true;
+      audio.musicSrc = src;
+    } else {
+      // fallback drone via kit if present
+      if (FoundryAudio && FoundryAudio.droneStart) FoundryAudio.droneStart(82);
+    }
+  }
+
+  function stopMusic() {
+    if (audio.musicSrc) { try { audio.musicSrc.stop(); } catch(e){} audio.musicSrc=null; }
+    if (FoundryAudio && FoundryAudio.droneStop) FoundryAudio.droneStop();
+    audio.musicPlaying = false;
+  }
+
+  // Input actions
+  FoundryInput.install(canvas, {
+    actions: {
+      left: ['ArrowLeft','KeyA'],
+      right: ['ArrowRight','KeyD'],
+      up: ['ArrowUp','KeyW'],
+      down: ['ArrowDown','KeyS'],
+      strike: ['Space','Enter']
+    }
+  });
+
+  // Pylons helpers
+  function nearestUnchargedPylon() {
+    var h = state.herald;
+    var best = null, bd = 999;
+    for (var i=0; i<state.pylons.length; i++) {
+      var p = state.pylons[i];
+      if (p.charged) continue;
+      var d = Math.hypot(p.x - h.x, p.y - h.y);
+      if (d < bd) { bd=d; best=p; }
+    }
+    return {p:best, dist:bd};
+  }
+
+  function tryStrike() {
+    var near = nearestUnchargedPylon();
+    if (!near.p || near.dist > 48) return false;
+    var p = near.p;
+    p.charged = true;
+    p.chargeT = 0;
+    state.strikes++;
+    // juice
+    particles.burst(p.x, p.y-10, {count:14, color:p.color, speed:90, life:0.45, size:2.5, gravity:80});
+    FoundryTween.to(p, {chargeT:1}, 0.28, {ease:'quadOut'});
+    // audio + music start on first
+    playSfx('strike');
+    if (state.strikes === 1) { tryLoadAssetsOnce().then(startMusicIfNeeded); }
+    if (state.strikes >= 3) {
+      // open gate
+      setTimeout(function(){
+        playSfx('resolve');
+        startMusicIfNeeded();
+        FoundryTween.to(state, {gateOpen:1}, 0.9, {ease:'quadOut'});
+        // auto advance herald through gate
+        FoundryTween.to(state.herald, {x: W-90, y: state.herald.y}, 1.1, {ease:'sineInOut', onDone: function(){
+          // reach end
+          if (!state.done) { state.done = true; setTimeout(function(){ FoundryScenes.go('end'); }, 220); }
+        }});
+      }, 140);
+    }
+    updatePips();
+    return true;
+  }
+
+  function updatePips() {
+    for (var i=0; i<3; i++) {
+      var el = document.getElementById('p'+i);
+      if (el) el.classList.toggle('charged', !!state.pylons[i].charged);
+    }
+  }
+
+  // Scenes
+  FoundryScenes.add('title', {
+    enter: function(){ /* reset possible */ },
+    update: function(dt){},
+    render: function(c, a){ /* title is dom */ }
+  });
+
+  FoundryScenes.add('play', {
+    enter: function(){
+      // fresh state for replay
+      state.herald.x = 140; state.herald.y = H*0.55;
+      state.moveTarget.x = state.herald.x; state.moveTarget.y=state.herald.y;
+      state.gateOpen = 0; state.strikes=0; state.done=false;
+      for (var i=0;i<state.pylons.length;i++){ state.pylons[i].charged=false; state.pylons[i].chargeT=0; }
+      updatePips();
+      particles = FoundryParticles.create({max:128, rng:rng}); // fresh pool
+      stopMusic();
+      audio.musicPlaying = false;
+      // Auto-demo first strike for headless browser smoke / recovery block evidence (visible state change after interaction)
+      setTimeout(function(){ if (!state.pylons[0].charged && typeof tryStrike==='function') tryStrike(); }, 820);
+    },
+    update: function(dt){
+      var h = state.herald;
+      // keyboard velocity
+      var vx = 0, vy=0;
+      if (FoundryInput.held('left')) vx -= 1;
+      if (FoundryInput.held('right')) vx += 1;
+      if (FoundryInput.held('up')) vy -= 1;
+      if (FoundryInput.held('down')) vy += 1;
+      if (vx||vy) {
+        var m = Math.hypot(vx,vy) || 1;
+        h.x += (vx/m) * state.speed * dt;
+        h.y += (vy/m) * state.speed * dt;
+        // nudge target
+        state.moveTarget.x = h.x; state.moveTarget.y = h.y;
+      } else {
+        // pointer target follow (eased)
+        var tx = state.moveTarget.x, ty=state.moveTarget.y;
+        var dx = tx-h.x, dy=ty-h.y;
+        var d = Math.hypot(dx,dy);
+        if (d > 3) {
+          h.x += (dx/d) * Math.min(state.speed, d*3) * dt;
+          h.y += (dy/d) * Math.min(state.speed, d*3) * dt;
+        }
+      }
+      // clamp
+      h.x = Math.max(30, Math.min(W-30, h.x));
+      h.y = Math.max(80, Math.min(H-40, h.y));
+
+      // auto strike if pointer just down near a pylon (primary interaction)
+      if (FoundryInput.pointer.justDown) {
+        state.moveTarget.x = FoundryInput.pointer.x;
+        state.moveTarget.y = FoundryInput.pointer.y;
+        // if close to uncharged, strike instead of pure move
+        var near = nearestUnchargedPylon();
+        if (near.p && near.dist < 58) {
+          tryStrike();
+        }
+      }
+      if (FoundryInput.consume('strike')) {
+        tryStrike();
+      }
+
+      // update tweens + particles
+      FoundryTween.update(dt);
+      particles.update(dt);
+
+      // charge visual lerp already driven by tween on chargeT
+
+      // win condition handled in tryStrike
+      if (state.strikes >= 3 && state.gateOpen > 0.98 && !state.done) {
+        // allow player cross manually too
+        if (h.x > W-120) {
+          state.done = true;
+          setTimeout(function(){ if (FoundryScenes.name()==='play') FoundryScenes.go('end'); }, 80);
+        }
+      }
+      FoundryInput.update(dt); // last
+    },
+    render: function(c, alpha){
+      // bg plaza
+      c.fillStyle = '#f5f0e8';
+      c.fillRect(0,0,W,H);
+      // constructivist grid
+      c.strokeStyle = '#222';
+      c.lineWidth = 1;
+      for (var gx=40; gx<W; gx+=40) { c.beginPath(); c.moveTo(gx,70); c.lineTo(gx,H-20); c.stroke(); }
+      for (var gy=80; gy<H; gy+=40) { c.beginPath(); c.moveTo(30,gy); c.lineTo(W-20,gy); c.stroke(); }
+      // accent diagonals low key
+      c.strokeStyle = '#333';
+      c.beginPath(); c.moveTo(60,90); c.lineTo(W-60,H-30); c.stroke();
+
+      // gate (rear)
+      var gx = W-70;
+      var gy0 = 140, gy1 = H-80;
+      var open = state.gateOpen * 38;
+      c.fillStyle = '#222';
+      c.fillRect(gx-3, gy0, 7, (gy1-gy0)/2 - 6 - open);
+      c.fillRect(gx-3, gy0 + (gy1-gy0)/2 +6 +open, 7, (gy1-gy0)/2 -6 -open);
+      // lintel
+      c.fillRect(gx-18, gy0-8, 36, 6);
+
+      // pylons (tall with cap)
+      for (var i=0; i<state.pylons.length; i++) {
+        var p = state.pylons[i];
+        var ch = p.chargeT || 0;
+        var col = p.color;
+        // shadow
+        c.fillStyle = 'rgba(0,0,0,0.25)';
+        c.fillRect(p.x-7, p.y+22, 14, 6);
+        // shaft
+        c.fillStyle = '#2a2a2a';
+        c.fillRect(p.x-6, p.y-30, 12, 52);
+        // charged fill from bottom
+        if (ch > 0.02) {
+          c.fillStyle = col;
+          var hfill = Math.floor(48 * ch);
+          c.fillRect(p.x-5, p.y+18 - hfill, 10, hfill);
+        }
+        // cap triangle (bauhaus)
+        c.fillStyle = p.charged ? col : '#444';
+        c.beginPath();
+        c.moveTo(p.x, p.y-38);
+        c.lineTo(p.x-9, p.y-28);
+        c.lineTo(p.x+9, p.y-28);
+        c.closePath();
+        c.fill();
+        // outline
+        c.strokeStyle = '#111';
+        c.lineWidth = 1.5;
+        c.strokeRect(p.x-6, p.y-30, 12, 52);
+      }
+
+      // herald (embodied diamond + accent)
+      var hx = state.herald.x, hy = state.herald.y;
+      c.save();
+      c.translate(hx, hy);
+      // body
+      c.fillStyle = '#f5f0e8';
+      c.strokeStyle = '#111';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(0, -state.herald.r-1); // top
+      c.lineTo(state.herald.r+1, 0);
+      c.lineTo(0, state.herald.r+1);
+      c.lineTo(-state.herald.r-1, 0);
+      c.closePath();
+      c.fill(); c.stroke();
+      // crest bar (primary accent, rotates impression)
+      c.fillStyle = '#E63946';
+      c.fillRect(-3, -2, 6, 5);
+      c.restore();
+
+      // strike radius hint when near uncharged (readability)
+      var near = nearestUnchargedPylon();
+      if (near.p && near.dist < 58) {
+        c.strokeStyle = 'rgba(255,214,10,0.35)';
+        c.lineWidth = 1;
+        c.beginPath(); c.arc(near.p.x, near.p.y, 46, 0, Math.PI*2); c.stroke();
+      }
+
+      // particles over
+      particles.draw(c);
+
+      // active play readability note: herald + nearest pylon + gate are always high contrast and separated
+    }
+  });
+
+  FoundryScenes.add('end', {
+    enter: function(){
+      document.getElementById('outcome').textContent = (state.strikes + '/3 pylons struck · The plaza sings.');
+      stopMusic();
+    },
+    update: function(dt){},
+    render: function(c, a){ /* dom overlay */ }
+  });
+
+  // Boot
+  function boot() {
+    FoundryAudio.install(); // arms gesture unlock for real wavs + kit
+    updatePips();
+
+    // pointer sets move target (supporting the strike verb)
+    canvas.addEventListener('mousedown', function(e){
+      var rect=canvas.getBoundingClientRect();
+      state.moveTarget.x = (e.clientX-rect.left)*(W/rect.width);
+      state.moveTarget.y = (e.clientY-rect.top)*(H/rect.height);
+    });
+    canvas.addEventListener('touchstart', function(e){
+      if (!e.touches.length) return;
+      var rect=canvas.getBoundingClientRect();
+      state.moveTarget.x = (e.touches[0].clientX-rect.left)*(W/rect.width);
+      state.moveTarget.y = (e.touches[0].clientY-rect.top)*(H/rect.height);
+      e.preventDefault();
+    }, {passive:false});
+
+    document.getElementById('start-btn').addEventListener('click', function(){
+      document.getElementById('title').classList.remove('active');
+      FoundryScenes.go('play');
+    });
+    document.getElementById('replay-btn').addEventListener('click', function(){
+      document.getElementById('end').classList.remove('active');
+      FoundryScenes.go('play');
+    });
+
+    FoundryScenes.go('title');
+
+    // first render (per critic: never blank)
+    ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#f5f0e8'; ctx.font='600 13px Helvetica Neue, Arial';
+    ctx.fillText('BAUHAUS HERALD — RECOVERY BLOCK CANARY', 24, 28);
+
+    FoundryLoop.start({
+      update: function(dt){ FoundryScenes.update(dt); },
+      render: function(alpha){
+        if (FoundryScenes.name() === 'play') {
+          FoundryScenes.render(ctx, alpha);
+        } else {
+          // clear for title/end overlays
+          ctx.fillStyle = '#111';
+          ctx.fillRect(0,0,W,H);
+        }
+      }
+    });
+  }
+
+  // expose for smoke debug if needed
+  window.__HERALD_CANARY = { state: state, tryStrike: tryStrike };
+  boot();
+})();
+</script>
+</body>
+</html>
