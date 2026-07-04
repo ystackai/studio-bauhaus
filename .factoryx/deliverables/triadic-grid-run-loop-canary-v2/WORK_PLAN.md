@@ -4,28 +4,27 @@
 **Design/requirements:** `games/92-triadic-grid-run/index.html`  
 **Current planner run:** work-order-1783123386406-7-1 (planner-1)  
 **Base branch:** main  
-**Latest review:** review-1783125083750-7-9 (changes_requested) — browser runtime verification failed: vision rubric: Generic dark dashboard/HUD with vector primitives (blue square, red triangle) standing in for central experience; no embodied player subject (character/creature/vehicle/world), only UI tools without active play or visual interest beyond primitive elements.  
-**Note:** Fresh validation canary (deliverable created_at_ms 1783123367221). Zero non-planner Work Orders attached to this deliverable id after the timestamp (grep across WO files found no references to the deliverable id). Inherited assets/builds on main remain PENDING until fresh attached evidence.
+**Latest review:** review-1783125480904-7-22 (changes_requested) — browser runtime verification failed for file:///.../.factoryx-runtime-check-7.html: vision rubric failed: Generic dark dashboard/HUD/node-route toys with no embodied player subject, vehicle, tool, creature, world, or tactical situation; only UI elements for shape manipulation appear as primary content, lacking a meaningful interactive subject to review.  
+**Note:** Fresh validation canary (deliverable created_at_ms 1783123367221). Zero non-planner Work Orders attached to this deliverable id after the timestamp (grep for deliverable id across tree returned zero matches). Inherited assets/builds/game state on main remain PENDING until fresh attached non-planner evidence after the timestamp.
 
 ## What was learned (lightweight, no rediscovery)
-- Canonical main HEAD: e19d169fb3 (from lightweight git metadata). Work order branch HEAD: 4511f5ae8b. Latest commit on main is itself a planner step ("Plan next steps for Triadic Grid Run (planner-8)").
-- Latest accepted non-planner evidence for *this* deliverable id: none. Prior commits (e.g. 656c74f rework) and older WOs do not count as v2 proof.
-- Concrete gaps (targeted reads of contract files + game sources + asset manifest + glob):
-  - No `blocks_usage.md` next to the game. blocks-2d dir absent from tree (.factoryx/foundry/blocks-2d/ returns 0 files); runtime harness injects for check and requires the doc.
-  - Game implements entirely custom loop/input/render: rAF with clamped dt, pointer move + click + SPACE/R/letters for mode and restart, custom spawnNode/stampAt/update/render + particles/speedLines/gridLines/triad state. Zero references to blocks modules.
-  - Assets: stylus.png + nodes.png + some sfx present (stamps + clash); sfx-triad.wav declared in ASSET_MANIFEST.md and code but missing on disk, falls back to tones.
-  - Core visuals: dark #1a1a1a bg, construction grid lines, floating colored TRI/SQR nodes (vector fallback draws exact red triangle / blue square with inner ticks), stamp "player" is itself a large TRI or SQR drawn at cursor + HUD overlays (score, GRID level, triad pips, lives, mode buttons, progress). The stamp cursor and nodes *are* the red/blue/yellow primitives.
-  - No embodied player body/character/vehicle/world separate from the floating stamp primitive and dashboard UI. Start/active flow is reachable; triad composition payoff exists.
-  - Matches exactly the latest vision rubric failure (and prior blocks failures listed in recent_reviews).
-- Used exactly two read-only shell commands (the mandated `git status --short --branch --untracked-files=no` + one combined lightweight rev-parse/log for HEADs/branches) before this durable checkpoint. All other inspection via Read/Grep/Glob on design file, plan, manifest, and source symbols.
+- Canonical main HEAD: e19d169fb3 (from direct read of .git/refs/heads/main). Work order branch HEAD: 234d202 (from rev-parse). Latest on main remains a planner step.
+- Latest accepted non-planner evidence for *this* deliverable id: none. No references to `triadic-grid-run-loop-canary-v2` in source; older work orders and commits (e.g. work-order-1781658166323-6-31) do not count as v2 completion proof.
+- Concrete gaps (targeted reads of design file + plan + globs + exactly two allowed shells):
+  - No `blocks_usage.md` next to index.html. .factoryx/foundry/blocks-2d/ sources absent from tree (multiple globs returned 0 files); verification harness expects the doc when blocks-2d provided.
+  - Game still entirely custom: rAF + clamped dt loop, pointer aim + SPACE/R/click for stamp/mode, hand-written spawn/stamp/update/render + particles/speedLines/grid + triad state machine. Zero blocks module references.
+  - Assets present (stylus.png, nodes.png, some sfx WAVs) but code falls back to vector draws; central subject is the cursor stamp (large TRI red / SQR blue) + prominent HUD (#hud, #mode-hud with TRI/SQR buttons, triad pips, score, lives, progress, hints).
+  - No embodied player subject (character/creature/vehicle/world/tool body with posture/silhouette) or tactical situation separate from the floating shape primitives and dashboard UI. Primary visible content during play is the shape-manipulation tools and grid.
+  - Matches the latest vision rubric exactly (and prior blocks + vector-primitive failures).
+  - Used exactly the two allowed read-only shell commands (`git status --short --branch --untracked-files=no` + one combined rev-parse/log for HEADs) before this durable checkpoint. All other inspection via Read/Grep/Glob on contract paths and game symbols only. Did not read WO PREVIEW/VERIFICATION/FEEDBACK/ASSET_MANIFEST first.
 
 ## Adaptation
-- Address the *latest* changes_requested first: the vision rubric failure calling out generic dark dashboard/HUD + vector primitives (blue sq, red tri) with "no embodied player subject". This takes precedence over unrelated polish.
-- The blocks-2d documentation failure remains an open requirement from the two prior recent_reviews on check-6 runs.
-- Do not assume anything on main or prior WOs counts for this deliverable. First non-planner tickets must produce fresh evidence committed under a work order whose payload deliverable_id matches, after the create timestamp.
-- Do not pre-schedule verification, PR, merge, or build-artifact tickets. Only implementation steps that will produce the missing doc or the core embodied slice are ready now.
-- Batch kept small (two independent targeted steps) so we can adapt immediately after seeing the attached non-planner evidence and any new review state.
-- No rediscovery or broad commands.
+- Address the *latest* changes_requested (review-1783125480904-7-22) before unrelated polish: vision now explicitly flags "node-route toys", "no embodied player subject, vehicle, tool, creature, world, or tactical situation", and "only UI elements for shape manipulation appear as primary content, lacking a meaningful interactive subject to review".
+- The blocks-2d documentation floor failure (from reviews on check-6) remains open.
+- Do not assume main or prior WOs count for this deliverable. First non-planner work must produce fresh committed evidence under a WO whose payload deliverable_id exactly matches, after created_at_ms.
+- Do not pre-schedule verification, PR creation, merge, build artifacts, or broad polish. Only the implementation steps that directly produce the missing doc or the core embodied playable slice are ready.
+- Batch kept deliberately small (two independent targeted steps) so we can adapt right after the attached non-planner evidence and any new review state.
+- No rediscovery or broad exploration commands. Followed all startup constraints (one combined orientation, <=2 read-only shells before checkpoint, did not broad-find or dump, did not read template notes first).
 
 ## Tickets (ready now; small batch)
 ```yaml
@@ -37,18 +36,18 @@ tickets:
     profile: grok-build
     depends_on: []
   - id: embodied-player-core-slice
-    title: Rework playable slice to feature embodied player subject per vision feedback
+    title: Rework playable slice to feature embodied player subject + meaningful tactical situation per latest vision feedback
     goal: >
-      Update games/92-triadic-grid-run/index.html (and supporting comments) to give the central experience a distinct embodied player subject (a character, creature, vehicle, hand, courier, or authored tool body with posture/silhouette) rather than only the floating stamp primitive (the red triangle or blue square) plus HUD dashboard. Add a one-sentence creative intent near the top of the script: "This should feel like [specific fantasy/situation]". Keep the primary stamp-to-triad verb and responsive controls (pointer aim + SPACE mode flip) but perform the action through the embodied subject in one authored space. Ensure active-play visuals keep the player presence and nearest nodes/objectives readable and separated from background grid, particles, and overlays. Update start/active-play rendering and any idle/demo so the subject provides visual interest beyond Bauhaus vector primitives. This is the targeted rework for the active vision rubric changes_requested (generic dark dashboard/HUD, no embodied player subject, only UI tools without active play interest). The result must remain a 30-60s browser-playable taste-gate slice.
+      Update games/92-triadic-grid-run/index.html (and supporting comments) to give the central experience a distinct embodied player subject (a character, creature, vehicle, courier, hand/tool body with posture/silhouette, or authored presence) rather than the floating stamp primitive (the red triangle or blue square) plus HUD dashboard as primary content. Add a one-sentence creative intent near the top of the script: "This should feel like [specific fantasy or tactical situation]". Keep the primary stamp-to-triad verb and responsive controls (pointer aim + SPACE mode flip) but perform the action through the embodied subject in one authored space/situation. Ensure active-play visuals keep the player presence and nearest nodes/objectives readable and separated from background grid, particles, and overlays. De-emphasize or integrate prominent mode HUD, pips, and shape-manipulation UI so they do not read as the main "dashboard" content. This is the targeted rework for the active vision rubric changes_requested (generic dark dashboard/HUD/node-route toys with no embodied player subject, vehicle, tool, creature, world, or tactical situation; only UI elements for shape manipulation appear as primary content, lacking a meaningful interactive subject to review). The result must remain a 30-60s browser-playable taste-gate slice.
     profile: grok-build
     depends_on: []
 ```
 
-These two independent implementation steps directly target the open changes_requested items (latest vision + prior blocks quality floor). A single non-planner work order may deliver one or both (e.g. the embodied rework can also ensure the blocks_usage.md is written if it fits the change). After the ticket(s) produce committed evidence on the canonical work-order branch plus the WO's own PREVIEW.md/VERIFICATION.md, the next planner run must read the fresh attached non-planner evidence (and any new review state) before writing further tickets or marking progress.
+These two independent implementation steps directly target the open changes_requested items (latest vision rubric + prior blocks quality floor). A single non-planner work order may deliver one or both. After the ticket(s) produce committed evidence on the canonical work-order branch plus the WO's own PREVIEW.md/VERIFICATION.md, the next planner run must read the fresh attached non-planner evidence (and any new review state) before writing further tickets or marking progress.
 
 Do not pre-emptively schedule verification, polish, asset generation, PR, or merge work in this plan.
 
 ## Exit criteria for this plan
-- The tickets produce the durable `games/92-triadic-grid-run/blocks_usage.md` and a revised `games/92-triadic-grid-run/index.html` (with explicit embodied player subject and fantasy statement) committed on the work-order branch.
+- The tickets produce the durable `games/92-triadic-grid-run/blocks_usage.md` and a revised `games/92-triadic-grid-run/index.html` (with explicit embodied player subject providing primary visual/interactive content in a tactical/authored situation, plus the required creative-intent sentence) committed on the work-order branch.
 - Next planner reads the new attached non-planner evidence (and updated review state from the deliverable) before scheduling more.
-- The changes_requested feedback is cleared by the presence of the required blocks_usage.md plus visible embodied player subject in the active-play evidence.
+- The changes_requested feedback is cleared by the presence of the required blocks_usage.md plus visible meaningful embodied interactive subject (not UI shape-manipulation primitives or dashboard) in the active-play evidence.
