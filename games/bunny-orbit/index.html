@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Bunny Orbit — Bauhaus Digital</title>
+<style>
+   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a1a; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+  #ui-layer > * { pointer-events: auto; }
+  .screen { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: absolute; inset: 0; }
+  .screen.active { display: flex; }
+  #start-screen { background: radial-gradient(circle at 50% 45%, rgba(40,30,70,0.15) 0%, rgba(10,10,26,0.78) 55%, rgba(10,10,26,0.95) 100%); }
+  #debrief-screen { background: radial-gradient(circle at 50% 45%, rgba(60,45,10,0.15) 0%, rgba(10,10,26,0.8) 55%, rgba(10,10,26,0.95) 100%); }
+  #start-card, #debrief-card { background: rgba(15,15,35,0.88); border: 1px solid rgba(255,255,255,0.08); padding: 0.8rem 1.4rem 1rem; border-radius: 6px; min-width: 260px; max-width: 60vw; }
+  .title { font-size: clamp(1.8rem, 5.5vw, 3.2rem); font-weight: 900; color: #f5f0ff; letter-spacing: 0.04em; line-height: 1.05; margin-bottom: 0.3rem; text-shadow: 0 0 20px rgba(200,180,255,0.3); }
+  .subtitle { font-size: clamp(0.65rem, 1.6vw, 0.9rem); color: #8888aa; margin-bottom: 1rem; max-width: 440px; line-height: 1.55; padding: 0 0.4rem; }
+  .btn { min-width: 44px; min-height: 44px; padding: 0.7rem 2rem; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; background: #7c5ce7; color: #fff; border: none; border-radius: 4px; cursor: pointer; transition: background 0.12s, transform 0.08s; text-transform: uppercase; }
+  .btn:hover { background: #6b4bd6; }
+  .btn:active { transform: scale(0.97); }
+  #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 0.6rem 1rem 0.3rem; z-index: 5; display: none; }
+  #hud.active { display: block; }
+  #planet-name { font-size: clamp(0.85rem, 2vw, 1.2rem); font-weight: 700; color: #e0d8ff; text-shadow: 0 2px 6px rgba(0,0,0,0.7); }
+  #planet-info { font-size: clamp(0.55rem, 1.2vw, 0.75rem); color: #8888aa; margin-top: 0.15rem; letter-spacing: 0.05em; }
+  #thrust-bar { position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); width: 200px; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; z-index: 5; display: none; }
+  #thrust-bar.active { display: block; }
+  #thrust-fill { height: 100%; background: linear-gradient(90deg, #5ce6a8, #7c5ce7); width: 0%; border-radius: 3px; transition: width 0.06s; }
+  #hint { position: absolute; bottom: 14%; left: 50%; transform: translateX(-50%); font-size: clamp(0.6rem, 1.3vw, 0.8rem); color: #5a5a7a; z-index: 5; white-space: nowrap; }
+  #speed-display { position: absolute; bottom: 2%; left: 50%; transform: translateX(-50%); font-size: clamp(0.55rem, 1.1vw, 0.7rem); color: #5a5a7a; z-index: 5; white-space: nowrap; display: none; }
+  #speed-display.active { display: block; }
+  #debrief-title { font-size: clamp(1.5rem, 4.5vw, 2.8rem); font-weight: 900; color: #ffd700; letter-spacing: 0.04em; text-shadow: 0 0 24px rgba(255,215,0,0.45), 0 2px 8px rgba(0,0,0,0.7); }
+  #debrief-sub { font-size: clamp(0.7rem, 1.5vw, 0.95rem); color: #ccbbff; margin: 0.4rem 0 1rem; }
+  #sound-btn { position: absolute; top: 0.6rem; right: 1rem; width: 40px; height: 40px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; color: #888; font-size: 0.95rem; cursor: pointer; display: none; z-index: 6; align-items: center; justify-content: center; transition: background 0.12s; }
+  #sound-btn.active { display: flex; }
+  #sound-btn:hover { background: rgba(255,255,255,0.12); }
+  #landing-flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 9; transition: opacity 0.15s; }
+</style>
+</head>
+<body>
+<canvas id="game-canvas"></canvas>
+
+<div id="ui-layer">
+  <div id="start-screen" class="screen active">
+    <div id="start-card">
+      <div class="title">🐰 Bunny Orbit</div>
+      <div class="subtitle">
+        A bunny astronaut orbit-hops between small planets to reach the carrot moon.<br><br>
+        Hold <b>SPACE</b> or <b>click/tap</b> to thrust. Release to drift.<br>
+        Aim toward the glowing planet ahead.
+      </div>
+      <button class="btn" id="start-btn">Launch</button>
+    </div>
+  </div>
+
+  <div id="debrief-screen" class="screen">
+    <div id="debrief-card">
+      <div id="debrief-title">🥕 Carrot Moon Reached!</div>
+      <div id="debrief-sub">The bunny astronaut made it through the starlit sky.</div>
+      <div style="color:#aaa; font-size:0.8rem; margin-bottom:0.8rem">Planets hopped: <span id="hop-count">0</span></div>
+      <button class="btn" id="restart-btn">Hop Again</button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div id="planet-name">Home Planet</div>
+    <div id="planet-info">Next: Planet 1</div>
+  </div>
+  <div id="thrust-bar"><div id="thrust-fill"></div></div>
+  <div id="hint">Hold SPACE or click to thrust</div>
+  <div id="speed-display"></div>
+  <div id="sound-btn">♪</div>
+  <div id="landing-flash"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ============ Game Config ============
+const PLANETS = [
+  { name: 'Home Planet', color: 0x4a7c59, radius: 3.0, pos: [0, -8, 0], emissive: 0x112211 },
+  { name: 'Planet 1 — Amber', color: 0xc47a4a, radius: 2.5, pos: [25, -5, -35], emissive: 0x221100 },
+  { name: 'Planet 2 — Azure', color: 0x4a6ac4, radius: 2.2, pos: [-20, 2, -65], emissive: 0x001122 },
+  { name: 'Planet 3 — Rose', color: 0xc44a6a, radius: 2.8, pos: [30, -3, -95], emissive: 0x220011 },
+  { name: 'Planet 4 — Moss', color: 0x7ac44a, radius: 2.0, pos: [-25, 5, -125], emissive: 0x112200 },
+  { name: 'Planet 5 — Sand', color: 0xc4a64a, radius: 2.4, pos: [15, 0, -155], emissive: 0x221100 },
+  { name: '🥕 Carrot Moon', color: 0xff8c00, radius: 4.0, pos: [0, 8, -190], emissive: 0x442200, isGoal: true }
+];
+
+const THRUST_ACCEL = 7.0;
+const DRIFT_DRAG = 0.005;
+const LANDING_SPEED_MAX = 5.0;
+const GRAVITY_PULL = 1.2;
+const MAX_SPEED = 14.0;
+
+// ============ Renderer ============
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x0a0a1a);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// ============ Scene ============
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0a1a, 0.003);
+
+// ============ Camera ============
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 500);
+camera.position.set(0, 12, 22);
+
+// ============ Lights ============
+scene.add(new THREE.AmbientLight(0x334466, 0.5));
+
+const keyLight = new THREE.DirectionalLight(0xddeeff, 1.6);
+keyLight.position.set(10, 20, 15);
+keyLight.castShadow = true;
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0x6677aa, 0.7);
+rimLight.position.set(-8, 10, -15);
+scene.add(rimLight);
+
+const bottomFill = new THREE.DirectionalLight(0x332244, 0.3);
+bottomFill.position.set(0, -15, 0);
+scene.add(bottomFill);
+
+// ============ Starfield ============
+(function createStarfield() {
+  const geo = new THREE.BufferGeometry();
+  const positions = [];
+  const colors = [];
+  for (let i = 0; i < 3000; i++) {
+    positions.push((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 300, (Math.random() - 0.5) * 700 - 100);
+    const b = 0.3 + Math.random() * 0.7;
+    const tint = Math.random() > 0.8 ? 0.7 : 1.0;
+    colors.push(b * tint, b * tint, b);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.5, vertexColors: true, sizeAttenuation: true })));
+})();
+
+// ============ Planet Builder ============
+function buildPlanet(spec) {
+  const group = new THREE.Group();
+  group.position.set(...spec.pos);
+
+  // Main body with subtle vertex perturbation
+  const geo = new THREE.SphereGeometry(spec.radius, 28, 20);
+  const p = geo.getAttribute('position');
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n = 1 + Math.sin(x * 3.5 + z * 2.2) * 0.05 + Math.cos(y * 2.8) * 0.03;
+    p.setXYZ(i, x * n, y * n, z * n);
+  }
+  p.needsUpdate = true;
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: spec.color,
+    emissive: spec.emissive || 0x000000,
+    emissiveIntensity: 0.15,
+    roughness: 0.7,
+    metalness: 0.05
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+
+  // Orbit ring
+  const ringGeo = new THREE.TorusGeometry(spec.radius * 1.6, 0.05, 6, 48);
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.4, metalness: 0.3, transparent: true, opacity: 0.3 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI * (0.4 + Math.random() * 0.2);
+  group.add(ring);
+
+  // Glow for carrot moon
+  if (spec.isGoal) {
+    const glowGeo = new THREE.SphereGeometry(spec.radius * 2.0, 24, 18);
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.08, side: THREE.BackSide });
+    group.add(new THREE.Mesh(glowGeo, glowMat));
+
+    const pointLight = new THREE.PointLight(0xff8c00, 3.0, 60);
+    group.add(pointLight);
+
+     // Add a second glow layer
+    const glow2Geo = new THREE.SphereGeometry(spec.radius * 2.8, 16, 12);
+    const glow2Mat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.03, side: THREE.BackSide });
+    group.add(new THREE.Mesh(glow2Geo, glow2Mat));
+  }
+
+  return group;
+}
+
+const planetMeshes = [];
+PLANETS.forEach(spec => {
+  const p = buildPlanet(spec);
+  scene.add(p);
+  planetMeshes.push({ mesh: p, spec, landed: false });
+});
+
+// ============ Bunny Astronaut (GLB + fallback) ============
+const bunnyGroup = new THREE.Group();
+bunnyGroup.position.set(PLANETS[0].pos[0], PLANETS[0].pos[1] + PLANETS[0].radius + 1.5, PLANETS[0].pos[2]);
+scene.add(bunnyGroup);
+
+// Fallback bunny
+const fallbackBunny = (() => {
+  const g = new THREE.Group();
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.6, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0xf0ece4, roughness: 0.8 })
+  );
+  body.scale.set(1, 1.2, 0.9);
+  g.add(body);
+  // Head
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.45, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0xf0ece4, roughness: 0.8 })
+  );
+  head.position.y = 0.9;
+  g.add(head);
+  // Ears
+  const earMat = new THREE.MeshStandardMaterial({ color: 0xf0ece4, roughness: 0.8 });
+  const earGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.65, 8);
+  const earL = new THREE.Mesh(earGeo, earMat);
+  earL.position.set(-0.15, 1.55, 0); earL.rotation.z = 0.15;
+  g.add(earL);
+  const earR = new THREE.Mesh(earGeo, earMat);
+  earR.position.set(0.15, 1.55, 0); earR.rotation.z = -0.15;
+  g.add(earR);
+  // Helmet visor
+  const visor = new THREE.Mesh(
+    new THREE.SphereGeometry(0.35, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.1, metalness: 0.5, transparent: true, opacity: 0.55 })
+  );
+  visor.position.set(0, 0.95, 0.2);
+  visor.rotation.x = -0.35;
+  g.add(visor);
+  // Thruster pack
+  const pack = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.5, 0.28),
+    new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.4, metalness: 0.35 })
+  );
+  pack.position.set(0, 0.1, -0.58);
+  g.add(pack);
+  return g;
+})();
+bunnyGroup.add(fallbackBunny);
+
+// Load GLB
+const loader = new GLTFLoader();
+loader.load(
+  'assets/models/bunny_companion.glb',
+  (gltf) => {
+    bunnyGroup.remove(fallbackBunny);
+    const m = gltf.scene;
+    m.scale.set(1.8, 1.8, 1.8);
+    m.rotation.y = Math.PI;
+    bunnyGroup.add(m);
+    console.log('[Bunny Orbit] GLB bunny loaded');
+  },
+  undefined,
+  (err) => console.warn('[Bunny Orbit] GLB load failed, using fallback:', err)
+);
+
+// ============ Thruster Flame ============
+const flameGeo = new THREE.SphereGeometry(0.22, 8, 8);
+const flameMat = new THREE.MeshBasicMaterial({ color: 0x5ce6a8, transparent: true, opacity: 0 });
+const flame = new THREE.Mesh(flameGeo, flameMat);
+flame.position.set(0, -0.2, -1.2);
+bunnyGroup.add(flame);
+
+// Thrust particles
+const MAX_PARTICLES = 60;
+const particleGeo = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(MAX_PARTICLES * 3);
+const particleSizes = new Float32Array(MAX_PARTICLES);
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+particleGeo.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+const particleMat = new THREE.PointsMaterial({ color: 0x5ce6a8, size: 0.25, transparent: true, opacity: 0.7, sizeAttenuation: true });
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+let particlePool = []; // {x,y,z,vx,vy,vz,life,maxLife}
+
+function spawnParticle(worldPos) {
+  if (particlePool.length >= MAX_PARTICLES) return;
+  const spread = 0.3;
+  particlePool.push({
+    x: worldPos.x + (Math.random() - 0.5) * spread,
+    y: worldPos.y + (Math.random() - 0.5) * spread,
+    z: worldPos.z + (Math.random() - 0.5) * spread,
+    vx: (Math.random() - 0.5) * 0.5,
+    vy: (Math.random() - 0.5) * 0.5,
+    vz: -(1.5 + Math.random() * 2.0),
+    life: 0,
+    maxLife: 0.4 + Math.random() * 0.3
+  });
+}
+
+function updateParticles(dt) {
+  for (let i = particlePool.length - 1; i >= 0; i--) {
+    const p = particlePool[i];
+    p.life += dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.z += p.vz * dt;
+    if (p.life >= p.maxLife) particlePool.splice(i, 1);
+  }
+  // Update buffer
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    if (i < particlePool.length) {
+      const p = particlePool[i];
+      const t = 1.0 - (p.life / p.maxLife);
+      particlePositions[i * 3] = p.x;
+      particlePositions[i * 3 + 1] = p.y;
+      particlePositions[i * 3 + 2] = p.z;
+      particleSizes[i] = t * 0.3;
+    } else {
+      particleSizes[i] = 0;
+    }
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+  particleGeo.attributes.size.needsUpdate = true;
+  particleMat.opacity = 0.4 + Math.sin(performance.now() * 0.005) * 0.1;
+}
+
+// ============ Audio ============
+let audioCtx = null;
+let audioEnabled = true;
+let musicBuffer = null;
+let sfxBuffers = {};
+
+async function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  const load = async (path) => {
+    try {
+      const r = await fetch(path);
+      if (!r.ok) return null;
+      return await audioCtx.decodeAudioData(await r.arrayBuffer());
+    } catch { return null; }
+  };
+
+  musicBuffer = await load('assets/audio/foundry_music_loop.wav');
+  sfxBuffers.thrust = await load('assets/audio/sfx_movement.wav');
+  sfxBuffers.landing = await load('assets/audio/sfx_impact.wav');
+  sfxBuffers.payoff = await load('assets/audio/sfx_payoff.wav');
+  sfxBuffers.orbit = await load('assets/audio/sfx_reveal.wav');
+  sfxBuffers.danger = await load('assets/audio/sfx_danger.wav');
+  sfxBuffers.ui = await load('assets/audio/sfx_interaction.wav');
+  sfxBuffers.bunnyHop = await load('assets/audio/bunny_hop_plush.wav');
+  playMusic();
+}
+
+let musicSource = null;
+function playMusic() {
+  if (!musicBuffer || !audioCtx || !audioEnabled) return;
+  try { if (musicSource) { musicSource.stop(); musicSource.disconnect(); } } catch {}
+  musicSource = audioCtx.createBufferSource();
+  musicSource.buffer = musicBuffer;
+  musicSource.loop = true;
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.2;
+  musicSource.connect(gain).connect(audioCtx.destination);
+  musicSource.start();
+}
+
+function stopMusic() {
+  try { if (musicSource) { musicSource.stop(); musicSource.disconnect(); } } catch {}
+  musicSource = null;
+}
+
+function playSFX(name, vol) {
+  if (!audioCtx || !audioEnabled || !sfxBuffers[name]) return;
+  try {
+    const s = audioCtx.createBufferSource();
+    s.buffer = sfxBuffers[name];
+    const g = audioCtx.createGain();
+    g.gain.value = vol || (name === 'thrust' ? 0.25 : 0.45);
+    s.connect(g).connect(audioCtx.destination);
+    s.start();
+  } catch {}
+}
+
+document.getElementById('sound-btn').addEventListener('click', () => {
+  audioEnabled = !audioEnabled;
+  document.getElementById('sound-btn').textContent = audioEnabled ? '♪' : '🔇';
+  if (audioEnabled) { playMusic(); playSFX('ui'); } else stopMusic();
+});
+
+// ============ Game State ============
+let gameState = 'start';
+let currentPlanetIdx = 0;
+let hopCount = 0;
+const bunnyVel = new THREE.Vector3(0, 0, 0);
+let isThrusting = false;
+let thrustSoundPlayed = false;
+const aimDir = new THREE.Vector3(0, 0, -1);
+let landingFlashTimer = 0;
+
+// ============ Input ============
+function setAim(cx, cy) {
+  const rect = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((cx - rect.left) / rect.width) * 2 - 1,
+    -((cy - rect.top) / rect.height) * 2 + 1
+  );
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(ndc, camera);
+  aimDir.copy(rc.ray.direction).normalize();
+}
+
+canvas.addEventListener('mousemove', e => setAim(e.clientX, e.clientY));
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if (e.touches[0]) setAim(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+
+function beginThrust() {
+  if (gameState === 'start') { doStart(); return; }
+  if (gameState === 'debrief') { doRestart(); return; }
+  isThrusting = true;
+  thrustSoundPlayed = false;
+}
+
+function endThrust() {
+  isThrusting = false;
+  thrustSoundPlayed = false;
+}
+
+canvas.addEventListener('mousedown', beginThrust);
+canvas.addEventListener('mouseup', endThrust);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); beginThrust(); }, { passive: false });
+canvas.addEventListener('touchend', e => { e.preventDefault(); endThrust(); }, { passive: false });
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); beginThrust(); }
+  if (e.code === 'KeyR' && gameState === 'debrief') doRestart();
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') endThrust();
+});
+
+// ============ Game Flow ============
+function doStart() {
+  if (!audioCtx) initAudio();
+  gameState = 'playing';
+  currentPlanetIdx = 0;
+  hopCount = 0;
+  bunnyGroup.position.set(PLANETS[0].pos[0], PLANETS[0].pos[1] + PLANETS[0].radius + 1.5, PLANETS[0].pos[2]);
+  bunnyVel.set(0, 0, 0);
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  ['hud', 'thrust-bar', 'speed-display', 'sound-btn'].forEach(id => document.getElementById(id).classList.add('active'));
+  document.getElementById('hint').textContent = 'Hold SPACE or click to thrust toward next planet';
+  updateHUD();
+}
+
+function doRestart() {
+  doStart();
+  playSFX('ui');
+}
+
+function landOn(idx) {
+  const spec = PLANETS[idx];
+  if (spec.isGoal) {
+    gameState = 'debrief';
+    stopMusic();
+    playSFX('payoff', 0.6);
+    setTimeout(() => playSFX('orbit', 0.5), 400);
+    ['hud', 'thrust-bar', 'speed-display'].forEach(id => document.getElementById(id).classList.remove('active'));
+    document.getElementById('hint').textContent = '';
+    document.getElementById('hop-count').textContent = hopCount;
+    document.getElementById('debrief-screen').classList.add('active');
+    // Flash effect
+    const flash = document.getElementById('landing-flash');
+    flash.style.opacity = '0.4';
+    setTimeout(() => flash.style.opacity = '0', 300);
+    return;
+  }
+
+  planetMeshes[idx].landed = true;
+  hopCount++;
+  currentPlanetIdx = idx;
+
+  playSFX('landing');
+  setTimeout(() => playSFX('orbit'), 250);
+  playSFX('bunnyHop');
+
+  // Landing flash
+  landingFlashTimer = 0.25;
+
+  // Reset velocity
+  bunnyVel.multiplyScalar(0.08);
+  const p = PLANETS[idx];
+  bunnyGroup.position.set(p.pos[0], p.pos[1] + p.radius + 1.5, p.pos[2]);
+
+  updateHUD();
+}
+
+function updateHUD() {
+  const cur = PLANETS[currentPlanetIdx];
+  const nxt = currentPlanetIdx + 1 < PLANETS.length ? PLANETS[currentPlanetIdx + 1] : null;
+  document.getElementById('planet-name').textContent = cur.name;
+  document.getElementById('planet-info').textContent = nxt ? `Next: ${nxt.name}` : '🥕 Carrot Moon!';
+}
+
+// ============ Direction Indicator ============
+const indicatorGeo = new THREE.ConeGeometry(0.35, 0.9, 8);
+const indicatorMat = new THREE.MeshBasicMaterial({ color: 0x5ce6a8, transparent: true, opacity: 0.6 });
+const indicator = new THREE.Mesh(indicatorGeo, indicatorMat);
+indicator.rotation.x = Math.PI / 2;
+scene.add(indicator);
+
+// ============ Update Loop ============
+const clock = new THREE.Clock();
+
+function update(dt) {
+  if (gameState !== 'playing') return;
+
+  // Thrust
+  if (isThrusting) {
+    bunnyVel.addScaledVector(aimDir, THRUST_ACCEL * dt);
+    if (bunnyVel.length() > MAX_SPEED) bunnyVel.normalize().multiplyScalar(MAX_SPEED);
+
+    flame.scale.setScalar(0.7 + Math.random() * 0.5);
+    flameMat.opacity = 0.5 + Math.random() * 0.3;
+    flameMat.color.setHex(0x5ce6a8);
+
+    // Spawn thrust particles
+    const wp = bunnyGroup.position.clone();
+    spawnParticle(wp);
+    if (Math.random() < 0.5) spawnParticle(wp);
+
+    if (!thrustSoundPlayed) { playSFX('thrust'); thrustSoundPlayed = true; }
+  } else {
+    flameMat.opacity *= 0.88;
+    flame.scale.setScalar(0.2);
+  }
+
+  // Drag
+  bunnyVel.multiplyScalar(1.0 - DRIFT_DRAG);
+
+  // Gravity toward next planet
+  const nextIdx = currentPlanetIdx + 1;
+  if (nextIdx < PLANETS.length) {
+    const ns = PLANETS[nextIdx];
+    const target = new THREE.Vector3(ns.pos[0], ns.pos[1], ns.pos[2]);
+    const toT = new THREE.Vector3().subVectors(target, bunnyGroup.position);
+    const dist = toT.length();
+
+    if (dist > 1.0) {
+      const grav = GRAVITY_PULL / (dist * 0.25);
+      toT.normalize().multiplyScalar(Math.min(grav, 3.0) * dt);
+      bunnyVel.add(toT);
+    }
+
+    // Landing check
+    const landR = ns.radius + 2.0;
+    if (dist < landR) {
+      if (bunnyVel.length() < LANDING_SPEED_MAX * 1.5 || dist < ns.radius + 0.8) {
+        landOn(nextIdx);
+      }
+    }
+
+    // Indicator
+    indicator.position.copy(target);
+    indicator.position.y += 3.0 + Math.sin(performance.now() * 0.003) * 0.5;
+    indicator.lookAt(bunnyGroup.position);
+    indicatorMat.opacity = 0.35 + Math.sin(performance.now() * 0.004) * 0.15;
+
+    updateHUD();
+  }
+
+  // Apply velocity
+  bunnyGroup.position.addScaledVector(bunnyVel, dt);
+
+  // Face velocity direction
+  if (bunnyVel.length() > 0.05) {
+    const look = bunnyGroup.position.clone().add(bunnyVel);
+    const m = new THREE.Matrix4().lookAt(bunnyGroup.position, look, new THREE.Vector3(0, 1, 0));
+    const q = new THREE.Quaternion().setFromRotationMatrix(m);
+    bunnyGroup.quaternion.slerp(q, 0.07);
+  }
+
+  // Idle bob
+  const t = performance.now() * 0.001;
+  bunnyGroup.position.y += Math.sin(t * 1.8) * 0.004;
+
+  // Thrust bar
+  const speed = bunnyVel.length();
+  document.getElementById('thrust-fill').style.width = Math.min(speed / MAX_SPEED * 100, 100) + '%';
+  document.getElementById('speed-display').textContent = `Speed: ${speed.toFixed(1)} m/s`;
+
+  // Landing flash
+  if (landingFlashTimer > 0) {
+    landingFlashTimer -= dt;
+    const flash = document.getElementById('landing-flash');
+    flash.style.opacity = String(Math.max(0, landingFlashTimer * 1.5));
+  }
+
+  // Particles
+  updateParticles(dt);
+}
+
+function updateCamera(dt) {
+  const target = bunnyGroup.position.clone();
+  target.y += 7;
+  target.z += 16;
+  camera.position.lerp(target, 0.035);
+  camera.lookAt(bunnyGroup.position.clone().add(new THREE.Vector3(0, 0.5, -5)));
+}
+
+// Planet slow rotation
+function updatePlanets(t) {
+  planetMeshes.forEach((pm, i) => {
+    pm.mesh.rotation.y = t * 0.04 * (i % 2 === 0 ? 1 : -0.8);
+  });
+}
+
+// ============ Render Loop ============
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  updateCamera(dt);
+  updatePlanets(clock.elapsedTime);
+  renderer.render(scene, camera);
+}
+
+// ============ Resize ============
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============ Boot ============
+document.getElementById('start-btn').addEventListener('click', doStart);
+document.getElementById('restart-btn').addEventListener('click', doRestart);
+
+camera.position.set(0, 10, 22);
+camera.lookAt(0, 0, -10);
+animate();
+
+// Verification hook
+window.__FACTORYX_BUNNY_ORBIT = {
+  getState: () => ({ gameState, currentPlanetIdx, hopCount, velocity: bunnyVel.length() }),
+  doStart, doRestart
+};
+
+console.log('[Bunny Orbit] Ready — hold SPACE or click to thrust');
+</script>
+</body>
+</html>
